@@ -605,7 +605,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             }
         }
 
-        // Emitir evento con las fees recogidas
+        // Emit an event with the collected fees
         emit FeesCollected(tokenId, collected0, collected1);
 
         if (send) {
@@ -614,35 +614,41 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             uint256 userTax0 = totalCollected0 - companyTax0;
             uint256 userTax1 = totalCollected1 - companyTax1;
 
-            if (userTax0 > 0) {
-                if (!token0.approve(address(_oracleSwap()), userTax0)) {
+            if (totalCollected0 > 0) {
+                if (!token0.approve(address(_oracleSwap()), totalCollected0)) {
                     revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
                 }
             }
-            if (userTax1 > 0) {
-                if (!token1.approve(address(_oracleSwap()), userTax1)) {
+            if (totalCollected1 > 0) {
+                if (!token1.approve(address(_oracleSwap()), totalCollected1)) {
                     revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
                 }
             }
+
+            // User part
             if (userTax0 > 0 || userTax1 > 0) {
-                _oracleSwap().convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
+                _oracleSwap().convertToMainTokenAndSend(
+                    user,
+                    userTax0,
+                    userTax1,
+                    token0Address,
+                    token1Address,
+                    fee
+                );
             }
 
-            if (companyTax0 > 0) {
-                if (!token0.approve(address(_oracleSwap()), companyTax0)) {
-                    revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
-                }
-            }
-            if (companyTax1 > 0) {
-                if (!token1.approve(address(_oracleSwap()), companyTax1)) {
-                    revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
-                }
-            }
-
+            // Company part
             if (companyTax0 > 0 || companyTax1 > 0) {
                 companyFees = _oracleSwap().convertToMainTokenAndSend(
-                    address(_vaultManager()), companyTax0, companyTax1, token0Address, token1Address, fee
+                    address(_vaultManager()),
+                    companyTax0,
+                    companyTax1,
+                    token0Address,
+                    token1Address,
+                    fee
                 );
+
+
             }else {
                 companyFees = 0;
             }
