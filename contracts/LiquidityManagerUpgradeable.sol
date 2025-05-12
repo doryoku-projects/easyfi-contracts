@@ -1,0 +1,688 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+import "./UserAccessControl.sol";
+import "./errors/LiquidityManagerErrors.sol";
+
+import "./interfaces/INonfungiblePositionManager.sol";
+import "./interfaces/IOracleSwapUpgradeable.sol";
+import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./interfaces/ILiquidityHelperUpgradeable.sol";
+
+/**
+ * @title LiquidityManagerUpgradeable
+ * @notice This contract is responsible of managing liquidity positions in Uniswap v3
+ * and interacting with the OracleSwap and LiquidityHelper contracts.
+ */
+contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerErrors {
+    IProtocolConfigUpgradeable private s_config;
+
+    bytes32 private constant NFPM_KEY = keccak256("NFTPositionMgr");
+    bytes32 private constant LIQ_HELPER_KEY = keccak256("LiquidityHelper");
+    bytes32 private constant ORACLE_SWAP_KEY = keccak256("OracleSwap");
+    bytes32 private constant VAULT_KEY = keccak256("VaultManager");
+    bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
+    bytes32 private constant BP_KEY = keccak256("BP");
+
+    event positionMinted(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event liquidityAdded(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event amountsDesired(uint256 amount0Desired, uint256 amount1Desired);
+    event LiquidityRemoved(uint256 indexed tokenId, uint256 amountMainToken, uint256 amount0, uint256 amount1);
+    event FeesCollected(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event PositionMigrated(
+        uint256 indexed oldTokenId, uint256 indexed newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1
+    );
+    event PositionBurned(uint256 indexed tokenId);
+
+    function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        s_userManagerAddress = _userManagerAddress;
+        s_userManager = IUserManagerUpgradeable(_userManagerAddress);
+        s_config = IProtocolConfigUpgradeable(_protocolConfig);
+    }
+
+    /**
+     * @dev Required function for UUPS upgradeable contracts to authorize upgrades.
+     * @param newImplementation Address of the new implementation contract.
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyMasterAdmin {}
+
+    /**
+     * @notice Set the address of the new ProtocolConfig contract.
+     * @param _newProtocolConfig Address of the new ProtocolConfig contract.
+     */
+    function setProtocolConfigAddress(address _newProtocolConfig) public onlyMasterAdmin returns (bool) {
+        if (_newProtocolConfig == address(0)) revert LM_ZERO_ADDRESS();
+        if (_newProtocolConfig == address(s_config)) {
+            revert LM_ADDRESS_UNCHANGED();
+        }
+
+        s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        return true;
+    }
+
+    /**
+     * @notice Set the address of the new UserManager.
+     * @param _newUserManagerAddress Address of the new UserManager.
+     */
+    function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
+        if (_newUserManagerAddress == address(0)) revert LM_ZERO_ADDRESS();
+        if (_newUserManagerAddress == s_userManagerAddress) {
+            revert LM_ADDRESS_UNCHANGED();
+        }
+
+        s_userManagerAddress = _newUserManagerAddress;
+        s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        return true;
+    }
+
+    /**
+     * @dev Fetch Nonfungible Position Manager instance from central config.
+     */
+    function _nfpm() internal view returns (INonfungiblePositionManager) {
+        return INonfungiblePositionManager(s_config.getAddress(NFPM_KEY));
+    }
+
+    /**
+     * @dev Fetch liquidity helper instance from central config.
+     */
+    function _liquidityHelper() internal view returns (ILiquidityHelperUpgradeable) {
+        return ILiquidityHelperUpgradeable(s_config.getAddress(LIQ_HELPER_KEY));
+    }
+
+    /**
+     * @dev Fetch oracle swap instance from central config.
+     */
+    function _oracleSwap() internal view returns (IOracleSwapUpgradeable) {
+        return IOracleSwapUpgradeable(s_config.getAddress(ORACLE_SWAP_KEY));
+    }
+
+    /**
+     * @dev Fetch main token instance from central config.
+     */
+    function _mainToken() internal view returns (IERC20) {
+        return IERC20(s_config.getAddress(MAIN_TOKEN_KEY));
+    }
+
+    /**
+     * @dev Fetch vault manager instance from central config.
+     */
+    function _vaultManager() internal view returns (address) {
+        return s_config.getAddress(VAULT_KEY);
+    }
+
+    /**
+     * @dev Basic points(BP) instance from central config.
+     */
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
+    }
+
+    /**
+     * @notice Retrieve detailed data for a given position.
+     * @param _tokenId ID of the position.
+     * @return nonce Position nonce.
+     * @return operator Approved operator for the position.
+     * @return token0Addr Address of token0.
+     * @return token1Addr Address of token1.
+     * @return fee Fee tier of the position.
+     * @return tickLower Lower tick boundary of the position.
+     * @return tickUpper Upper tick boundary of the position.
+     * @return liquidity Current liquidity of the position.
+     * @return feeGrowthInside0LastX128 Last recorded fee growth for token0.
+     * @return feeGrowthInside1LastX128 Last recorded fee growth for token1.
+     * @return tokensOwed0 Outstanding token0 fees owed.
+     * @return tokensOwed1 Outstanding token1 fees owed.
+     */
+    function getPositionData(uint256 _tokenId)
+        external
+        view
+        onlyLiquidityManager
+        returns (
+            uint96 nonce,
+            address operator,
+            address token0Addr,
+            address token1Addr,
+            uint24 fee,
+            int24 tickLower,
+            int24 tickUpper,
+            uint128 liquidity,
+            uint256 feeGrowthInside0LastX128,
+            uint256 feeGrowthInside1LastX128,
+            uint128 tokensOwed0,
+            uint128 tokensOwed1
+        )
+    {
+        if (_tokenId == 0) revert LM_NO_ACTIVE_POSITION();
+
+        (
+            nonce,
+            operator,
+            token0Addr,
+            token1Addr,
+            fee,
+            tickLower,
+            tickUpper,
+            liquidity,
+            feeGrowthInside0LastX128,
+            feeGrowthInside1LastX128,
+            tokensOwed0,
+            tokensOwed1
+        ) = _nfpm().positions(_tokenId);
+    }
+
+    /**
+     * @dev Internal helper that handles the leftover logic common to both mintPosition and increaseLiquidityPosition.
+     *
+     * @param tokenId         ID of the liquidity position.
+     * @param token0Address   Address of token0.
+     * @param token1Address   Address of token1.
+     * @param token0ERC       IERC20 instance for token0.
+     * @param token1ERC       IERC20 instance for token1.
+     * @param amount0Desired  The desired amount for token0 (before mint/increase).
+     * @param amount1Desired  The desired amount for token1.
+     * @param usedAmount0     The amount of token0 actually used.
+     * @param usedAmount1     The amount of token1 actually used.
+     * @param user            The user address.
+     * @param fee             The fee parameter for the pool.
+     * @return extraUsed0     Extra token0 amount that was actually used for liquidity.
+     * @return extraUsed1     Extra token1 amount that was actually used for liquidity.
+     */
+    function _handleLeftoverLogic(
+        uint256 tokenId,
+        address token0Address,
+        address token1Address,
+        IERC20 token0ERC,
+        IERC20 token1ERC,
+        uint256 amount0Desired,
+        uint256 amount1Desired,
+        uint256 usedAmount0,
+        uint256 usedAmount1,
+        address user,
+        uint24 fee
+    ) internal returns (uint256 extraUsed0, uint256 extraUsed1) {
+        uint256 leftoverAmount0 = amount0Desired - usedAmount0;
+        uint256 leftoverAmount1 = amount1Desired - usedAmount1;
+
+        if (leftoverAmount0 > 0) {
+            if (!token0ERC.approve(address(_liquidityHelper()), leftoverAmount0)) {
+                revert LM_APPROVE_HELPER_TOKEN0_FAILED();
+            }
+        }
+        if (leftoverAmount1 > 0) {
+            if (!token1ERC.approve(address(_liquidityHelper()), leftoverAmount1)) {
+                revert LM_APPROVE_HELPER_TOKEN1_FAILED();
+            }
+        }
+
+        (uint256 extraUsed0Local, uint256 extraUsed1Local, uint256 returnToken0, uint256 returnToken1) =
+        _liquidityHelper().handleLeftovers(
+            tokenId, leftoverAmount0, amount0Desired, usedAmount0, leftoverAmount1, amount1Desired, usedAmount1
+        );
+
+        if (returnToken0 > 0) {
+            if (!token0ERC.transferFrom(address(_liquidityHelper()), address(this), returnToken0)) {
+                revert LM_TRANSFER_FROM_HELPER_TOKEN0_FAILED();
+            }
+
+            if (!token0ERC.approve(address(_oracleSwap()), returnToken0)) {
+                revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
+            }
+        }
+        if (returnToken1 > 0) {
+            if (!token1ERC.transferFrom(address(_liquidityHelper()), address(this), returnToken1)) {
+                revert LM_TRANSFER_FROM_HELPER_TOKEN1_FAILED();
+            }
+
+            if (!token1ERC.approve(address(_oracleSwap()), returnToken1)) {
+                revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
+            }
+        }
+
+        if (returnToken0 > 0 || returnToken1 > 0) {
+            _oracleSwap().convertToMainTokenAndSend(user, returnToken0, returnToken1, token0Address, token1Address, fee);
+        }
+
+        extraUsed0 = extraUsed0Local;
+        extraUsed1 = extraUsed1Local;
+        return (extraUsed0, extraUsed1);
+    }
+
+    /**
+     * @notice Mint a new Uniswap V3 position with up to 1% slippage and transfer it to the vault.
+     * @param token0 Address of token0 in the pool.
+     * @param token1 Address of token1 in the pool.
+     * @param fee Fee tier of the pool.
+     * @param tickLower Lower tick boundary for the position.
+     * @param tickUpper Upper tick boundary for the position.
+     * @param amountDesired Desired amount of the main token to allocate.
+     * @param user Address to which any converted liquidity or fees should be sent.
+     * @param isVault Whether the call is initiated by the vault (true) or an external sender (false).
+     * @return tokenID ID of the minted position NFT.
+     * @return mintedAmount0 Amount of token0 actually deposited.
+     * @return mintedAmount1 Amount of token1 actually deposited.
+     */
+    function mintPosition(
+        address token0,
+        address token1,
+        uint24 fee,
+        int24 tickLower,
+        int24 tickUpper,
+        uint256 amountDesired,
+        address user,
+        bool isVault
+    )
+        public
+        onlyLiquidityManager
+        notEmergency
+        returns (uint256 tokenID, uint256 mintedAmount0, uint256 mintedAmount1)
+    {
+        if (isVault) {
+            if (!_mainToken().transferFrom(address(_vaultManager()), address(this), amountDesired)) {
+                revert LM_TRANSFER_FROM_VAULT_FAILED();
+            }
+        }
+        if (_mainToken().balanceOf(address(this)) < amountDesired) {
+            revert LM_INSUFFICIENT_BALANCE();
+        }
+
+        if (!_mainToken().approve(address(_oracleSwap()), amountDesired)) {
+            revert LM_APPROVE_ORACLESWAP_FAILED();
+        }
+
+        (uint256 amount0Desired, uint256 amount1Desired) =
+            _oracleSwap().getBalancedAmounts(token0, token1, amountDesired, fee);
+
+        IERC20 token0ERC = IERC20(token0);
+        IERC20 token1ERC = IERC20(token1);
+
+        if (!token0ERC.transferFrom(address(_oracleSwap()), address(this), amount0Desired)) {
+            revert LM_TRANSFER_FROM_ORACLE_TOKEN0_FAILED();
+        }
+
+        if (!token1ERC.transferFrom(address(_oracleSwap()), address(this), amount1Desired)) {
+            revert LM_TRANSFER_FROM_ORACLE_TOKEN1_FAILED();
+        }
+
+        emit amountsDesired(amount0Desired, amount1Desired);
+
+        uint128 liquidityAmount = _oracleSwap().getLiquidityFromAmounts(
+            token0, token1, fee, tickLower, tickUpper, amount0Desired, amount1Desired
+        );
+
+        (uint256 amount0Min, uint256 amount1Min) =
+            _oracleSwap().getAmountsFromLiquidity(token0, token1, fee, tickLower, tickUpper, liquidityAmount);
+
+        if (!token0ERC.approve(address(_nfpm()), amount0Desired)) {
+            revert LM_APPROVE_NFPMGR_TOKEN0_FAILED();
+        }
+
+        if (!token1ERC.approve(address(_nfpm()), amount1Desired)) {
+            revert LM_APPROVE_NFPMGR_TOKEN1_FAILED();
+        }
+
+        INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
+            token0: token0,
+            token1: token1,
+            fee: fee,
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            amount0Desired: amount0Desired,
+            amount1Desired: amount1Desired,
+            amount0Min: amount0Min,
+            amount1Min: amount1Min,
+            recipient: address(this),
+            deadline: block.timestamp
+        });
+
+        (uint256 tokenId,, uint256 usedAmount0, uint256 usedAmount1) = _nfpm().mint(params);
+
+        _nfpm().approve(address(_liquidityHelper()), tokenId);
+
+        uint256 extraUsed0;
+        uint256 extraUsed1;
+
+        if (amount0Desired > usedAmount0 || amount1Desired > usedAmount1) {
+            (extraUsed0, extraUsed1) = _handleLeftoverLogic(
+                tokenId,
+                token0,
+                token1,
+                token0ERC,
+                token1ERC,
+                amount0Desired,
+                amount1Desired,
+                usedAmount0,
+                usedAmount1,
+                user,
+                fee
+            );
+        }
+
+        mintedAmount0 = usedAmount0 + extraUsed0;
+        mintedAmount1 = usedAmount1 + extraUsed1;
+
+        if (IERC721(address(_nfpm())).ownerOf(tokenId) != address(this)) {
+            revert LM_NOT_NFT_OWNER();
+        }
+
+        _nfpm().approve(address(0), tokenId);
+
+        _nfpm().safeTransferFrom(address(this), address(_vaultManager()), tokenId);
+
+        tokenID = tokenId;
+        emit positionMinted(tokenId, mintedAmount0, mintedAmount1);
+    }
+
+    /**
+     * @notice Add additional liquidity to an existing position.
+     * @param tokenId ID of the position NFT.
+     * @param amountDesired Desired amount of the main token to add.
+     * @param user Address to which any converted liquidity or fees should be sent.
+     * @return increasedAmount0 Amount of token0 added.
+     * @return increasedAmount1 Amount of token1 added.
+     */
+    function increaseLiquidityPosition(uint256 tokenId, uint256 amountDesired, address user)
+        external
+        onlyLiquidityManager
+        notEmergency
+        returns (uint256 increasedAmount0, uint256 increasedAmount1)
+    {
+        if (!_mainToken().transferFrom(address(_vaultManager()), address(this), amountDesired)) {
+            revert LM_TRANSFER_FROM_VAULT_FAILED();
+        }
+        if (_mainToken().balanceOf(address(this)) < amountDesired) {
+            revert LM_INSUFFICIENT_BALANCE();
+        }
+        if (!_mainToken().approve(address(_oracleSwap()), amountDesired)) {
+            revert LM_APPROVE_ORACLESWAP_FAILED();
+        }
+
+        (,, address token0Address, address token1Address, uint24 fee, int24 tickLower, int24 tickUpper,,,,,) =
+            _nfpm().positions(tokenId);
+
+        IERC20 token0ERC = IERC20(token0Address);
+        IERC20 token1ERC = IERC20(token1Address);
+
+        (uint256 amount0Desired, uint256 amount1Desired) =
+            _oracleSwap().getBalancedAmounts(token0Address, token1Address, amountDesired, fee);
+
+        if (!token0ERC.transferFrom(address(_oracleSwap()), address(this), amount0Desired)) {
+            revert LM_TRANSFER_FROM_ORACLE_TOKEN0_FAILED();
+        }
+
+        if (!token1ERC.transferFrom(address(_oracleSwap()), address(this), amount1Desired)) {
+            revert LM_TRANSFER_FROM_ORACLE_TOKEN1_FAILED();
+        }
+
+        uint128 liquidityAmount = _oracleSwap().getLiquidityFromAmounts(
+            token0Address, token1Address, fee, tickLower, tickUpper, amount0Desired, amount1Desired
+        );
+
+        (uint256 amount0Min, uint256 amount1Min) = _oracleSwap().getAmountsFromLiquidity(
+            token0Address, token1Address, fee, tickLower, tickUpper, liquidityAmount
+        );
+
+        if (!token0ERC.approve(address(_nfpm()), amount0Desired)) {
+            revert LM_APPROVE_NFPMGR_TOKEN0_FAILED();
+        }
+
+        if (!token1ERC.approve(address(_nfpm()), amount1Desired)) {
+            revert LM_APPROVE_NFPMGR_TOKEN1_FAILED();
+        }
+
+        INonfungiblePositionManager.IncreaseLiquidityParams memory params = INonfungiblePositionManager
+            .IncreaseLiquidityParams({
+            tokenId: tokenId,
+            amount0Desired: amount0Desired,
+            amount1Desired: amount1Desired,
+            amount0Min: amount0Min,
+            amount1Min: amount1Min,
+            deadline: block.timestamp
+        });
+
+        (, uint256 _increasedAmount0, uint256 _increasedAmount1) = _nfpm().increaseLiquidity(params);
+
+        uint256 extraUsed0;
+        uint256 extraUsed1;
+
+        if (amount0Desired > _increasedAmount0 || amount1Desired > _increasedAmount1) {
+            (extraUsed0, extraUsed1) = _handleLeftoverLogic(
+                tokenId,
+                token0Address,
+                token1Address,
+                token0ERC,
+                token1ERC,
+                amount0Desired,
+                amount1Desired,
+                _increasedAmount0,
+                _increasedAmount1,
+                user,
+                fee
+            );
+        }
+
+        increasedAmount0 = _increasedAmount0 + extraUsed0;
+        increasedAmount1 = _increasedAmount1 + extraUsed1;
+
+        emit liquidityAdded(tokenId, increasedAmount0, increasedAmount1);
+    }
+
+    /**
+     * @notice Remove or withdraw a percentage of liquidity from a position.
+     * @param tokenId ID of the position NFT.
+     * @param percentageToRemove Percentage of liquidity to remove (basis points, e.g. 5000 = 50%).
+     * @param user Address to which any converted main token should be sent.
+     * @param migrate Whether to migrate remaining position into a new one (true) or simply withdraw (false).
+     * @return collectedMainToken Amount of main token received after conversion.
+     */
+    function decreaseLiquidityPosition(uint256 tokenId, uint128 percentageToRemove, address user, bool migrate)
+        public
+        onlyLiquidityManager
+        notEmergency
+        returns (uint256 collectedMainToken)
+    {
+        (
+            ,
+            ,
+            address token0Address,
+            address token1Address,
+            uint24 fee,
+            int24 tickLower,
+            int24 tickUpper,
+            uint128 liquidity,
+            ,
+            ,
+            ,
+        ) = _nfpm().positions(tokenId);
+
+        if (percentageToRemove > _BP()) revert LM_PERCENTAGE_TOO_HIGH();
+        if (liquidity == 0) revert LM_NO_LIQUIDITY();
+
+        uint128 liquidityToRemove = (percentageToRemove * liquidity) / uint128(_BP());
+
+        (uint256 amount0Min, uint256 amount1Min) = _oracleSwap().getAmountsFromLiquidity(
+            token0Address, token1Address, fee, tickLower, tickUpper, liquidityToRemove
+        );
+
+        INonfungiblePositionManager.DecreaseLiquidityParams memory params = INonfungiblePositionManager
+            .DecreaseLiquidityParams({
+            tokenId: tokenId,
+            liquidity: liquidityToRemove,
+            amount0Min: amount0Min,
+            amount1Min: amount1Min,
+            deadline: block.timestamp
+        });
+
+        (uint256 amount0, uint256 amount1) = _nfpm().decreaseLiquidity(params);
+
+        INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
+            tokenId: tokenId,
+            recipient: address(this),
+            amount0Max: type(uint128).max,
+            amount1Max: type(uint128).max
+        });
+
+        (uint256 collected0, uint256 collected1) = _nfpm().collect(collectParams);
+
+        if (IERC20(token0Address).balanceOf(address(this)) < collected0) {
+            revert LM_INSUFFICIENT_TOKEN0_BALANCE();
+        }
+        if (IERC20(token1Address).balanceOf(address(this)) < collected1) {
+            revert LM_INSUFFICIENT_TOKEN1_BALANCE();
+        }
+
+        if (!IERC20(token0Address).approve(address(_oracleSwap()), collected0)) {
+            revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
+        }
+
+        if (!IERC20(token1Address).approve(address(_oracleSwap()), collected1)) {
+            revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
+        }
+
+        if (!migrate) {
+            collectedMainToken =
+                _oracleSwap().convertToMainTokenAndSend(user, collected0, collected1, token0Address, token1Address, fee);
+        } else {
+            collectedMainToken = _oracleSwap().convertToMainTokenAndSend(
+                address(this), collected0, collected1, token0Address, token1Address, fee
+            );
+        }
+
+        emit LiquidityRemoved(tokenId, collectedMainToken, amount0, amount1);
+
+        if (percentageToRemove == _BP()) {
+            _nfpm().burn(tokenId);
+            emit PositionBurned(tokenId);
+        }
+    }
+
+    /**
+     * @notice Collect accumulated fees for a given position.
+     * @param tokenId ID of the position NFT.
+     * @param user Address to which user’s share of fees should be sent.
+     * @param previousCollected0 Amount of token0 fees previously collected.
+     * @param previousCollected1 Amount of token1 fees previously collected.
+     * @param companyTax Basis point percentage of fees to allocate to the company.
+     * @param send If true, fees are converted and sent; if false, fees are approved back to the vault.
+     * @return collected0 Newly collected token0 fees.
+     * @return collected1 Newly collected token1 fees.
+     * @return companyFees Amount of fees in main token allocated to the company.
+     */
+    function collectFeesFromPosition(
+        uint256 tokenId,
+        address user,
+        uint256 previousCollected0,
+        uint256 previousCollected1,
+        uint256 companyTax,
+        bool send
+    ) public onlyLiquidityManager notEmergency returns (uint256 collected0, uint256 collected1, uint256 companyFees) {
+        (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
+
+        IERC20 token0 = IERC20(token0Address);
+        IERC20 token1 = IERC20(token1Address);
+
+        INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
+            tokenId: tokenId,
+            recipient: address(this),
+            amount0Max: type(uint128).max,
+            amount1Max: type(uint128).max
+        });
+
+        (collected0, collected1) = _nfpm().collect(collectParams);
+        uint256 totalCollected0 = collected0 + previousCollected0;
+        uint256 totalCollected1 = collected1 + previousCollected1;
+
+        if (previousCollected0 > 0) {
+            if (!token0.transferFrom(address(_vaultManager()), address(this), previousCollected0)) {
+                revert LM_PREV_FEES_TRANSFER0_FAILED();
+            }
+        }
+
+        if (previousCollected1 > 0) {
+            if (!token1.transferFrom(address(_vaultManager()), address(this), previousCollected1)) {
+                revert LM_PREV_FEES_TRANSFER1_FAILED();
+            }
+        }
+
+        // Emitir evento con las fees recogidas
+        emit FeesCollected(tokenId, collected0, collected1);
+
+        if (send) {
+            uint256 companyTax0 = (totalCollected0 * companyTax) / _BP();
+            uint256 companyTax1 = (totalCollected1 * companyTax) / _BP();
+            uint256 userTax0 = totalCollected0 - companyTax0;
+            uint256 userTax1 = totalCollected1 - companyTax1;
+
+            if (userTax0 > 0) {
+                if (!token0.approve(address(_oracleSwap()), userTax0)) {
+                    revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
+                }
+            }
+            if (userTax1 > 0) {
+                if (!token1.approve(address(_oracleSwap()), userTax1)) {
+                    revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
+                }
+            }
+            if (userTax0 > 0 || userTax1 > 0) {
+                _oracleSwap().convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
+            }
+
+            if (companyTax0 > 0) {
+                if (!token0.approve(address(_oracleSwap()), companyTax0)) {
+                    revert LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
+                }
+            }
+            if (companyTax1 > 0) {
+                if (!token1.approve(address(_oracleSwap()), companyTax1)) {
+                    revert LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
+                }
+            }
+
+            if (companyTax0 > 0 || companyTax1 > 0) {
+                companyFees = _oracleSwap().convertToMainTokenAndSend(
+                    address(_vaultManager()), companyTax0, companyTax1, token0Address, token1Address, fee
+                );
+            }else {
+                companyFees = 0;
+            }
+
+        } else {
+            if (!token0.approve(address(_vaultManager()), collected0)) {
+                revert LM_APPROVE_VAULT_TOKEN0_FAILED();
+            }
+            if (!token1.approve(address(_vaultManager()), collected1)) {
+                revert LM_APPROVE_VAULT_TOKEN1_FAILED();
+            }
+            companyFees = 0;
+        }
+    }
+
+    /**
+     * @notice Move the tick range of an existing position in a single call.
+     * @param manager Address of the position manager.
+     * @param tokenId ID of the existing position NFT.
+     * @param tickLower New lower tick boundary.
+     * @param tickUpper New upper tick boundary.
+     * @return newTokenId ID of the newly minted position NFT.
+     * @return cumulatedFee0 Total token0 fees collected prior to migration.
+     * @return cumulatedFee1 Total token1 fees collected prior to migration.
+     */
+    function moveRangeOfPosition(address manager, uint256 tokenId, int24 tickLower, int24 tickUpper)
+        external
+        onlyLiquidityManager
+        notEmergency
+        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1)
+    {
+        (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
+
+        (cumulatedFee0, cumulatedFee1,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
+
+        uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
+
+        (newTokenId,,) =
+            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, manager, false);
+
+        emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
+    }
+}

@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.30;
+
+import "./UserAccessControl.sol";
+import "./errors/ProtocolConfigErrors.sol";
+
+/**
+ * @title ProtocolConfigUpgradeable
+ * @notice Centralized storage for all protocol-wide addresses and numeric parameters.
+ */
+contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
+    mapping(bytes32 => address) private s_addresses;
+    mapping(bytes32 => uint256) private s_uints;
+
+    event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
+    event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
+
+    /**
+     * @notice Initialize all config entries in batch
+     * @param _userManager Address of the UserManager (handles role checks)
+     * @param addressKeys Keys for address-type config entries
+     * @param addressValues Corresponding address values
+     * @param uintKeys Keys for uint-type config entries
+     * @param uintValues Corresponding uint256 values
+     */
+    function initialize(
+        address _userManager,
+        bytes32[] calldata addressKeys,
+        address[] calldata addressValues,
+        bytes32[] calldata uintKeys,
+        uint256[] calldata uintValues
+    ) external initializer {
+        __UUPSUpgradeable_init();
+
+        s_userManager = IUserManagerUpgradeable(_userManager);
+        s_userManagerAddress = _userManager;
+
+        if (addressKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
+
+        for (uint256 i = 0; i < addressKeys.length; i++) {
+            _setAddress(addressKeys[i], addressValues[i]);
+        }
+
+        if (uintKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
+
+        for (uint256 i = 0; i < uintKeys.length; i++) {
+            _setUint(uintKeys[i], uintValues[i]);
+        }
+    }
+
+    function _authorizeUpgrade(address) internal override onlyMasterAdmin {}
+
+    function setAddress(bytes32 key, address newVal) external onlyGeneralOrMasterAdmin {
+        _setAddress(key, newVal);
+    }
+
+    function _setAddress(bytes32 key, address newVal) private {
+        if (newVal == address(0)) revert PC_ZERO_ADDRESS();
+        address old = s_addresses[key];
+        if (old == newVal) revert PC_ADDRESS_UNCHANGED();
+        s_addresses[key] = newVal;
+        emit ConfigAddressUpdated(key, old, newVal);
+    }
+
+    function setUint(bytes32 key, uint256 newVal) external onlyGeneralOrMasterAdmin {
+        _setUint(key, newVal);
+    }
+
+    function _setUint(bytes32 key, uint256 newVal) private {
+        if (newVal == 0) revert PC_INVALID_UINT();
+        uint256 old = s_uints[key];
+        if (old == newVal) revert PC_UINT_UNCHANGED();
+        s_uints[key] = newVal;
+        emit ConfigUintUpdated(key, old, newVal);
+    }
+
+    function getAddress(bytes32 key) external view onlyVaultOrLiquidityManager returns (address) {
+        address val = s_addresses[key];
+        if (val == address(0)) revert PC_ADDRESS_NOT_SET();
+        return val;
+    }
+
+    function getUint(bytes32 key) external view onlyVaultOrLiquidityManager returns (uint256) {
+        uint256 val = s_uints[key];
+        if (val == 0) revert PC_UINT_NOT_SET();
+        return val;
+    }
+}
