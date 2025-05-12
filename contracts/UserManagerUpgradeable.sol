@@ -90,6 +90,8 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     event MasterAdminRemoved(address indexed user);
     event VaultManagerAdded(address indexed user);
     event VaultManagerRemoved(address indexed user);
+    event ContractAdded(address indexed user);
+    event ContractRemoved(address indexed user);
     event User2FAAdded(address indexed user);
     event User2FARemoved(address indexed user);
     event EmergencyModeActivated(bool emergency);
@@ -376,6 +378,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     function addContracts(address[] calldata contracts) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
         for (uint256 index = 0; index < contracts.length; index++) {
             _grantRole(CONTRACT_ROLE, contracts[index]);
+            emit ContractAdded(contracts[index]);
         }
         return true;
     }
@@ -388,6 +391,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     function removeContracts(address[] calldata contracts) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
         for (uint256 index = 0; index < contracts.length; index++) {
             _revokeRole(CONTRACT_ROLE, contracts[index]);
+            emit ContractRemoved(contracts[index]);
         }
         return true;
     }
