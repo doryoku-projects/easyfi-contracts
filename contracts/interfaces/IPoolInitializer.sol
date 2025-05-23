@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.7.5;
+pragma solidity 0.8.30;
 pragma abicoder v2;
 
 /// @title Creates and initializes V3 Pools
@@ -13,10 +13,8 @@ interface IPoolInitializer {
     /// @param fee The fee amount of the v3 pool for the specified token pair
     /// @param sqrtPriceX96 The initial square root price of the pool as a Q64.96 value
     /// @return pool Returns the pool address based on the pair of tokens and fee, will return the newly created pool address if necessary
-    function createAndInitializePoolIfNecessary(
-        address token0,
-        address token1,
-        uint24 fee,
-        uint160 sqrtPriceX96
-    ) external payable returns (address pool);
+    function createAndInitializePoolIfNecessary(address token0, address token1, uint24 fee, uint160 sqrtPriceX96)
+        external
+        payable
+        returns (address pool);
 }

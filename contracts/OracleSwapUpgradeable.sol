@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
@@ -21,10 +22,13 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of swapping tokens using Uniswap V3 and managing token oracles.
  */
 contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
+    using SafeERC20 for IERC20;
+
     uint256 internal s_slippageNumerator;
 
     IProtocolConfigUpgradeable private s_config;
 
+    uint256 private constant PRECISION_FACTOR = 1e18;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
@@ -201,12 +205,20 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         uint256 parsedAnswerIn = uint256(answerIn);
         uint256 parsedAnswerOut = uint256(answerOut);
 
-        uint256 computedAmountOut = tokenInDecimals >= tokenOutDecimals
-            ? (((parsedAnswerIn * amountIn) / 10 ** decimalsDifference) / parsedAnswerOut)
-            : ((parsedAnswerIn * amountIn * 10 ** decimalsDifference) / parsedAnswerOut);
+        uint256 computedAmountOut;
+        if (tokenInDecimals >= tokenOutDecimals) {
+            computedAmountOut =
+                (parsedAnswerIn * amountIn * PRECISION_FACTOR) / (parsedAnswerOut * 10 ** decimalsDifference);
+            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
+        } else {
+            computedAmountOut =
+                (parsedAnswerIn * amountIn * 10 ** decimalsDifference * PRECISION_FACTOR) / parsedAnswerOut;
+            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
+        }
+
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
-        IERC20(tokenIn).approve(address(_swapRouter()), amountIn);
+        IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouter()), amountIn);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
@@ -305,13 +317,9 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         onlyLiquidityManager
         returns (uint256 amountToken0Desired, uint256 amountToken1Desired)
     {
-        if (!_mainToken().transferFrom(_liquidityManagerAddress(), address(this), amountDesired)) {
-            revert OS_TRANSFER_FROM_LM_FAILED();
-        }
-
-        if (_mainToken().balanceOf(address(this)) < amountDesired) {
-            revert OS_INSUFFICIENT_MAIN_BALANCE();
-        }
+        uint256 balanceBefore = _mainToken().balanceOf(address(this));
+        _mainToken().safeTransferFrom(_liquidityManagerAddress(), address(this), amountDesired);
+        uint256 actualReceived = _mainToken().balanceOf(address(this)) - balanceBefore;
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
@@ -319,7 +327,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         bool isToken0Main = _isMainToken(address(token0));
         bool isToken1Main = _isMainToken(address(token1));
 
-        uint256 halfMain = amountDesired / 2;
+        uint256 halfMain = actualReceived / 2;
 
         if (isToken0Main) {
             uint256 swappedAmount = swapTokens(address(_mainToken()), address(token1), fee, halfMain, address(this));
@@ -336,12 +344,8 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             amountToken1Desired = swappedAmount1;
         }
 
-        if (!token0.approve(_liquidityManagerAddress(), amountToken0Desired)) {
-            revert OS_APPROVE_TOKEN0_FAILED();
-        }
-        if (!token1.approve(_liquidityManagerAddress(), amountToken1Desired)) {
-            revert OS_APPROVE_TOKEN1_FAILED();
-        }
+        token0.safeIncreaseAllowance(_liquidityManagerAddress(), amountToken0Desired);
+        token1.safeIncreaseAllowance(_liquidityManagerAddress(), amountToken1Desired);
     }
 
     /**
@@ -365,24 +369,19 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         IERC20 token0ERC20 = IERC20(token0);
         IERC20 token1ERC20 = IERC20(token1);
 
-        if (amount0 > 0) {
-            if (!token0ERC20.transferFrom(_liquidityManagerAddress(), address(this), amount0)) {
-                revert OS_TOKEN0_TRANSFER_FAILED();
-            }
+        uint256 actualAmount0 = 0;
+        uint256 actualAmount1 = 0;
 
-            if (token0ERC20.balanceOf(address(this)) < amount0) {
-                revert OS_INSUFFICIENT_TOKEN0_BALANCE();
-            }
+        if (amount0 > 0) {
+            uint256 balance0Before = token0ERC20.balanceOf(address(this));
+            token0ERC20.safeTransferFrom(_liquidityManagerAddress(), address(this), amount0);
+            actualAmount0 = token0ERC20.balanceOf(address(this)) - balance0Before;
         }
 
         if (amount1 > 0) {
-            if (!token1ERC20.transferFrom(_liquidityManagerAddress(), address(this), amount1)) {
-                revert OS_TOKEN1_TRANSFER_FAILED();
-            }
-
-            if (token1ERC20.balanceOf(address(this)) < amount1) {
-                revert OS_INSUFFICIENT_TOKEN1_BALANCE();
-            }
+            uint256 balance1Before = token1ERC20.balanceOf(address(this));
+            token1ERC20.safeTransferFrom(_liquidityManagerAddress(), address(this), amount1);
+            actualAmount1 = token1ERC20.balanceOf(address(this)) - balance1Before;
         }
 
         uint256 mainAmount0;
@@ -391,14 +390,18 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         bool token1IsMain = _isMainToken(token1);
 
         if (token0IsMain) {
-            mainAmount0 = amount0;
-            mainAmount1 = (amount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, amount1, address(this)) : 0;
+            mainAmount0 = actualAmount0;
+            mainAmount1 =
+                (actualAmount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, actualAmount1, address(this)) : 0;
         } else if (token1IsMain) {
-            mainAmount1 = amount1;
-            mainAmount0 = (amount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, amount0, address(this)) : 0;
+            mainAmount1 = actualAmount1;
+            mainAmount0 =
+                (actualAmount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, actualAmount0, address(this)) : 0;
         } else {
-            mainAmount0 = (amount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, amount0, address(this)) : 0;
-            mainAmount1 = (amount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, amount1, address(this)) : 0;
+            mainAmount0 =
+                (actualAmount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, actualAmount0, address(this)) : 0;
+            mainAmount1 =
+                (actualAmount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, actualAmount1, address(this)) : 0;
         }
 
         if (mainAmount0 == 0 && mainAmount1 == 0) {
@@ -407,7 +410,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
         totalAmountMainToken = mainAmount0 + mainAmount1;
 
-        _mainToken().transfer(user, totalAmountMainToken);
+        _mainToken().safeTransfer(user, totalAmountMainToken);
     }
 
     /**

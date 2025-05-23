@@ -62,4 +62,10 @@ abstract contract VaultManagerErrors {
      * @notice transfer mainToken to owner failed
      */
     error VM_TRANSFER_COMPANY_FEES_FAILED();
+    /**
+     * @notice This event is emitted when the maximum size of an array is exceeded.
+     * @param arrayName The name of the array that exceeded the size limit.
+     * @param size The size of the array that exceeded the limit.
+     */
+    error VM_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
 }

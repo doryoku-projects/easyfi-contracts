@@ -2,8 +2,6 @@
 
 pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts/interfaces/IERC20.sol";
-
 /// @notice OracleSwapUpgradeable interface for interacting with the OracleSwap contract.
 interface IOracleSwapUpgradeable {
     function setTokenOracles(address[] calldata tokens, address[] calldata oracles) external;

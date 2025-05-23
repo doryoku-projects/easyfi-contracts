@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./UserAccessControl.sol";
 import "./errors/LiquidityHelperErrors.sol";
@@ -17,6 +18,8 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of helping the LiquidityManager with some liquidity operations.
  */
 contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors {
+    using SafeERC20 for IERC20;
+
     IProtocolConfigUpgradeable private s_config;
 
     bytes32 private constant NFPM_KEY = keccak256("NFTPositionMgr");
@@ -137,9 +140,7 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
 
         uint256 tokenToSwap = leftoverAmount - tokenToMint;
 
-        if (!IERC20(tokenFrom).transfer(address(_oracleSwap()), tokenToSwap)) {
-            revert LH_TRANSFER_FOR_SWAP_FAILED();
-        }
+        IERC20(tokenFrom).safeTransfer(address(_oracleSwap()), tokenToSwap);
 
         uint256 swappedAmount = _oracleSwap().swapTokens(tokenFrom, tokenTo, fee, tokenToSwap, address(this));
         if (swappedAmount == 0) revert LH_SWAP_RETURNED_ZERO();
@@ -161,13 +162,9 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             token0Address, token1Address, fee, tickLower, tickUpper, liquidityAmount
         );
 
-        if (!IERC20(token0Address).approve(address(_nfpm()), amount0Desired)) {
-            revert LH_APPROVE_INCREASE_LIQ_TOKEN0_FAILED();
-        }
+        IERC20(token0Address).safeIncreaseAllowance(address(_nfpm()), amount0Desired);
 
-        if (!IERC20(token1Address).approve(address(_nfpm()), amount1Desired)) {
-            revert LH_APPROVE_INCREASE_LIQ_TOKEN1_FAILED();
-        }
+        IERC20(token1Address).safeIncreaseAllowance(address(_nfpm()), amount1Desired);
 
         (uint128 increasedLiquidity, uint256 amount0Increased, uint256 amount1Increased) = _nfpm().increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
@@ -193,8 +190,6 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             returnFrom = tokenToMint > amount1Increased ? tokenToMint - amount1Increased : 0;
             returnTo = swappedAmount > amount0Increased ? swappedAmount - amount0Increased : 0;
         }
-
-        return (usedFrom, usedTo, returnFrom, returnTo);
     }
 
     /**
@@ -245,15 +240,19 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             revert LH_INSUFFICIENT_LM_BALANCE_TOKEN1();
         }
 
+        uint256 actualLeft0 = 0;
+        uint256 actualLeft1 = 0;
+
         if (leftoverAmount0 > 0) {
-            if (!token0.transferFrom(address(_liquidityManager()), address(this), leftoverAmount0)) {
-                revert LH_TRANSFER_TOKEN0_FAILED();
-            }
+            uint256 balance0Before = token0.balanceOf(address(this));
+            token0.safeTransferFrom(address(_liquidityManager()), address(this), leftoverAmount0);
+            actualLeft0 = token0.balanceOf(address(this)) - balance0Before;
         }
+
         if (leftoverAmount1 > 0) {
-            if (!token1.transferFrom(address(_liquidityManager()), address(this), leftoverAmount1)) {
-                revert LH_TRANSFER_TOKEN1_FAILED();
-            }
+            uint256 balance1Before = token1.balanceOf(address(this));
+            token1.safeTransferFrom(address(_liquidityManager()), address(this), leftoverAmount1);
+            actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
         uint256 threshold = 10000;
@@ -263,12 +262,12 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         returnToken0 = 0;
         returnToken1 = 0;
 
-        if (leftoverAmount0 > threshold) {
+        if (actualLeft0 > threshold) {
             (uint256 used0, uint256 used1, uint256 ret0, uint256 ret1) = _processLeftover(
                 tokenId,
                 token0Address,
                 token1Address,
-                leftoverAmount0,
+                actualLeft0,
                 amountToken0Desired,
                 amount0Added,
                 token0Address,
@@ -281,12 +280,12 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             addedUsed1 = used1;
             returnToken0 = ret0;
             returnToken1 = ret1;
-        } else if (leftoverAmount1 > threshold) {
+        } else if (actualLeft1 > threshold) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
                 token0Address,
-                leftoverAmount1,
+                actualLeft1,
                 amountToken1Desired,
                 amount1Added,
                 token0Address,
@@ -300,21 +299,15 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             returnToken0 = ret0;
             returnToken1 = ret1;
         } else {
-            returnToken0 = leftoverAmount0;
-            returnToken1 = leftoverAmount1;
+            returnToken0 = actualLeft0;
+            returnToken1 = actualLeft1;
         }
 
         if (returnToken0 > 0) {
-            if (!IERC20(token0Address).approve(address(_liquidityManager()), returnToken0)) {
-                revert LH_APPROVE_LM_TOKEN0_FAILED();
-            }
+            IERC20(token0Address).safeIncreaseAllowance(address(_liquidityManager()), returnToken0);
         }
         if (returnToken1 > 0) {
-            if (!IERC20(token1Address).approve(address(_liquidityManager()), returnToken1)) {
-                revert LH_APPROVE_LM_TOKEN1_FAILED();
-            }
+            IERC20(token1Address).safeIncreaseAllowance(address(_liquidityManager()), returnToken1);
         }
-
-        return (addedUsed0, addedUsed1, returnToken0, returnToken1);
     }
 }

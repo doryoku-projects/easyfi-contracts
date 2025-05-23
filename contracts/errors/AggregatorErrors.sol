@@ -34,4 +34,10 @@ abstract contract AggregatorErrors {
      * @notice tickLower >= tickUpper
      */
     error AGG_INVALID_TICK_RANGE();
+    /**
+     * @notice This event is emitted when the maximum size of an array is exceeded.
+     * @param arrayName The name of the array that exceeded the size limit.
+     * @param size The size of the array that exceeded the limit.
+     */
+    error AGG_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
 }

@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/interfaces/IERC721Metadata.sol";
 import "@openzeppelin/contracts/interfaces/IERC721Enumerable.sol";
 
-import './IPoolInitializer.sol';
-import './IERC721Permit.sol';
-import './IPeripheryPayments.sol';
-import './IPeripheryImmutableState.sol';
-
+import "./IPoolInitializer.sol";
+import "./IERC721Permit.sol";
+import "./IPeripheryPayments.sol";
+import "./IPeripheryImmutableState.sol";
 
 /// @title Non-fungible token for positions
 /// @notice Wraps Uniswap V3 positions in a non-fungible token interface which allows for them to be transferred
@@ -100,12 +99,7 @@ interface INonfungiblePositionManager is
     function mint(MintParams calldata params)
         external
         payable
-        returns (
-            uint256 tokenId,
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        );
+        returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
 
     struct IncreaseLiquidityParams {
         uint256 tokenId;
@@ -129,11 +123,7 @@ interface INonfungiblePositionManager is
     function increaseLiquidity(IncreaseLiquidityParams calldata params)
         external
         payable
-        returns (
-            uint128 liquidity,
-            uint256 amount0,
-            uint256 amount1
-        );
+        returns (uint128 liquidity, uint256 amount0, uint256 amount1);
 
     struct DecreaseLiquidityParams {
         uint256 tokenId;
@@ -177,12 +167,10 @@ interface INonfungiblePositionManager is
     /// @param tokenId The ID of the token that is being burned
     function burn(uint256 tokenId) external payable;
 
-
     /// @notice Approves an address to spend the token ID
     /// @dev This is a standard ERC721 approve function, but it is included here for convenience. The operator can be
     /// the zero address, which will revoke approval for all operators.
     /// @param to The address that will be approved to spend the token ID
     /// @param tokenId The ID of the token that is being approved
     function approve(address to, uint256 tokenId) external;
-
 }

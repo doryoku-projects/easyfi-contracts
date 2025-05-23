@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./UserAccessControl.sol";
 import "./errors/AggregatorErrors.sol";
@@ -16,23 +17,37 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of interacting with the VaultManager so users can manage their liquidity positions.
  */
 contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl, AggregatorErrors {
+    using SafeERC20 for IERC20;
+
     IProtocolConfigUpgradeable private s_config;
 
     bytes32 private constant VAULT_KEY = keccak256("VaultManager");
     bytes32 private constant MAIN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
 
-    function initialize(address _protocolConfig, address _userManager) public initializer {
+    uint256 private s_maxMigrationSize;
+
+    function initialize(address _protocolConfig, address _userManager, uint256 _maxMigrationSize) public initializer {
         __ReentrancyGuard_init();
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManager);
         s_userManagerAddress = _userManager;
+        s_maxMigrationSize = _maxMigrationSize;
     }
 
     /**
      * @dev Required function for UUPS upgradeable contracts.
      */
-    function _authorizeUpgrade(address newImplementation) internal override onlyMasterAdmin nonReentrant {}
+    function _authorizeUpgrade(address newImplementation) internal override nonReentrant onlyMasterAdmin {}
+
+    /**
+     * @notice setMaxMigrationSize
+     * @dev This function sets the maximum size of the roles in a batch.
+     */
+    function setMaxMigrationSize(uint256 _maxMigrationSize) external onlyMasterAdmin {
+        if (_maxMigrationSize == 0) return;
+        s_maxMigrationSize = _maxMigrationSize;
+    }
 
     /**
      * @notice Set the address of the new ProtocolConfig contract.
@@ -92,7 +107,6 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
     {
         IVaultManagerUpgradeable vault = _vaultManager();
         userInformation = vault.getUserInfo(user, poolId);
-        return userInformation;
     }
 
     /**
@@ -114,20 +128,20 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         int24 tickLower,
         int24 tickUpper,
         uint256 amountMainTokenDesired
-    ) external onlyUser nonReentrant notEmergency returns (uint256 tokenId) {
+    ) external nonReentrant onlyUser notEmergency returns (uint256 tokenId) {
         if (amountMainTokenDesired == 0) revert AGG_ZERO_AMOUNT();
 
         IVaultManagerUpgradeable vault = _vaultManager();
         IERC20 mainToken = _mainToken();
 
-        if (!mainToken.transferFrom(msg.sender, address(this), amountMainTokenDesired)) revert AGG_TRANSFER_FAILED();
+        uint256 balanceBefore = mainToken.balanceOf(address(this));
+        mainToken.safeTransferFrom(msg.sender, address(this), amountMainTokenDesired);
+        uint256 actualReceived = mainToken.balanceOf(address(this)) - balanceBefore;
 
-        if (!mainToken.approve(address(vault), amountMainTokenDesired)) {
-            revert AGG_APPROVE_FAILED();
-        }
+        mainToken.safeIncreaseAllowance(address(vault), actualReceived);
 
         tokenId = vault.mintOrIncreaseLiquidityPosition(
-            poolId, token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, msg.sender
+            poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, msg.sender
         );
     }
 
@@ -139,8 +153,8 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      */
     function decreaseLiquidityFromPosition(string calldata poolId, uint128 percentageToRemove, string calldata code)
         public
-        onlyUser
         nonReentrant
+        onlyUser
         notEmergency
     {
         s_userManager.check2FA(msg.sender, code);
@@ -163,8 +177,8 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      */
     function collectFeesFromPosition(string calldata poolId, string calldata code)
         public
-        onlyUser
         nonReentrant
+        onlyUser
         notEmergency
         returns (uint256 collectedToken0, uint256 collectedToken1)
     {
@@ -190,8 +204,11 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         string calldata poolId,
         int24 tickLower,
         int24 tickUpper
-    ) external onlyGeneralOrMasterAdmin nonReentrant notEmergency returns (uint256[] memory newTokenIds) {
+    ) external nonReentrant onlyGeneralOrMasterAdmin notEmergency returns (uint256[] memory newTokenIds) {
         if (tickLower >= tickUpper) revert AGG_INVALID_TICK_RANGE();
+        if (users.length > s_maxMigrationSize) {
+            revert AGG_ARRAY_SIZE_LIMIT_EXCEEDED("users", users.length);
+        }
 
         IVaultManagerUpgradeable vault = _vaultManager();
         uint256 n = users.length;
@@ -200,7 +217,5 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         for (uint256 i = 0; i < n; i++) {
             newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, tickLower, tickUpper);
         }
-
-        return newTokenIds;
     }
 }

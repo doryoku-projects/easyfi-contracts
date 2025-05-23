@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 import "./UserAccessControl.sol";
@@ -18,7 +18,9 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of managing the vaults and liquidity positions for users.
  * It allows users to mint, increase, decrease, and collect fees from their liquidity positions.
  */
-contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, VaultManagerErrors {
+contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
+    using SafeERC20 for IERC20;
+
     IProtocolConfigUpgradeable private s_config;
 
     bytes32 private constant CFG_LIQUIDITY_MANAGER = keccak256("LiquidityManager");
@@ -28,6 +30,7 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
 
     uint256 private s_companyFees;
+    uint256 private s_maxWithdrawalSize;
 
     struct UserInfo {
         uint256 tokenId;
@@ -44,13 +47,13 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithDrawCompanyFees(uint256 amount);
 
-    function initialize(address _protocolConfig, address _userManager) public initializer {
+    function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
         __UUPSUpgradeable_init();
-        __Ownable_init(msg.sender);
 
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManager);
         s_userManagerAddress = _userManager;
+        s_maxWithdrawalSize = _maxWithdrawalSize;
     }
 
     /**
@@ -58,6 +61,15 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
      * @param newImplementation Address of the new implementation contract.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyMasterAdmin {}
+
+    /**
+     * @notice setMaxWithdrawalSize
+     * @dev This function sets the maximum size of the withdrawals for a batch.
+     */
+    function setMaxWithdrawalSize(uint256 _maxWithdrawalSize) external onlyMasterAdmin {
+        if (_maxWithdrawalSize == 0) return;
+        s_maxWithdrawalSize = _maxWithdrawalSize;
+    }
 
     /**
      * @notice Set the address of the new ProtocolConfig contract.
@@ -109,7 +121,6 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
         returns (UserInfo memory userInformation)
     {
         userInformation = userInfo[user][_formatPoolId(poolId)];
-        return userInformation;
     }
 
     /**
@@ -118,7 +129,7 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
      * @return The keccak256 hash of the encoded poolId.
      */
     function _formatPoolId(string calldata poolId) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(poolId));
+        return keccak256(abi.encode(poolId));
     }
 
     /**
@@ -202,15 +213,11 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
     ) external onlyVaultManager notEmergency returns (uint256 tokenId) {
         IERC20 mainToken = _mainToken();
 
-        if (!mainToken.transferFrom(_aggregator(), address(this), amountMainTokenDesired)) {
-            revert VM_TRANSFER_FROM_FAILED();
-        }
+        uint256 balanceBefore = mainToken.balanceOf(address(this));
+        mainToken.safeTransferFrom(_aggregator(), address(this), amountMainTokenDesired);
+        uint256 actualReceived = mainToken.balanceOf(address(this)) - balanceBefore;
 
-        if (mainToken.balanceOf(address(this)) < amountMainTokenDesired) {
-            revert VM_INSUFFICIENT_BALANCE();
-        }
-
-        if (!mainToken.approve(address(_liquidityManager()), amountMainTokenDesired)) revert VM_APPROVE_FAILED();
+        mainToken.safeIncreaseAllowance(address(_liquidityManager()), actualReceived);
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
@@ -222,15 +229,13 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
                 )
             ) revert VM_RANGE_MISMATCH();
 
-            tokenId = _increaseLiquidityToPosition(
-                userInfo[userAddress][poolIdHash].tokenId, amountMainTokenDesired, userAddress
-            );
+            tokenId =
+                _increaseLiquidityToPosition(userInfo[userAddress][poolIdHash].tokenId, actualReceived, userAddress);
         } else {
             tokenId = _mintPosition(
-                poolId, token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress
+                poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, userAddress
             );
         }
-        return tokenId;
     }
 
     /**
@@ -332,15 +337,11 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
             IERC20 token1 = IERC20(token1Address);
 
             if (storedFee0 > 0) {
-                if (!token0.approve(address(_liquidityManager()), storedFee0)) {
-                    revert VM_APPROVE_FAILED();
-                }
+                token0.safeIncreaseAllowance(address(_liquidityManager()), storedFee0);
             }
 
             if (storedFee1 > 0) {
-                if (!token1.approve(address(_liquidityManager()), storedFee1)) {
-                    revert VM_APPROVE_FAILED();
-                }
+                token1.safeIncreaseAllowance(address(_liquidityManager()), storedFee1);
             }
 
             uint256 companyTax;
@@ -353,25 +354,27 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
             (collected0, collected1,) = ILiquidityManagerUpgradeable(address(_liquidityManager()))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePct(), send);
 
-            if (!IERC20(token0Address).transferFrom(address(_liquidityManager()), address(this), collected0)) {
-                revert VM_PREVIOUS_FEES_TRANSFER_FAILED();
+            uint256 actualCollected0 = 0;
+            if (collected0 > 0) {
+                uint256 balance0Before = IERC20(token0Address).balanceOf(address(this));
+                IERC20(token0Address).safeTransferFrom(address(_liquidityManager()), address(this), collected0);
+                actualCollected0 = IERC20(token0Address).balanceOf(address(this)) - balance0Before;
             }
 
-            if (!IERC20(token1Address).transferFrom(address(_liquidityManager()), address(this), collected1)) {
-                revert VM_PREVIOUS_FEES_TRANSFER_FAILED();
+            uint256 actualCollected1 = 0;
+            if (collected1 > 0) {
+                uint256 balance1Before = IERC20(token1Address).balanceOf(address(this));
+                IERC20(token1Address).safeTransferFrom(address(_liquidityManager()), address(this), collected1);
+                actualCollected1 = IERC20(token1Address).balanceOf(address(this)) - balance1Before;
             }
 
-            userInfo[user][poolIdHash].feeToken0 += collected0;
-            userInfo[user][poolIdHash].feeToken1 += collected1;
+            userInfo[user][poolIdHash].feeToken0 += actualCollected0;
+            userInfo[user][poolIdHash].feeToken1 += actualCollected1;
         }
 
         _liquidityManager().decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);
 
-        if (percentageToRemove == 10000) {
-            _resetUserInfo(user, poolId);
-        } else {
-            _nfpm().approve(address(0), tokenId);
-        }
+        percentageToRemove == 10000 ? _resetUserInfo(user, poolId) : _nfpm().approve(address(0), tokenId);
     }
 
     /**
@@ -401,13 +404,9 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
 
-        if (!token0.approve(address(_liquidityManager()), storedFee0)) {
-            revert VM_APPROVE_FAILED();
-        }
+        token0.safeIncreaseAllowance(address(_liquidityManager()), storedFee0);
 
-        if (!token1.approve(address(_liquidityManager()), storedFee1)) {
-            revert VM_APPROVE_FAILED();
-        }
+        token1.safeIncreaseAllowance(address(_liquidityManager()), storedFee1);
 
         _nfpm().approve(address(_liquidityManager()), tokenId);
 
@@ -476,19 +475,25 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
         (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1) =
             _liquidityManager().moveRangeOfPosition(manager, tokenId, tickLower, tickUpper);
 
-        if (!token0.transferFrom(address(_liquidityManager()), address(this), cumulatedFee0)) {
-            revert VM_PREVIOUS_FEES_TRANSFER_FAILED();
+        uint256 actualCumulatedFee0 = 0;
+        if (cumulatedFee0 > 0) {
+            uint256 balance0Before = token0.balanceOf(address(this));
+            token0.safeTransferFrom(address(_liquidityManager()), address(this), cumulatedFee0);
+            actualCumulatedFee0 = token0.balanceOf(address(this)) - balance0Before;
         }
 
-        if (!token1.transferFrom(address(_liquidityManager()), address(this), cumulatedFee1)) {
-            revert VM_PREVIOUS_FEES_TRANSFER_FAILED();
+        uint256 actualCumulatedFee1 = 0;
+        if (cumulatedFee1 > 0) {
+            uint256 balance1Before = token1.balanceOf(address(this));
+            token1.safeTransferFrom(address(_liquidityManager()), address(this), cumulatedFee1);
+            actualCumulatedFee1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
         userInfo[user][poolIdHash].tokenId = _newTokenId;
         userInfo[user][poolIdHash].tickLower = tickLower;
         userInfo[user][poolIdHash].tickUpper = tickUpper;
-        userInfo[user][poolIdHash].feeToken0 += cumulatedFee0;
-        userInfo[user][poolIdHash].feeToken1 += cumulatedFee1;
+        userInfo[user][poolIdHash].feeToken0 += actualCumulatedFee0;
+        userInfo[user][poolIdHash].feeToken1 += actualCumulatedFee1;
 
         _nfpm().approve(address(0), _newTokenId);
 
@@ -509,9 +514,7 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
             amountToWithdraw = (s_companyFees * percentage) / 10000;
             s_companyFees -= amountToWithdraw;
 
-            if (!_mainToken().transfer(msg.sender, amountToWithdraw)) {
-                revert VM_TRANSFER_COMPANY_FEES_FAILED();
-            }
+            _mainToken().safeTransfer(msg.sender, amountToWithdraw);
         }
 
         emit WithDrawCompanyFees(amountToWithdraw);
@@ -523,10 +526,12 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
      * @param to Recipient address.
      */
     function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin {
+        if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
+
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
             if (balance > 0) {
-                IERC20(tokens[i]).transfer(to, balance);
+                IERC20(tokens[i]).safeTransfer(to, balance);
             }
         }
     }
@@ -541,6 +546,8 @@ contract VaultManagerUpgradeable is OwnableUpgradeable, UserAccessControl, Vault
         external
         onlyMasterAdmin
     {
+        if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
+
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
 
