@@ -44,6 +44,8 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
     event oraclesSet(address indexed oracleIn, address indexed oracleOut);
+    event protocolConfigSet();
+    event userManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) external initializer {
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
@@ -70,6 +72,23 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        emit protocolConfigSet();
+        return true;
+    }
+
+    /**
+     * @notice Set the address of the new UserManager.
+     * @param _newUserManagerAddress Address of the new UserManager.
+     */
+    function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
+        if (_newUserManagerAddress == address(0)) revert OS_ZERO_ADDRESS();
+        if (_newUserManagerAddress == s_userManagerAddress) {
+            revert OS_ADDRESS_UNCHANGED();
+        }
+
+        s_userManagerAddress = _newUserManagerAddress;
+        s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit userManagerSet();
         return true;
     }
 

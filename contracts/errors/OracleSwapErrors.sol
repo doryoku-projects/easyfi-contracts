@@ -67,38 +67,6 @@ abstract contract OracleSwapErrors {
      */
     error OS_POOL_NOT_EXIST();
     /**
-     * @notice mainToken.transferFrom failed
-     */
-    error OS_TRANSFER_FROM_LM_FAILED();
-    /**
-     * @notice balanceOf(this) < amountDesired
-     */
-    error OS_INSUFFICIENT_MAIN_BALANCE();
-    /**
-     * @notice token0.approve failed
-     */
-    error OS_APPROVE_TOKEN0_FAILED();
-    /**
-     * @notice token1.approve failed
-     */
-    error OS_APPROVE_TOKEN1_FAILED();
-    /**
-     * @notice token0.transferFrom failed
-     */
-    error OS_TOKEN0_TRANSFER_FAILED();
-    /**
-     * @notice balanceOf(this) < amount0
-     */
-    error OS_INSUFFICIENT_TOKEN0_BALANCE();
-    /**
-     * @notice token1.transferFrom failed
-     */
-    error OS_TOKEN1_TRANSFER_FAILED();
-    /**
-     * @notice balanceOf(this) < amount1
-     */
-    error OS_INSUFFICIENT_TOKEN1_BALANCE();
-    /**
      * @notice both mainAmount0 and mainAmount1 == 0
      */
     error OS_NOT_ENOUGH_TOKENS();

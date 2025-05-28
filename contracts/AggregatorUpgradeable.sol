@@ -27,6 +27,9 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
 
     uint256 private s_maxMigrationSize;
 
+    event ProtocolConfigSet();
+    event UserManagerSet();
+
     function initialize(address _protocolConfig, address _userManager, uint256 _maxMigrationSize) public initializer {
         __ReentrancyGuard_init();
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
@@ -60,6 +63,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        emit ProtocolConfigSet();
         return true;
     }
 
@@ -76,6 +80,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
 
         s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit UserManagerSet();
         return true;
     }
 

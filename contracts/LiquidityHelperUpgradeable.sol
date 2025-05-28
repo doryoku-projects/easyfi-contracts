@@ -25,10 +25,11 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
     bytes32 private constant NFPM_KEY = keccak256("NFTPositionMgr");
     bytes32 private constant ORACLE_SWAP_KEY = keccak256("OracleSwap");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
-    bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
 
-    event liquidityAdded(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
+    event LiquidityAdded(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
+    event ProtocolConfigSet();
+    event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
@@ -53,6 +54,8 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        emit ProtocolConfigSet();
+
         return true;
     }
 
@@ -68,6 +71,7 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         }
         s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit UserManagerSet();
         return true;
     }
 
@@ -176,7 +180,7 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
                 deadline: block.timestamp
             })
         );
-        emit liquidityAdded(tokenId, increasedLiquidity, amount0Increased, amount1Increased);
+        emit LiquidityAdded(tokenId, increasedLiquidity, amount0Increased, amount1Increased);
 
         if (tokenFrom == token0Address) {
             usedFrom = amount0Increased;

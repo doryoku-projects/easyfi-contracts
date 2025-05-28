@@ -39,6 +39,8 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 indexed oldTokenId, uint256 indexed newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1
     );
     event PositionBurned(uint256 indexed tokenId);
+    event ProtocolConfigSet();
+    event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
         s_userManagerAddress = _userManagerAddress;
@@ -63,6 +65,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        emit ProtocolConfigSet();
         return true;
     }
 
@@ -78,6 +81,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
 
         s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit UserManagerSet();
         return true;
     }
 

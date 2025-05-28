@@ -46,6 +46,12 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithDrawCompanyFees(uint256 amount);
+    event ProtocolConfigSet();
+    event UserManagerSet();
+    event UserInfoReset(address indexed user);
+    event EmergencyERC20BatchWithdrawal(address indexed to);
+    event EmergencyERC721BatchWithdrawal(address indexed to);
+
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
         __UUPSUpgradeable_init();
@@ -82,6 +88,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
+        emit ProtocolConfigSet();
         return true;
     }
 
@@ -97,6 +104,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit UserManagerSet();
         return true;
     }
 
@@ -187,6 +195,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         userInfo[user][poolIdHash].tickUpper = 0;
         userInfo[user][poolIdHash].feeToken0 = 0;
         userInfo[user][poolIdHash].feeToken1 = 0;
+        emit UserInfoReset(user);
     }
 
     /**
@@ -507,9 +516,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      */
     function withdrawCompanyFees(uint256 percentage, string calldata code) external onlyMasterAdmin {
         s_userManager.check2FA(msg.sender, code);
+
         if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
 
         uint256 amountToWithdraw;
+        
         if (s_companyFees > 0) {
             amountToWithdraw = (s_companyFees * percentage) / 10000;
             s_companyFees -= amountToWithdraw;
@@ -534,6 +545,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                 IERC20(tokens[i]).safeTransfer(to, balance);
             }
         }
+        emit EmergencyERC20BatchWithdrawal(to);
     }
 
     /**
@@ -555,5 +567,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                 IERC721(nftContract).safeTransferFrom(address(this), to, tokenId);
             }
         }
+        emit EmergencyERC721BatchWithdrawal(to);
     }
 }

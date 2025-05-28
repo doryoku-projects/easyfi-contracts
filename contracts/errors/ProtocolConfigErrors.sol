@@ -13,11 +13,6 @@ abstract contract ProtocolConfigErrors {
     error PC_ADDRESS_UNCHANGED();
 
     /**
-     * @notice Thrown when updating the company fee percentage to zero
-     */
-    error PC_INVALID_FEE_PERCENTAGE();
-
-    /**
      * @notice Thrown when provided key/value arrays have mismatched lengths
      */
     error PC_ARRAY_LEN_MISMATCH();

@@ -54,7 +54,7 @@ interface IUserManagerUpgradeable {
 
     function is2FA(address user) external view returns (bool);
 
-    function setReceptor2FA(address user, string calldata code) external;
+    function set2FA(address user, string calldata code) external;
 
     function check2FA(address user, string calldata code) external view;
 

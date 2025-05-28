@@ -14,6 +14,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
 
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
+    event UserManagerSet();
 
     /**
      * @notice Initialize all config entries in batch
@@ -49,6 +50,23 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
     }
 
     function _authorizeUpgrade(address) internal override onlyMasterAdmin {}
+
+    /**
+     * @notice Set the address of the new UserManager.
+     * @param _newUserManagerAddress Address of the new UserManager.
+     */
+    function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
+        if (_newUserManagerAddress == address(0)) revert PC_ZERO_ADDRESS();
+        if (_newUserManagerAddress == s_userManagerAddress) {
+            revert PC_ADDRESS_UNCHANGED();
+        }
+
+        s_userManagerAddress = _newUserManagerAddress;
+        s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
+        emit UserManagerSet();
+        return true;
+    }
+
 
     function setAddress(bytes32 key, address newVal) external onlyGeneralOrMasterAdmin {
         _setAddress(key, newVal);

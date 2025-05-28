@@ -15,14 +15,6 @@ abstract contract AggregatorErrors {
      */
     error AGG_ZERO_AMOUNT();
     /**
-     * @notice transferFrom(msg.sender, …) failed
-     */
-    error AGG_TRANSFER_FAILED();
-    /**
-     * @notice approve(...) failed
-     */
-    error AGG_APPROVE_FAILED();
-    /**
      * @notice percentageToRemove == 0
      */
     error AGG_ZERO_PERCENTAGE();

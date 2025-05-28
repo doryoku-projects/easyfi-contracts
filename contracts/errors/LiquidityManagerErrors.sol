@@ -15,58 +15,6 @@ abstract contract LiquidityManagerErrors {
      */
     error LM_NO_ACTIVE_POSITION();
     /**
-     * @notice approve to liquidityHelper for token0 failed
-     */
-    error LM_APPROVE_HELPER_TOKEN0_FAILED();
-    /**
-     * @notice approve to liquidityHelper for token1 failed
-     */
-    error LM_APPROVE_HELPER_TOKEN1_FAILED();
-    /**
-     * @notice transferFrom liquidityHelper for token0 failed
-     */
-    error LM_TRANSFER_FROM_HELPER_TOKEN0_FAILED();
-    /**
-     * @notice transferFrom liquidityHelper for token1 failed
-     */
-    error LM_TRANSFER_FROM_HELPER_TOKEN1_FAILED();
-    /**
-     * @notice approve to oracleSwap for token0 failed
-     */
-    error LM_APPROVE_ORACLESWAP_TOKEN0_FAILED();
-    /**
-     * @notice approve to oracleSwap for token1 failed
-     */
-    error LM_APPROVE_ORACLESWAP_TOKEN1_FAILED();
-    /**
-     * @notice transferFrom vaultManager failed
-     */
-    error LM_TRANSFER_FROM_VAULT_FAILED();
-    /**
-     * @notice vault balance < amountDesired
-     */
-    error LM_INSUFFICIENT_BALANCE();
-    /**
-     * @notice approve to oracleSwap for mainToken failed
-     */
-    error LM_APPROVE_ORACLESWAP_FAILED();
-    /**
-     * @notice transferFrom oracleSwap for token0 failed
-     */
-    error LM_TRANSFER_FROM_ORACLE_TOKEN0_FAILED();
-    /**
-     * @notice transferFrom oracleSwap for token1 failed
-     */
-    error LM_TRANSFER_FROM_ORACLE_TOKEN1_FAILED();
-    /**
-     * @notice approve to NonfungiblePositionManager for token0 failed
-     */
-    error LM_APPROVE_NFPMGR_TOKEN0_FAILED();
-    /**
-     * @notice approve to NonfungiblePositionManager for token1 failed
-     */
-    error LM_APPROVE_NFPMGR_TOKEN1_FAILED();
-    /**
      * @notice ownerOf(tokenId) != this
      */
     error LM_NOT_NFT_OWNER();
@@ -86,20 +34,4 @@ abstract contract LiquidityManagerErrors {
      * @notice this.balanceOf(token1) < collected1
      */
     error LM_INSUFFICIENT_TOKEN1_BALANCE();
-    /**
-     * @notice transferFrom vaultManager of previousCollected0
-     */
-    error LM_PREV_FEES_TRANSFER0_FAILED();
-    /**
-     * @notice transferFrom vaultManager of previousCollected1
-     */
-    error LM_PREV_FEES_TRANSFER1_FAILED();
-    /**
-     * @notice approve vaultManager for collected0
-     */
-    error LM_APPROVE_VAULT_TOKEN0_FAILED();
-    /**
-     * @notice approve vaultManager for collected1
-     */
-    error LM_APPROVE_VAULT_TOKEN1_FAILED();
 }

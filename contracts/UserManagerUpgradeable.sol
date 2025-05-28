@@ -96,6 +96,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     event EmergencyModeActivated(bool indexed emergency);
     event EmergencyModeDeactivated(bool indexed emergency);
     event MaxRolesSizeUpdated(uint256 indexed newMaxRolesSize);
+    event code2FAUpdated(address indexed user);
 
     /**
      * @notice Initialize the UserManager contract, granting initial roles.
@@ -564,9 +565,10 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user for which the 2FA code is being set.
      * @param code The 2FA code to associate with the user.
      */
-    function setReceptor2FA(address user, string calldata code) external onlyRole(USER_2FA_ROLE) {
+    function set2FA(address user, string calldata code) external onlyRole(USER_2FA_ROLE) {
         s_user2FA[user].code = code;
         s_user2FA[user].timestamp = block.timestamp;
+        emit code2FAUpdated(user);
     }
 
     /**
@@ -576,9 +578,11 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.
      */
-    function check2FA(address user, string calldata code) external view onlyRole(USER_MANAGER_ROLE) {
+    function check2FA(address user, string calldata code) external view onlyContractOrUserManager() {
         User2FA memory user2FAInfo = s_user2FA[user];
+
         if (keccak256(abi.encode(user2FAInfo.code)) != keccak256(abi.encode(code))) {
+
             revert UM_INVALID_2FA_CODE();
         }
 
