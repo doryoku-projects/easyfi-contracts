@@ -28,6 +28,12 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @notice the address is not a general admin or a contract
      */
     error UM_GENERAL_ADMIN_OR_CONTRACT();
+
+    /**
+     * @notice the address is not a general admin or a user manager
+     */
+    error UM_GENERAL_ADMIN_OR_USER_MANAGER();
+
     /**
      * @notice This event is emitted when the maximum size of an array is exceeded.
      * @param arrayName The name of the array that exceeded the size limit.
@@ -53,6 +59,17 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     modifier onlyContractOrGeneralAdmin() {
         if (!hasRole(CONTRACT_ROLE, msg.sender) && !hasRole(GENERAL_ADMIN_ROLE, msg.sender)) {
             revert UM_GENERAL_ADMIN_OR_CONTRACT();
+        }
+        _;
+    }
+
+    /**
+     * @notice onlyGeneralAdminOrUserManager modifier
+     * @dev This modifier checks if the caller is a GeneralAdmin or a UserManager.
+     */
+    modifier onlyGeneralAdminOrUserManager() {
+        if (!hasRole(GENERAL_ADMIN_ROLE, msg.sender) && !hasRole(USER_MANAGER_ROLE, msg.sender)) {
+            revert UM_GENERAL_ADMIN_OR_USER_MANAGER();
         }
         _;
     }
@@ -195,7 +212,13 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param role The role to query members for
      * @return An array of addresses that have the specified role
      */
-    function getRoleMembers(bytes32 role) public view override onlyRole(USER_MANAGER_ROLE) returns (address[] memory) {
+    function getRoleMembers(bytes32 role)
+        public
+        view
+        override
+        onlyGeneralAdminOrUserManager
+        returns (address[] memory)
+    {
         return super.getRoleMembers(role);
     }
 
@@ -249,7 +272,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param usersManager Array of addresses to add as user managers.
      * @return True if operation succeeded.
      */
-    function addUsersManager(address[] calldata usersManager) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
+    function addUsersManager(address[] calldata usersManager) external onlyGeneralAdminOrUserManager returns (bool) {
         if (usersManager.length > s_maxRolesSize) {
             revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("usersManager", usersManager.length);
         }
@@ -578,11 +601,10 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.
      */
-    function check2FA(address user, string calldata code) external view onlyContractOrUserManager() {
+    function check2FA(address user, string calldata code) external view onlyContractOrUserManager {
         User2FA memory user2FAInfo = s_user2FA[user];
 
         if (keccak256(abi.encode(user2FAInfo.code)) != keccak256(abi.encode(code))) {
-
             revert UM_INVALID_2FA_CODE();
         }
 
