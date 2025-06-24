@@ -2,7 +2,7 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
-  console.log("Deploying UserManagerUpgradeable...");
+  console.log("[DEPLOY] Deploying UserManagerUpgradeable...");
   let ownerWallet, userWallet, pepOwnerWallet, marcWallet;
 
   ownerWallet = process.env.OWNER_WALLET;
@@ -54,12 +54,12 @@ async function main() {
     { initializer: "initialize" }
   );
   await userManager.waitForDeployment();
-  console.log("UserManagerUpgradeable desplegado en:", userManager.address);
+  console.log("[DEPLOY] UserManagerUpgradeable deployed at:", userManager.address);
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error("[DEPLOY] Error in UserManagerUpgradeable:", error);
     process.exit(1);
   });

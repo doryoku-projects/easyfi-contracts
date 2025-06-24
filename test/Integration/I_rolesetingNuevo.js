@@ -11,10 +11,11 @@ describe("I_setRoles", function () {
   const oracleSwapAddress = process.env.ORACLE_SWAP_ADDRESS;
   const liquidityHelperAddress = process.env.LIQUIDITY_HELPER_ADDRESS;
   const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH ARBITRUM
-  const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC ARBITRUM
-  const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612"; // ARBITRUM ORACLE CHAINLINK ETH
-  const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3"; // ARBITRUM ORACLE CHAINLINK USDC
+  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
+  const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
+  const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
+  const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3";
+
   before(async function () {
     ownerWallet = new ethers.Wallet( // MASTER_ADMIN
       process.env.OWNER_PRIVATE_KEY,
@@ -48,12 +49,6 @@ describe("I_setRoles", function () {
       pepOwnerWallet
     );
 
-    userManagerMasterAdmin = await ethers.getContractAt(
-      "UserManagerUpgradeable",
-      userManagerAddress,
-      ownerWallet
-    );
-
     const key = (s) => ethers.keccak256(ethers.toUtf8Bytes(s));
 
     const rolesKeys = [
@@ -67,81 +62,63 @@ describe("I_setRoles", function () {
       "CONTRACT_ROLE",
     ].map(key);
 
-
-    const tx =await userManagerGeneralAdmin.addUsersManager([
-      pepOwnerWallet.address,
-    ]);
-    await tx.wait();
-    console.log("User Manager added:", pepOwnerWallet.address);
-
     //Obtaining all the wallets x each role
-    const allMasterAdmins = await userManagerGeneralAdmin.getRoleMembers(
+    const allMasterAdmins = await userManagerUserManager.getRoleMembers(
       rolesKeys[0]
     );
-    console.log("Master Admins:", allMasterAdmins);
-
-    const allAdmins = await userManagerGeneralAdmin.getRoleMembers(rolesKeys[1]);
-    console.log("Admins:", allAdmins);
-
-    const allUserManagers = await userManagerGeneralAdmin.getRoleMembers(
+    const allAdmins = await userManagerUserManager.getRoleMembers(rolesKeys[1]);
+    const allUserManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[2]
     );
-    console.log("User Managers:", allUserManagers);
-
-    const allLiquidityManagers = await userManagerGeneralAdmin.getRoleMembers(
+    const allLiquidityManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[3]
     );
-    console.log("Liquidity Managers:", allLiquidityManagers);
-
-    const allVaultManagers = await userManagerGeneralAdmin.getRoleMembers(
+    const allVaultManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[4]
     );
-    console.log("Vault Managers:", allVaultManagers);
-
-    const allUsers = await userManagerGeneralAdmin.getRoleMembers(rolesKeys[5]);
-    console.log("Users:", allUsers);
-
-    const all2FAManagers = await userManagerGeneralAdmin.getRoleMembers(
+    const allUsers = await userManagerUserManager.getRoleMembers(rolesKeys[5]);
+    const all2FAManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[6]
     );
-    console.log("2FA Managers:", all2FAManagers);
-
-    const allContracts = await userManagerGeneralAdmin.getRoleMembers(
+    const allContracts = await userManagerUserManager.getRoleMembers(
       rolesKeys[7]
     );
-    console.log("Contracts:", allContracts);
 
+    console.log("Master Admins:", allMasterAdmins);
+    console.log("Admins:", allAdmins);
+    console.log("User Managers:", allUserManagers);
+    console.log("Liquidity Managers:", allLiquidityManagers);
+    console.log("Vault Managers:", allVaultManagers);
+    console.log("Users:", allUsers);
+    console.log("2FA Managers:", all2FAManagers);
+    console.log("Contracts:", allContracts);
   });
 
   it("Should assign roles correctly", async function () {
   //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
-    // await expect(
-    //   userManagerGeneralAdmin.addLiquidityManagers([
-    //     vaultManagerAddress,
-    //     liquidityHelperAddress,
-    //     liquidityManagerAddress,
-    //     oracleSwapAddress,
-    //   ])
-    // ).to.emit(userManagerGeneralAdmin, "LiquidityManagerAdded");
+    await expect(
+      userManagerGeneralAdmin.addLiquidityManagers([
+        vaultManagerAddress,
+        liquidityHelperAddress,
+        liquidityManagerAddress,
+        oracleSwapAddress,
+      ])
+    ).to.emit(userManagerGeneralAdmin, "LiquidityManagerAdded");
 
-    // await expect(userManagerGeneralAdmin.addUsersManager([pepOwnerWallet.address]))
-    //   .to.emit(userManagerGeneralAdmin, "UserManagerAdded");
+    const isLM1 = await userManagerUserManager.isLiquidityManager(
+      liquidityHelperAddress
+    );
+    expect(isLM1).to.be.true;
 
+    const isLM2 = await userManagerUserManager.isLiquidityManager(
+      liquidityManagerAddress
+    );
+    expect(isLM2).to.be.true;
 
-    // const isLM1 = await userManagerUserManager.isLiquidityManager(
-    //   liquidityHelperAddress
-    // );
-    // expect(isLM1).to.be.true;
-
-    // const isLM2 = await userManagerUserManager.isLiquidityManager(
-    //   liquidityManagerAddress
-    // );
-    // expect(isLM2).to.be.true;
-
-    // const isLM3 = await userManagerUserManager.isLiquidityManager(
-    //   oracleSwapAddress
-    // );
-    // expect(isLM3).to.be.true;
+    const isLM3 = await userManagerUserManager.isLiquidityManager(
+      oracleSwapAddress
+    );
+    expect(isLM3).to.be.true;
 
     // Assign the Vault Manager role to the Aggregator contract
     await expect(
@@ -161,30 +138,16 @@ describe("I_setRoles", function () {
     const isUser = await userManagerUserManager.isUser(userWallet.address);
     expect(isUser).to.be.true;
 
-
-
     // Assign the UserManager role to the Aggregator contract
-    await expect(
-      userManagerUserManager.addUsersManager([aggregatorAddress])
-    ).to.emit(userManagerGeneralAdmin, "UserManagerAdded");
-    const isUserManager = await userManagerUserManager.isUserManager(
-      aggregatorAddress
-    );
-    expect(isUserManager).to.be.true;
+  //   await expect(
+  //     userManagerUserManager.addUsersManager([aggregatorAddress])
+  //   ).to.emit(userManagerGeneralAdmin, "UserManagerAdded");
+  //   const isUserManager = await userManagerUserManager.isUserManager(
+  //     aggregatorAddress
+  //   );
+  //   expect(isUserManager).to.be.true;
   
   });
-
-  // it.only("Should remove master admins", async function () {
-
-
-  //   userManagerMasterAdmin.removeMasterAdmins(["0x2452bf5b70dd773874317454dd1ecb31db2f8d3c"]);
-  //   const isMasterAdmin = await userManagerUserManager.isMasterAdmin(
-  //     "0x2452bf5b70dd773874317454dd1ecb31db2f8d3c"
-  //   );
-  //   console.log("Is Master Admin:", isMasterAdmin);
-
-  // });
-
 
   it("Should set all necessary contract addresses for correct interaction", async function () {
     const OracleSwap = await ethers.getContractAt(

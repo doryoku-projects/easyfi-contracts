@@ -8,7 +8,10 @@ async function main() {
     "UserManagerUpgradeable"
   );
 
-  console.log("Haciendo upgrade del contrato...");
+  console.log("[UPGRADE] Making upgrade to contract...");
+
+  // await upgrades.forceImport(proxyAddress, UserManagerUpgradeable);
+
 
   const upgraded = await upgrades.upgradeProxy(
     proxyAddress,
@@ -16,12 +19,12 @@ async function main() {
   );
 
   console.log(
-    "Contrato actualizado correctamente, nueva versión desplegada en:",
+    "[UPGRADE] Contract updated successfully, new version deployed at:",
     await upgraded.getAddress()
   );
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error("[UPGRADE] Error in upgrade:", error);
   process.exitCode = 1;
 });

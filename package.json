@@ -1,0 +1,35 @@
+{
+  "name": "rocketfi_v0",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.6",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts-upgradeable": "^5.2.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.0",
+    "@tenderly/hardhat-tenderly": "^2.4.0",
+    "ethers": "^6.13.5",
+    "hardhat": "^2.22.19"
+  },
+  "dependencies": {
+    "@chainlink/contracts": "^0.8.0",
+    "@openzeppelin/contracts": "^5.3.0",
+    "@uniswap/sdk-core": "^5.9.0",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.4",
+    "@uniswap/v3-sdk": "^3.18.1",
+    "@uniswap/v4-core": "^1.0.1",
+    "@uniswap/v4-periphery": "^1.0.1",
+    "axios": "^1.8.3",
+    "chai": "4.3.7",
+    "dotenv": "^16.4.7",
+    "jsbi": "^4.3.0"
+  }
+}
