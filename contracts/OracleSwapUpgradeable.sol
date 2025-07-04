@@ -29,6 +29,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
     IProtocolConfigUpgradeable private s_config;
 
     uint256 private constant PRECISION_FACTOR = 1e18;
+    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
@@ -37,22 +38,27 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
     mapping(address => address) private s_tokenOracles;
 
-    event SwapRouterSet(address indexed swapRouter);
     event SlippageParametersUpdated(uint256 newNumerator);
     event TokensSwapped(
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 amountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
-    event oraclesSet(address indexed oracleIn, address indexed oracleOut);
-    event protocolConfigSet();
-    event userManagerSet();
+    event ProtocolConfigSet();
+    event UserManagerSet();
 
-    function initialize(address _protocolConfig, address _userManagerAddress) external initializer {
+    function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        if (_protocolConfig == address(0) || _userManagerAddress == address(0)){
+            revert OS_ZERO_ADDRESS();
+        }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
-        s_slippageNumerator = 9900;
+        s_slippageNumerator = 99_00; // 99.00%
 
-        s_userManagerAddress = _userManagerAddress;
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
@@ -72,7 +78,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         }
 
         s_config = IProtocolConfigUpgradeable(_newProtocolConfig);
-        emit protocolConfigSet();
+        emit ProtocolConfigSet();
         return true;
     }
 
@@ -82,13 +88,12 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
      */
     function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
         if (_newUserManagerAddress == address(0)) revert OS_ZERO_ADDRESS();
-        if (_newUserManagerAddress == s_userManagerAddress) {
+        if (_newUserManagerAddress == address(s_userManager)) {
             revert OS_ADDRESS_UNCHANGED();
         }
 
-        s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
-        emit userManagerSet();
+        emit UserManagerSet();
         return true;
     }
 
@@ -152,7 +157,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
      * @param _numerator New slippage numerator in basis points.
      */
     function setSlippageParameters(uint256 _numerator) external onlyGeneralOrMasterAdmin {
-        if (_numerator <= 9500 || _numerator > _BP()) {
+        if (_numerator <= 95_00 || _numerator > _BP()) {  // 95.00%
             revert OS_INVALID_SLIPPAGE_NUMERATOR();
         }
 
@@ -200,7 +205,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             priceFeedTokenIn.latestRoundData();
 
         if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - 24 hours) {
+        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
             revert OS_STALE_PRICE_IN();
         }
         if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
@@ -209,7 +214,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             priceFeedTokenOut.latestRoundData();
 
         if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - 24 hours) {
+        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
             revert OS_STALE_PRICE_OUT();
         }
         if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
@@ -217,9 +222,12 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
 
-        uint8 decimalsDifference = tokenInDecimals >= tokenOutDecimals
-            ? tokenInDecimals - tokenOutDecimals
-            : tokenOutDecimals - tokenInDecimals;
+        uint8 decimalsDifference;
+        unchecked {
+            decimalsDifference = tokenInDecimals >= tokenOutDecimals
+                ? tokenInDecimals - tokenOutDecimals
+                : tokenOutDecimals - tokenInDecimals;
+        }
 
         uint256 parsedAnswerIn = uint256(answerIn);
         uint256 parsedAnswerOut = uint256(answerOut);
@@ -336,9 +344,12 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         onlyLiquidityManager
         returns (uint256 amountToken0Desired, uint256 amountToken1Desired)
     {
-        uint256 balanceBefore = _mainToken().balanceOf(address(this));
-        _mainToken().safeTransferFrom(_liquidityManagerAddress(), address(this), amountDesired);
-        uint256 actualReceived = _mainToken().balanceOf(address(this)) - balanceBefore;
+        IERC20 _mainTokenInstance = _mainToken();
+        address _liquidityManagerAddressInstance = _liquidityManagerAddress();
+
+        uint256 balanceBefore = _mainTokenInstance.balanceOf(address(this));
+        _mainTokenInstance.safeTransferFrom(_liquidityManagerAddressInstance, address(this), amountDesired);
+        uint256 actualReceived = _mainTokenInstance.balanceOf(address(this)) - balanceBefore;
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
@@ -349,22 +360,22 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         uint256 halfMain = actualReceived / 2;
 
         if (isToken0Main) {
-            uint256 swappedAmount = swapTokens(address(_mainToken()), address(token1), fee, halfMain, address(this));
+            uint256 swappedAmount = swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
             amountToken0Desired = halfMain;
             amountToken1Desired = swappedAmount;
         } else if (isToken1Main) {
-            uint256 swappedAmount = swapTokens(address(_mainToken()), address(token0), fee, halfMain, address(this));
+            uint256 swappedAmount = swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
             amountToken0Desired = swappedAmount;
             amountToken1Desired = halfMain;
         } else {
-            uint256 swappedAmount0 = swapTokens(address(_mainToken()), address(token0), fee, halfMain, address(this));
-            uint256 swappedAmount1 = swapTokens(address(_mainToken()), address(token1), fee, halfMain, address(this));
+            uint256 swappedAmount0 = swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
+            uint256 swappedAmount1 = swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
             amountToken0Desired = swappedAmount0;
             amountToken1Desired = swappedAmount1;
         }
 
-        token0.safeIncreaseAllowance(_liquidityManagerAddress(), amountToken0Desired);
-        token1.safeIncreaseAllowance(_liquidityManagerAddress(), amountToken1Desired);
+        token0.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken0Desired);
+        token1.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken1Desired);
     }
 
     /**
@@ -385,6 +396,9 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         address token1,
         uint24 fee
     ) external onlyLiquidityManager returns (uint256 totalAmountMainToken) {
+        IERC20 _mainTokenInstance = _mainToken();
+        address _liquidityManagerAddressInstance = _liquidityManagerAddress();
+
         IERC20 token0ERC20 = IERC20(token0);
         IERC20 token1ERC20 = IERC20(token1);
 
@@ -393,13 +407,13 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
         if (amount0 > 0) {
             uint256 balance0Before = token0ERC20.balanceOf(address(this));
-            token0ERC20.safeTransferFrom(_liquidityManagerAddress(), address(this), amount0);
+            token0ERC20.safeTransferFrom(_liquidityManagerAddressInstance, address(this), amount0);
             actualAmount0 = token0ERC20.balanceOf(address(this)) - balance0Before;
         }
 
         if (amount1 > 0) {
             uint256 balance1Before = token1ERC20.balanceOf(address(this));
-            token1ERC20.safeTransferFrom(_liquidityManagerAddress(), address(this), amount1);
+            token1ERC20.safeTransferFrom(_liquidityManagerAddressInstance, address(this), amount1);
             actualAmount1 = token1ERC20.balanceOf(address(this)) - balance1Before;
         }
 
@@ -411,16 +425,16 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         if (token0IsMain) {
             mainAmount0 = actualAmount0;
             mainAmount1 =
-                (actualAmount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, actualAmount1, address(this)) : 0;
+                (actualAmount1 > 0) ? swapTokens(token1, address(_mainTokenInstance), fee, actualAmount1, address(this)) : 0;
         } else if (token1IsMain) {
             mainAmount1 = actualAmount1;
             mainAmount0 =
-                (actualAmount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, actualAmount0, address(this)) : 0;
+                (actualAmount0 > 0) ? swapTokens(token0, address(_mainTokenInstance), fee, actualAmount0, address(this)) : 0;
         } else {
             mainAmount0 =
-                (actualAmount0 > 0) ? swapTokens(token0, address(_mainToken()), fee, actualAmount0, address(this)) : 0;
+                (actualAmount0 > 0) ? swapTokens(token0, address(_mainTokenInstance), fee, actualAmount0, address(this)) : 0;
             mainAmount1 =
-                (actualAmount1 > 0) ? swapTokens(token1, address(_mainToken()), fee, actualAmount1, address(this)) : 0;
+                (actualAmount1 > 0) ? swapTokens(token1, address(_mainTokenInstance), fee, actualAmount1, address(this)) : 0;
         }
 
         if (mainAmount0 == 0 && mainAmount1 == 0) {
@@ -429,7 +443,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
         totalAmountMainToken = mainAmount0 + mainAmount1;
 
-        _mainToken().safeTransfer(user, totalAmountMainToken);
+        _mainTokenInstance.safeTransfer(user, totalAmountMainToken);
     }
 
     /**

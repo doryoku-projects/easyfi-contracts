@@ -44,12 +44,12 @@ async function main() {
   ];
 
   const uintKeys = [
-    "BP", 
+    "BP",
     "CompanyFeePct"
   ].map(key);
-  
+
   const uintValues = [
-    10000, 
+    10000,
     3000
   ];
 
@@ -60,9 +60,7 @@ async function main() {
   const protocolConfig = await upgrades.deployProxy(
     ProtocolConfigUpgradeable,
     [USER_MANAGER, addressKeys, addressValues, uintKeys, uintValues],
-    {
-      initializer: "initialize",
-    }
+    { initializer: "initialize" }
   );
   const protocolConfigContract = await protocolConfig.waitForDeployment();
 

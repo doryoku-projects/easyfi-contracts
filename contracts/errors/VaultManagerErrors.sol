@@ -7,6 +7,10 @@ abstract contract VaultManagerErrors {
      */
     error VM_ZERO_ADDRESS();
     /**
+     * @notice  maxWithdrawalSize is zero
+     */
+    error VM_ZERO_MAX_WITHDRAWAL_SIZE();
+    /**
      * @notice  userManager address is unchanged
      */
     error VM_ADDRESS_UNCHANGED();
@@ -39,7 +43,7 @@ abstract contract VaultManagerErrors {
      */
     error VM_COMPANY_FEES_ZERO();
     /**
-     * @notice This event is emitted when the maximum size of an array is exceeded.
+     * @notice This error is reverted when the maximum size of an array is exceeded.
      * @param arrayName The name of the array that exceeded the size limit.
      * @param size The size of the array that exceeded the limit.
      */

@@ -30,23 +30,29 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         address[] calldata addressValues,
         bytes32[] calldata uintKeys,
         uint256[] calldata uintValues
-    ) external initializer {
+    ) public initializer {
+        if(_userManager == address(0)) revert PC_ZERO_ADDRESS();
         __UUPSUpgradeable_init();
 
-        s_userManager = IUserManagerUpgradeable(_userManager);
-        s_userManagerAddress = _userManager;
+        if (addressKeys.length == 0 || uintKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
+        if (addressKeys.length != addressValues.length) revert PC_ARRAY_LEN_MISMATCH();
+        if (uintKeys.length != uintValues.length) revert PC_ARRAY_LEN_MISMATCH();
 
-        if (addressKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
+        s_userManager = IUserManagerUpgradeable(_userManager);
 
         for (uint256 i = 0; i < addressKeys.length; i++) {
+            if (addressValues[i] == address(0)) revert PC_ZERO_ADDRESS();
             _setAddress(addressKeys[i], addressValues[i]);
         }
-
-        if (uintKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
 
         for (uint256 i = 0; i < uintKeys.length; i++) {
             _setUint(uintKeys[i], uintValues[i]);
         }
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     function _authorizeUpgrade(address) internal override onlyMasterAdmin {}
@@ -57,11 +63,10 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
      */
     function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
         if (_newUserManagerAddress == address(0)) revert PC_ZERO_ADDRESS();
-        if (_newUserManagerAddress == s_userManagerAddress) {
+        if (_newUserManagerAddress == address(s_userManager)) {
             revert PC_ADDRESS_UNCHANGED();
         }
 
-        s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
         emit UserManagerSet();
         return true;

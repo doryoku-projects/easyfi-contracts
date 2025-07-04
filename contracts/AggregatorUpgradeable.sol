@@ -20,7 +20,6 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
-
     bytes32 private constant VAULT_KEY = keccak256("VaultManager");
     bytes32 private constant MAIN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
@@ -31,24 +30,35 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxMigrationSize) public initializer {
+        if (_protocolConfig == address(0) || _userManager == address(0)){
+            revert AGG_ZERO_ADDRESS();
+        }
+        if (_maxMigrationSize == 0){
+            revert AGG_ZERO_MAX_MIGRATION_SIZE();
+        }
         __ReentrancyGuard_init();
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManager);
-        s_userManagerAddress = _userManager;
         s_maxMigrationSize = _maxMigrationSize;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
      * @dev Required function for UUPS upgradeable contracts.
      */
-    function _authorizeUpgrade(address newImplementation) internal override nonReentrant onlyMasterAdmin {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyMasterAdmin {}
 
     /**
-     * @notice setMaxMigrationSize
-     * @dev This function sets the maximum size of the roles in a batch.
+     * @notice Set the maximum number of items that can be migrated in a single batch
+     * @dev This function sets the maximum batch size for migration operations
+     * @param _maxMigrationSize The maximum number of items that can be migrated in a single batch
      */
     function setMaxMigrationSize(uint256 _maxMigrationSize) external onlyMasterAdmin {
-        if (_maxMigrationSize == 0) return;
+        if (_maxMigrationSize == 0) revert AGG_ZERO_MAX_MIGRATION_SIZE();
         s_maxMigrationSize = _maxMigrationSize;
     }
 
@@ -74,11 +84,10 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      */
     function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
         if (_newUserManagerAddress == address(0)) revert AGG_ZERO_ADDRESS();
-        if (_newUserManagerAddress == s_userManagerAddress) {
+        if (_newUserManagerAddress == address(s_userManager)) {
             revert AGG_ADDRESS_UNCHANGED();
         }
 
-        s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
         emit UserManagerSet();
         return true;
@@ -134,6 +143,8 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         int24 tickUpper,
         uint256 amountMainTokenDesired
     ) external nonReentrant onlyUser notEmergency returns (uint256 tokenId) {
+        if (token0Address == address(0) || token1Address == address(0)) revert AGG_ZERO_ADDRESS();
+        if (tickLower >= tickUpper) revert AGG_INVALID_TICK_RANGE();
         if (amountMainTokenDesired == 0) revert AGG_ZERO_AMOUNT();
 
         IVaultManagerUpgradeable vault = _vaultManager();

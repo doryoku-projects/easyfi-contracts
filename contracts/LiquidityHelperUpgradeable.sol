@@ -32,9 +32,16 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        if (_protocolConfig == address(0)|| _userManagerAddress == address(0)){
+            revert LH_ZERO_ADDRESS();
+        }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
-        s_userManagerAddress = _userManagerAddress;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
@@ -66,10 +73,9 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
      */
     function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
         if (_newUserManagerAddress == address(0)) revert LH_ZERO_ADDRESS();
-        if (_newUserManagerAddress == s_userManagerAddress) {
+        if (_newUserManagerAddress == address(s_userManager)) {
             revert LH_ADDRESS_UNCHANGED();
         }
-        s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
         emit UserManagerSet();
         return true;
@@ -139,14 +145,18 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         int24 tickLower,
         int24 tickUpper
     ) internal returns (uint256 usedFrom, uint256 usedTo, uint256 returnFrom, uint256 returnTo) {
-        uint256 percentageToMint = (tokenAdded * _BP()) / (tokenDesired + tokenAdded);
-        uint256 tokenToMint = (percentageToMint * leftoverAmount) / _BP();
+        uint256 _bp = _BP();
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+        IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
+
+        uint256 percentageToMint = (tokenAdded * _bp) / (tokenDesired + tokenAdded);
+        uint256 tokenToMint = (percentageToMint * leftoverAmount) / _bp;
 
         uint256 tokenToSwap = leftoverAmount - tokenToMint;
 
-        IERC20(tokenFrom).safeTransfer(address(_oracleSwap()), tokenToSwap);
+        IERC20(tokenFrom).safeTransfer(address(_oracleSwapInstance), tokenToSwap);
 
-        uint256 swappedAmount = _oracleSwap().swapTokens(tokenFrom, tokenTo, fee, tokenToSwap, address(this));
+        uint256 swappedAmount = _oracleSwapInstance.swapTokens(tokenFrom, tokenTo, fee, tokenToSwap, address(this));
         if (swappedAmount == 0) revert LH_SWAP_RETURNED_ZERO();
 
         uint256 amount0Desired;
@@ -159,18 +169,18 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
             amount1Desired = tokenToMint;
         }
 
-        uint128 liquidityAmount = _oracleSwap().getLiquidityFromAmounts(
+        uint128 liquidityAmount = _oracleSwapInstance.getLiquidityFromAmounts(
             token0Address, token1Address, fee, tickLower, tickUpper, amount0Desired, amount1Desired
         );
-        (uint256 amount0Min, uint256 amount1Min) = _oracleSwap().getAmountsFromLiquidity(
+        (uint256 amount0Min, uint256 amount1Min) = _oracleSwapInstance.getAmountsFromLiquidity(
             token0Address, token1Address, fee, tickLower, tickUpper, liquidityAmount
         );
 
-        IERC20(token0Address).safeIncreaseAllowance(address(_nfpm()), amount0Desired);
+        IERC20(token0Address).safeIncreaseAllowance(address(_nfpmInstance), amount0Desired);
 
-        IERC20(token1Address).safeIncreaseAllowance(address(_nfpm()), amount1Desired);
+        IERC20(token1Address).safeIncreaseAllowance(address(_nfpmInstance), amount1Desired);
 
-        (uint128 increasedLiquidity, uint256 amount0Increased, uint256 amount1Increased) = _nfpm().increaseLiquidity(
+        (uint128 increasedLiquidity, uint256 amount0Increased, uint256 amount1Increased) = _nfpmInstance.increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
                 tokenId: tokenId,
                 amount0Desired: amount0Desired,
@@ -227,14 +237,17 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         notEmergency
         returns (uint256 addedUsed0, uint256 addedUsed1, uint256 returnToken0, uint256 returnToken1)
     {
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+        ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
+        
         (,, address token0Address, address token1Address, uint24 fee, int24 tickLower, int24 tickUpper,,,,,) =
-            _nfpm().positions(tokenId);
+            _nfpmInstance.positions(tokenId);
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
 
-        uint256 balance0 = IERC20(token0Address).balanceOf(address(_liquidityManager()));
-        uint256 balance1 = IERC20(token1Address).balanceOf(address(_liquidityManager()));
+        uint256 balance0 = IERC20(token0Address).balanceOf(address(_liquidityManagerInstance));
+        uint256 balance1 = IERC20(token1Address).balanceOf(address(_liquidityManagerInstance));
 
         if (balance0 < leftoverAmount0) {
             revert LH_INSUFFICIENT_LM_BALANCE_TOKEN0();
@@ -249,13 +262,13 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
 
         if (leftoverAmount0 > 0) {
             uint256 balance0Before = token0.balanceOf(address(this));
-            token0.safeTransferFrom(address(_liquidityManager()), address(this), leftoverAmount0);
+            token0.safeTransferFrom(address(_liquidityManagerInstance), address(this), leftoverAmount0);
             actualLeft0 = token0.balanceOf(address(this)) - balance0Before;
         }
 
         if (leftoverAmount1 > 0) {
             uint256 balance1Before = token1.balanceOf(address(this));
-            token1.safeTransferFrom(address(_liquidityManager()), address(this), leftoverAmount1);
+            token1.safeTransferFrom(address(_liquidityManagerInstance), address(this), leftoverAmount1);
             actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
@@ -308,10 +321,10 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
         }
 
         if (returnToken0 > 0) {
-            IERC20(token0Address).safeIncreaseAllowance(address(_liquidityManager()), returnToken0);
+            IERC20(token0Address).safeIncreaseAllowance(address(_liquidityManagerInstance), returnToken0);
         }
         if (returnToken1 > 0) {
-            IERC20(token1Address).safeIncreaseAllowance(address(_liquidityManager()), returnToken1);
+            IERC20(token1Address).safeIncreaseAllowance(address(_liquidityManagerInstance), returnToken1);
         }
     }
 }

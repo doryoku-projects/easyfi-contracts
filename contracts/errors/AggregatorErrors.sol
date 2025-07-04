@@ -15,6 +15,10 @@ abstract contract AggregatorErrors {
      */
     error AGG_ZERO_AMOUNT();
     /**
+     * @notice _maxMigrationSize == 0
+     */
+    error AGG_ZERO_MAX_MIGRATION_SIZE();
+    /**
      * @notice percentageToRemove == 0
      */
     error AGG_ZERO_PERCENTAGE();
@@ -27,7 +31,7 @@ abstract contract AggregatorErrors {
      */
     error AGG_INVALID_TICK_RANGE();
     /**
-     * @notice This event is emitted when the maximum size of an array is exceeded.
+     * @notice This error is reverted when the maximum size of an array is exceeded.
      * @param arrayName The name of the array that exceeded the size limit.
      * @param size The size of the array that exceeded the limit.
      */
