@@ -3,6 +3,8 @@ const { ethers, upgrades } = require("hardhat");
 require("dotenv").config();
 
 async function main() {
+  console.log("[DEPLOY] Deploying LiquidityHelperUpgradeable...");
+
   deployer = process.env.OWNER_PRIVATE_KEY;
   // Obtén la fábrica del contrato Agregador Upgradeable
   const LiquidityHelperUpgradeable = await ethers.getContractFactory(
@@ -21,7 +23,7 @@ async function main() {
   await liquidityHelper.waitForDeployment();
 
   console.log(
-    "Contrato LiquidityHelperUpgradeable desplegado en:",
+    "[DEPLOY] LiquidityHelperUpgradeable deployed at:",
     liquidityHelper.address
   );
 }
@@ -29,6 +31,6 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error("[DEPLOY] Error in LiquidityHelperUpgradeable:", error);
     process.exit(1);
   });

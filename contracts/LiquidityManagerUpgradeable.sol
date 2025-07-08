@@ -30,9 +30,9 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
 
-    event positionMinted(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
-    event liquidityAdded(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
-    event amountsDesired(uint256 indexed amount0Desired, uint256 indexed amount1Desired);
+    event PositionMinted(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event LiquidityAdded(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
+    event AmountsDesired(uint256 indexed amount0Desired, uint256 indexed amount1Desired);
     event LiquidityRemoved(uint256 indexed tokenId, uint256 amountMainToken, uint256 amount0, uint256 amount1);
     event FeesCollected(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
     event PositionMigrated(
@@ -43,9 +43,16 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
-        s_userManagerAddress = _userManagerAddress;
+        if (_protocolConfig == address(0) || _userManagerAddress == address(0)){
+            revert LM_ZERO_ADDRESS();
+        }
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
@@ -75,11 +82,10 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
      */
     function setUserManagerAddress(address _newUserManagerAddress) public onlyGeneralOrMasterAdmin returns (bool) {
         if (_newUserManagerAddress == address(0)) revert LM_ZERO_ADDRESS();
-        if (_newUserManagerAddress == s_userManagerAddress) {
+        if (_newUserManagerAddress == address(s_userManager)) {
             revert LM_ADDRESS_UNCHANGED();
         }
 
-        s_userManagerAddress = _newUserManagerAddress;
         s_userManager = IUserManagerUpgradeable(_newUserManagerAddress);
         emit UserManagerSet();
         return true;
@@ -212,16 +218,18 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     ) internal returns (uint256 extraUsed0, uint256 extraUsed1) {
         uint256 leftoverAmount0 = amount0Desired - usedAmount0;
         uint256 leftoverAmount1 = amount1Desired - usedAmount1;
+        IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
+        ILiquidityHelperUpgradeable _liquidityHelperInstance = ILiquidityHelperUpgradeable(_liquidityHelper());
 
         if (leftoverAmount0 > 0) {
-            token0ERC.safeIncreaseAllowance(address(_liquidityHelper()), leftoverAmount0);
+            token0ERC.safeIncreaseAllowance(address(_liquidityHelperInstance), leftoverAmount0);
         }
         if (leftoverAmount1 > 0) {
-            token1ERC.safeIncreaseAllowance(address(_liquidityHelper()), leftoverAmount1);
+            token1ERC.safeIncreaseAllowance(address(_liquidityHelperInstance), leftoverAmount1);
         }
 
         (uint256 extraUsed0Local, uint256 extraUsed1Local, uint256 returnToken0, uint256 returnToken1) =
-        _liquidityHelper().handleLeftovers(
+        _liquidityHelperInstance.handleLeftovers(
             tokenId, leftoverAmount0, amount0Desired, usedAmount0, leftoverAmount1, amount1Desired, usedAmount1
         );
 
@@ -229,22 +237,22 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 actualReturnToken0 = 0;
         if (returnToken0 > 0) {
             uint256 balance0Before = token0ERC.balanceOf(address(this));
-            token0ERC.safeTransferFrom(address(_liquidityHelper()), address(this), returnToken0);
+            token0ERC.safeTransferFrom(address(_liquidityHelperInstance), address(this), returnToken0);
             actualReturnToken0 = token0ERC.balanceOf(address(this)) - balance0Before;
-            token0ERC.safeIncreaseAllowance(address(_oracleSwap()), actualReturnToken0);
+            token0ERC.safeIncreaseAllowance(address(_oracleSwapInstance), actualReturnToken0);
         }
 
         // Track actual received amounts for token1
         uint256 actualReturnToken1 = 0;
         if (returnToken1 > 0) {
             uint256 balance1Before = token1ERC.balanceOf(address(this));
-            token1ERC.safeTransferFrom(address(_liquidityHelper()), address(this), returnToken1);
+            token1ERC.safeTransferFrom(address(_liquidityHelperInstance), address(this), returnToken1);
             actualReturnToken1 = token1ERC.balanceOf(address(this)) - balance1Before;
-            token1ERC.safeIncreaseAllowance(address(_oracleSwap()), actualReturnToken1);
+            token1ERC.safeIncreaseAllowance(address(_oracleSwapInstance), actualReturnToken1);
         }
 
         if (actualReturnToken0 > 0 || actualReturnToken1 > 0) {
-            _oracleSwap().convertToMainTokenAndSend(
+            _oracleSwapInstance.convertToMainTokenAndSend(
                 user, actualReturnToken0, actualReturnToken1, token0Address, token1Address, fee
             );
         }
@@ -281,41 +289,47 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         notEmergency
         returns (uint256 tokenID, uint256 mintedAmount0, uint256 mintedAmount1)
     {
+        // Cache storage variables to reduce SLOADs
+        IERC20 _mainTokenInstance = _mainToken();
+        address _vaultManagerInstance = _vaultManager();
+        IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+
         uint256 actualAmountReceived = amountDesired;
 
         if (isVault) {
-            uint256 balanceBefore = _mainToken().balanceOf(address(this));
-            _mainToken().safeTransferFrom(address(_vaultManager()), address(this), amountDesired);
-            actualAmountReceived = _mainToken().balanceOf(address(this)) - balanceBefore;
+            uint256 balanceBefore = _mainTokenInstance.balanceOf(address(this));
+            _mainTokenInstance.safeTransferFrom(_vaultManagerInstance, address(this), amountDesired);
+            actualAmountReceived = _mainTokenInstance.balanceOf(address(this)) - balanceBefore;
         }
 
-        _mainToken().safeIncreaseAllowance(address(_oracleSwap()), actualAmountReceived);
+        _mainTokenInstance.safeIncreaseAllowance(address(_oracleSwapInstance), actualAmountReceived);
 
         (uint256 amount0Desired, uint256 amount1Desired) =
-            _oracleSwap().getBalancedAmounts(token0, token1, actualAmountReceived, fee);
+            _oracleSwapInstance.getBalancedAmounts(token0, token1, actualAmountReceived, fee);
 
         IERC20 token0ERC = IERC20(token0);
         IERC20 token1ERC = IERC20(token1);
 
         uint256 balance0Before = token0ERC.balanceOf(address(this));
-        token0ERC.safeTransferFrom(address(_oracleSwap()), address(this), amount0Desired);
+        token0ERC.safeTransferFrom(address(_oracleSwapInstance), address(this), amount0Desired);
         uint256 actualAmount0Desired = token0ERC.balanceOf(address(this)) - balance0Before;
 
         uint256 balance1Before = token1ERC.balanceOf(address(this));
-        token1ERC.safeTransferFrom(address(_oracleSwap()), address(this), amount1Desired);
+        token1ERC.safeTransferFrom(address(_oracleSwapInstance), address(this), amount1Desired);
         uint256 actualAmount1Desired = token1ERC.balanceOf(address(this)) - balance1Before;
 
-        emit amountsDesired(actualAmount0Desired, actualAmount1Desired);
+        emit AmountsDesired(actualAmount0Desired, actualAmount1Desired);
 
-        uint128 liquidityAmount = _oracleSwap().getLiquidityFromAmounts(
+        uint128 liquidityAmount = _oracleSwapInstance.getLiquidityFromAmounts(
             token0, token1, fee, tickLower, tickUpper, actualAmount0Desired, actualAmount1Desired
         );
 
         (uint256 amount0Min, uint256 amount1Min) =
-            _oracleSwap().getAmountsFromLiquidity(token0, token1, fee, tickLower, tickUpper, liquidityAmount);
+            _oracleSwapInstance.getAmountsFromLiquidity(token0, token1, fee, tickLower, tickUpper, liquidityAmount);
 
-        token0ERC.safeIncreaseAllowance(address(_nfpm()), actualAmount0Desired);
-        token1ERC.safeIncreaseAllowance(address(_nfpm()), actualAmount1Desired);
+        token0ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount0Desired);
+        token1ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount1Desired);
 
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: token0,
@@ -331,9 +345,9 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             deadline: block.timestamp
         });
 
-        (uint256 tokenId,, uint256 usedAmount0, uint256 usedAmount1) = _nfpm().mint(params);
+        (uint256 tokenId,, uint256 usedAmount0, uint256 usedAmount1) = _nfpmInstance.mint(params);
 
-        _nfpm().approve(address(_liquidityHelper()), tokenId);
+        _nfpmInstance.approve(address(_liquidityHelper()), tokenId);
 
         uint256 extraUsed0;
         uint256 extraUsed1;
@@ -357,16 +371,16 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         mintedAmount0 = usedAmount0 + extraUsed0;
         mintedAmount1 = usedAmount1 + extraUsed1;
 
-        if (IERC721(address(_nfpm())).ownerOf(tokenId) != address(this)) {
+        if (IERC721(address(_nfpmInstance)).ownerOf(tokenId) != address(this)) {
             revert LM_NOT_NFT_OWNER();
         }
 
-        _nfpm().approve(address(0), tokenId);
+        _nfpmInstance.approve(address(0), tokenId);
 
-        _nfpm().safeTransferFrom(address(this), address(_vaultManager()), tokenId);
+        _nfpmInstance.safeTransferFrom(address(this), _vaultManagerInstance, tokenId);
 
         tokenID = tokenId;
-        emit positionMinted(tokenId, mintedAmount0, mintedAmount1);
+        emit PositionMinted(tokenId, mintedAmount0, mintedAmount1);
     }
 
     /**
@@ -383,41 +397,45 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         notEmergency
         returns (uint256 increasedAmount0, uint256 increasedAmount1)
     {
-        uint256 balanceBefore = _mainToken().balanceOf(address(this));
-        _mainToken().safeTransferFrom(address(_vaultManager()), address(this), amountDesired);
-        uint256 actualAmountReceived = _mainToken().balanceOf(address(this)) - balanceBefore;
+        IERC20 _mainTokenInstance = IERC20(_mainToken());
+        INonfungiblePositionManager _nfpmInstance = INonfungiblePositionManager(_nfpm());
+        IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
 
-        _mainToken().safeIncreaseAllowance(address(_oracleSwap()), actualAmountReceived);
+        uint256 balanceBefore = _mainTokenInstance.balanceOf(address(this));
+        _mainTokenInstance.safeTransferFrom(address(_vaultManager()), address(this), amountDesired);
+        uint256 actualAmountReceived = _mainTokenInstance.balanceOf(address(this)) - balanceBefore;
+
+        _mainTokenInstance.safeIncreaseAllowance(address(_oracleSwapInstance), actualAmountReceived);
 
         (,, address token0Address, address token1Address, uint24 fee, int24 tickLower, int24 tickUpper,,,,,) =
-            _nfpm().positions(tokenId);
+            _nfpmInstance.positions(tokenId);
 
         IERC20 token0ERC = IERC20(token0Address);
         IERC20 token1ERC = IERC20(token1Address);
 
         (uint256 amount0Desired, uint256 amount1Desired) =
-            _oracleSwap().getBalancedAmounts(token0Address, token1Address, actualAmountReceived, fee);
+            _oracleSwapInstance.getBalancedAmounts(token0Address, token1Address, actualAmountReceived, fee);
 
         // Track actual amounts received for token0
         uint256 balance0Before = token0ERC.balanceOf(address(this));
-        token0ERC.safeTransferFrom(address(_oracleSwap()), address(this), amount0Desired);
+        token0ERC.safeTransferFrom(address(_oracleSwapInstance), address(this), amount0Desired);
         uint256 actualAmount0Desired = token0ERC.balanceOf(address(this)) - balance0Before;
 
         // Track actual amounts received for token1
         uint256 balance1Before = token1ERC.balanceOf(address(this));
-        token1ERC.safeTransferFrom(address(_oracleSwap()), address(this), amount1Desired);
+        token1ERC.safeTransferFrom(address(_oracleSwapInstance), address(this), amount1Desired);
         uint256 actualAmount1Desired = token1ERC.balanceOf(address(this)) - balance1Before;
 
-        uint128 liquidityAmount = _oracleSwap().getLiquidityFromAmounts(
+        uint128 liquidityAmount = _oracleSwapInstance.getLiquidityFromAmounts(
             token0Address, token1Address, fee, tickLower, tickUpper, actualAmount0Desired, actualAmount1Desired
         );
 
-        (uint256 amount0Min, uint256 amount1Min) = _oracleSwap().getAmountsFromLiquidity(
+        (uint256 amount0Min, uint256 amount1Min) = _oracleSwapInstance.getAmountsFromLiquidity(
             token0Address, token1Address, fee, tickLower, tickUpper, liquidityAmount
         );
 
-        token0ERC.safeIncreaseAllowance(address(_nfpm()), actualAmount0Desired);
-        token1ERC.safeIncreaseAllowance(address(_nfpm()), actualAmount1Desired);
+        token0ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount0Desired);
+        token1ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount1Desired);
 
         INonfungiblePositionManager.IncreaseLiquidityParams memory params = INonfungiblePositionManager
             .IncreaseLiquidityParams({
@@ -429,7 +447,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             deadline: block.timestamp
         });
 
-        (, uint256 _increasedAmount0, uint256 _increasedAmount1) = _nfpm().increaseLiquidity(params);
+        (, uint256 _increasedAmount0, uint256 _increasedAmount1) = _nfpmInstance.increaseLiquidity(params);
 
         uint256 extraUsed0;
         uint256 extraUsed1;
@@ -453,7 +471,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         increasedAmount0 = _increasedAmount0 + extraUsed0;
         increasedAmount1 = _increasedAmount1 + extraUsed1;
 
-        emit liquidityAdded(tokenId, increasedAmount0, increasedAmount1);
+        emit LiquidityAdded(tokenId, increasedAmount0, increasedAmount1);
     }
 
     /**
@@ -470,6 +488,10 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         notEmergency
         returns (uint256 collectedMainToken)
     {
+        // Cache storage variables to reduce SLOADs
+        IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+
         (
             ,
             ,
@@ -482,14 +504,14 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             ,
             ,
             ,
-        ) = _nfpm().positions(tokenId);
+        ) = _nfpmInstance.positions(tokenId);
 
         if (percentageToRemove > _BP()) revert LM_PERCENTAGE_TOO_HIGH();
         if (liquidity == 0) revert LM_NO_LIQUIDITY();
 
         uint128 liquidityToRemove = (percentageToRemove * liquidity) / uint128(_BP());
 
-        (uint256 amount0Min, uint256 amount1Min) = _oracleSwap().getAmountsFromLiquidity(
+        (uint256 amount0Min, uint256 amount1Min) = _oracleSwapInstance.getAmountsFromLiquidity(
             token0Address, token1Address, fee, tickLower, tickUpper, liquidityToRemove
         );
 
@@ -502,7 +524,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             deadline: block.timestamp
         });
 
-        (uint256 amount0, uint256 amount1) = _nfpm().decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = _nfpmInstance.decreaseLiquidity(params);
 
         INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
             tokenId: tokenId,
@@ -511,7 +533,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (uint256 collected0, uint256 collected1) = _nfpm().collect(collectParams);
+        (uint256 collected0, uint256 collected1) = _nfpmInstance.collect(collectParams);
 
         if (IERC20(token0Address).balanceOf(address(this)) < collected0) {
             revert LM_INSUFFICIENT_TOKEN0_BALANCE();
@@ -520,17 +542,17 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             revert LM_INSUFFICIENT_TOKEN1_BALANCE();
         }
 
-        IERC20(token0Address).safeIncreaseAllowance(address(_oracleSwap()), collected0);
-        IERC20(token1Address).safeIncreaseAllowance(address(_oracleSwap()), collected1);
+        IERC20(token0Address).safeIncreaseAllowance(address(_oracleSwapInstance), collected0);
+        IERC20(token1Address).safeIncreaseAllowance(address(_oracleSwapInstance), collected1);
 
-        collectedMainToken = _oracleSwap().convertToMainTokenAndSend(
+        collectedMainToken = _oracleSwapInstance.convertToMainTokenAndSend(
             migrate ? address(this) : user, collected0, collected1, token0Address, token1Address, fee
         );
 
         emit LiquidityRemoved(tokenId, collectedMainToken, amount0, amount1);
 
         if (percentageToRemove == _BP()) {
-            _nfpm().burn(tokenId);
+            _nfpmInstance.burn(tokenId);
             emit PositionBurned(tokenId);
         }
     }
@@ -555,7 +577,11 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 companyTax,
         bool send
     ) public onlyLiquidityManager notEmergency returns (uint256 collected0, uint256 collected1, uint256 companyFees) {
-        (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
+        address _vaultManagerInstance = _vaultManager();
+        INonfungiblePositionManager _nfpmInstance = INonfungiblePositionManager(_nfpm());
+        IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
+
+        (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpmInstance.positions(tokenId);
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
@@ -567,19 +593,19 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (collected0, collected1) = _nfpm().collect(collectParams);
+        (collected0, collected1) = _nfpmInstance.collect(collectParams);
 
         uint256 actualPreviousCollected0 = 0;
         if (previousCollected0 > 0) {
             uint256 balance0Before = token0.balanceOf(address(this));
-            token0.safeTransferFrom(address(_vaultManager()), address(this), previousCollected0);
+            token0.safeTransferFrom(_vaultManagerInstance, address(this), previousCollected0);
             actualPreviousCollected0 = token0.balanceOf(address(this)) - balance0Before;
         }
 
         uint256 actualPreviousCollected1 = 0;
         if (previousCollected1 > 0) {
             uint256 balance1Before = token1.balanceOf(address(this));
-            token1.safeTransferFrom(address(_vaultManager()), address(this), previousCollected1);
+            token1.safeTransferFrom(_vaultManagerInstance, address(this), previousCollected1);
             actualPreviousCollected1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
@@ -595,29 +621,28 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             uint256 userTax1 = totalCollected1 - companyTax1;
 
             if (totalCollected0 > 0) {
-                token0.safeIncreaseAllowance(address(_oracleSwap()), totalCollected0);
+                token0.safeIncreaseAllowance(address(_oracleSwapInstance), totalCollected0);
             }
             if (totalCollected1 > 0) {
-                token1.safeIncreaseAllowance(address(_oracleSwap()), totalCollected1);
+                token1.safeIncreaseAllowance(address(_oracleSwapInstance), totalCollected1);
             }
 
             if (userTax0 > 0 || userTax1 > 0) {
-                _oracleSwap().convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
+                _oracleSwapInstance.convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
             }
 
             companyFees = (companyTax0 > 0 || companyTax1 > 0)
-                ? _oracleSwap().convertToMainTokenAndSend(
-                    address(_vaultManager()), companyTax0, companyTax1, token0Address, token1Address, fee
+                ? _oracleSwapInstance.convertToMainTokenAndSend(
+                    _vaultManagerInstance, companyTax0, companyTax1, token0Address, token1Address, fee
                 )
                 : 0;
         } else {
             if (collected0 > 0) {
-                token0.safeIncreaseAllowance(address(_vaultManager()), collected0);
+                token0.safeIncreaseAllowance(_vaultManagerInstance, collected0);
             }
             if (collected1 > 0) {
-                token1.safeIncreaseAllowance(address(_vaultManager()), collected1);
+                token1.safeIncreaseAllowance(_vaultManagerInstance, collected1);
             }
-            companyFees = 0;
         }
     }
 

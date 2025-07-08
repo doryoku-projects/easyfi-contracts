@@ -10,15 +10,22 @@ describe("Aggregator Minting and Role Restriction Tests", function () {
   const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
   const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
   const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const maintokenAddress = process.env.MAIN_TOKEN_ADDRESS;
 
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+  if (process.env.NETWORK === "arbitrum") {
+    const maintokenAddress = process.env.MAIN_TOKEN_ADDRESS_ARBITRUM;
+    const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+  }
+  else if (process.env.NETWORK === "base") {
+    const maintokenAddress = process.env.MAIN_TOKEN_ADDRESS_BASE;
+    const token0Address = "0x4200000000000000000000000000000000000006"; // WETH on Base
+  }
+
   const token1Address = maintokenAddress;
   const fee = 500;
   const poolId = "ui-232-122";
   const tickLower = -202000;
   const tickUpper = -200000;
-  const amountUSDCDesired = ethers.parseUnits("5", 6);
+  const amountUSDCDesired = ethers.parseUnits("10000", 6);
   // const ethFundingAmount = ethers.parseEther("0.5");
 
   // async function fundWallet(to) {

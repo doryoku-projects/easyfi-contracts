@@ -3,21 +3,24 @@ const { ethers, upgrades } = require("hardhat");
 require("dotenv").config();
 
 async function main() {
-  const proxyAddress = process.env.VAULT_MANAGER_ADDRESS; // Reemplaza esto con la dirección del proxy ya desplegado
-  
-  const VaultManagerUpgradeable = await ethers.getContractFactory("VaultManagerUpgradeable");
-  
-  console.log("Haciendo upgrade del contrato...");
-  
-  const upgraded = await upgrades.upgradeProxy(
+  const proxyAddress = "PROXY_ADDRESS_0x00"; // Replace with the actual address
+
+  const VaultManagerUpgradeable =
+    await ethers.getContractFactory("VaultManagerUpgradeable");
+
+  console.log("[UPGRADE] Updating the proxy contract...");
+
+  // The proxy contract is updated
+  const upgradedVault = await upgrades.upgradeProxy(
     proxyAddress,
     VaultManagerUpgradeable
   );
-  
-  console.log("Contrato actualizado correctamente, nueva versión desplegada en:", await upgraded.getAddress());
+  console.log(`[UPGRADE] Proxy contract updated at: ${upgradedVault.address}`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("[UPGRADE] Error in upgrade:", error);
+    process.exit(1);
+  });

@@ -2,6 +2,8 @@ const { ethers, upgrades } = require("hardhat");
 require("dotenv").config();
 
 async function main() {
+  console.log("[DEPLOY] Deploying OracleSwapUpgradeable...");
+
   deployer = process.env.OWNER_PRIVATE_KEY;
   // Obtén la fábrica del contrato Agregador Upgradeable
   const OracleSwapUpgradeable = await ethers.getContractFactory(
@@ -20,15 +22,12 @@ async function main() {
 
   await oracleSwap.waitForDeployment();
 
-  console.log(
-    "Contrato OracleSwapUpgradeable desplegado en:",
-    oracleSwap.address
-  );
+  console.log("[DEPLOY] OracleSwapUpgradeable deployed at:", oracleSwap.address);
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error("[DEPLOY] Error in OracleSwapUpgradeable:", error);
     process.exit(1);
   });

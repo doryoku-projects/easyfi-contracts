@@ -35,11 +35,24 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     error UM_GENERAL_ADMIN_OR_USER_MANAGER();
 
     /**
-     * @notice This event is emitted when the maximum size of an array is exceeded.
+     * @notice This error is reverted when the maximum size of an array is exceeded.
      * @param arrayName The name of the array that exceeded the size limit.
      * @param size The size of the array that exceeded the limit.
      */
     error UM_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
+
+    /**
+     * @notice the max roles size is zero
+     */
+    error UM_ZERO_MAX_ROLES_SIZE();
+    /**
+     * @notice the address does not have the role
+     */
+    error UM_ROLE_DOES_NOT_EXIST(bytes32 role, address user);
+    /**
+     * @notice the address is not a general admin or a user manager
+     */
+    error UM_ROLE_ALREADY_EXIST(bytes32 role, address user);
 
     /**
      * @notice onlyContractOrUserManager modifier
@@ -113,7 +126,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     event EmergencyModeActivated(bool indexed emergency);
     event EmergencyModeDeactivated(bool indexed emergency);
     event MaxRolesSizeUpdated(uint256 indexed newMaxRolesSize);
-    event code2FAUpdated(address indexed user);
+    event Code2FAUpdated(address indexed user);
 
     /**
      * @notice Initialize the UserManager contract, granting initial roles.
@@ -132,40 +145,37 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
         _grantRole(MASTER_ADMIN_ROLE, _msgSender());
 
-        if (_initialUserManagers.length > _maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("initialUserManagers", _initialUserManagers.length);
-        }
+        s_maxRolesSize = _maxRolesSize;
 
-        if (_initialAdmins.length > _maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("initialAdmins", _initialAdmins.length);
-        }
-
-        if (_2FAManagers.length > _maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("initial2FAManagers", _2FAManagers.length);
-        }
-
-        if (_initialContracts.length > _maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("initialContracts", _initialContracts.length);
-        }
+        _checkArraySizeLimit("initialUserManagers", _initialUserManagers.length);
+        _checkArraySizeLimit("initialAdmins", _initialAdmins.length);
+        _checkArraySizeLimit("initial2FAManagers", _2FAManagers.length);
+        _checkArraySizeLimit("initialContracts", _initialContracts.length);
 
         for (uint256 i = 0; i < _initialUserManagers.length; i++) {
             _grantRole(USER_MANAGER_ROLE, _initialUserManagers[i]);
+            emit UserManagerAdded(_initialUserManagers[i]);
         }
 
         for (uint256 i = 0; i < _initialAdmins.length; i++) {
             _grantRole(GENERAL_ADMIN_ROLE, _initialAdmins[i]);
+            emit GeneralAdminAdded(_initialAdmins[i]);
         }
 
         for (uint256 i = 0; i < _2FAManagers.length; i++) {
             _grantRole(USER_2FA_ROLE, _2FAManagers[i]);
+            emit User2FAAdded(_2FAManagers[i]);
         }
 
         for (uint256 i = 0; i < _initialContracts.length; i++) {
             _grantRole(CONTRACT_ROLE, _initialContracts[i]);
+            emit ContractAdded(_initialContracts[i]);
         }
+    }
 
-        s_emergency = false;
-        s_maxRolesSize = _maxRolesSize;
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /**
@@ -175,11 +185,38 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(MASTER_ADMIN_ROLE) {}
 
     /**
+     * @dev Check if the array size is within the limit.
+     * @param _arrayName Name of the array to check.
+     * @param _size Size of the array to check.
+     */
+    function _checkArraySizeLimit(string memory _arrayName, uint256 _size) internal view {
+        if (_size > s_maxRolesSize) {
+            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED(_arrayName, _size);
+        }
+    }
+
+    /**
+     * @dev Check if the user has the role or not.
+     * @param _role Role to check.
+     * @param _user User to check.
+     * @param _checkIfHasRole If true, checks if the user has the role, otherwise checks if the user does not have the role.
+     */
+    function _checkRole(bytes32 _role, address _user, bool _checkIfHasRole) internal view {
+        // if _checkIfHasRole is true, checks if the user has the role, 
+        // otherwise checks if the user does not have the role.
+        if (_checkIfHasRole){
+            if (hasRole(_role, _user)) revert UM_ROLE_ALREADY_EXIST(_role, _user);
+        } else {
+            if (!hasRole(_role, _user)) revert UM_ROLE_DOES_NOT_EXIST(_role, _user);
+        }
+    }
+
+    /**
      * @notice setMaxRolesSize
      * @dev This function sets the maximum size of the roles in a batch.
      */
     function setMaxRolesSize(uint256 _maxRolesSize) external onlyRole(MASTER_ADMIN_ROLE) {
-        if (_maxRolesSize == 0) return;
+        if (_maxRolesSize == 0) revert UM_ZERO_MAX_ROLES_SIZE();
         s_maxRolesSize = _maxRolesSize;
         emit MaxRolesSizeUpdated(_maxRolesSize);
     }
@@ -230,10 +267,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addUsers(address[] calldata users) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
-        if (users.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("users", users.length);
-        }
+        _checkArraySizeLimit("users", users.length);
         for (uint256 i = 0; i < users.length; i++) {
+            _checkRole(USER_ROLE, users[i], true);
             _grantRole(USER_ROLE, users[i]);
             emit UserAdded(users[i]);
         }
@@ -246,10 +282,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function removeUsers(address[] calldata users) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
-        if (users.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("users", users.length);
-        }
+        _checkArraySizeLimit("users", users.length);
         for (uint256 i = 0; i < users.length; i++) {
+            _checkRole(USER_ROLE, users[i], false);
             _revokeRole(USER_ROLE, users[i]);
             emit UserRemoved(users[i]);
         }
@@ -273,10 +308,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addUsersManager(address[] calldata usersManager) external onlyGeneralAdminOrUserManager returns (bool) {
-        if (usersManager.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("usersManager", usersManager.length);
-        }
+        _checkArraySizeLimit("usersManager", usersManager.length);
         for (uint256 i = 0; i < usersManager.length; i++) {
+            _checkRole(USER_MANAGER_ROLE, usersManager[i], true);
             _grantRole(USER_MANAGER_ROLE, usersManager[i]);
             emit UserManagerAdded(usersManager[i]);
         }
@@ -289,10 +323,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function removeUsersManager(address[] calldata usersManager) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
-        if (usersManager.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("usersManager", usersManager.length);
-        }
+        _checkArraySizeLimit("usersManager", usersManager.length);
         for (uint256 i = 0; i < usersManager.length; i++) {
+            _checkRole(USER_MANAGER_ROLE, usersManager[i], false);
             _revokeRole(USER_MANAGER_ROLE, usersManager[i]);
             emit UserManagerRemoved(usersManager[i]);
         }
@@ -320,10 +353,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         onlyRole(GENERAL_ADMIN_ROLE)
         returns (bool)
     {
-        if (liquidityManagers.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("liquidityManagers", liquidityManagers.length);
-        }
+        _checkArraySizeLimit("liquidityManagers", liquidityManagers.length);
         for (uint256 index = 0; index < liquidityManagers.length; index++) {
+            _checkRole(LIQUIDITY_MANAGER_ROLE, liquidityManagers[index], true);
             _grantRole(LIQUIDITY_MANAGER_ROLE, liquidityManagers[index]);
             emit LiquidityManagerAdded(liquidityManagers[index]);
         }
@@ -340,10 +372,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         onlyRole(GENERAL_ADMIN_ROLE)
         returns (bool)
     {
-        if (liquidityManagers.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("liquidityManagers", liquidityManagers.length);
-        }
+        _checkArraySizeLimit("liquidityManagers", liquidityManagers.length);
         for (uint256 index = 0; index < liquidityManagers.length; index++) {
+            _checkRole(LIQUIDITY_MANAGER_ROLE, liquidityManagers[index], false);
             _revokeRole(LIQUIDITY_MANAGER_ROLE, liquidityManagers[index]);
             emit LiquidityManagerRemoved(liquidityManagers[index]);
         }
@@ -367,10 +398,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addVaultManagers(address[] calldata vaultManagers) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (vaultManagers.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("vaultManagers", vaultManagers.length);
-        }
+        _checkArraySizeLimit("vaultManagers", vaultManagers.length);
         for (uint256 index = 0; index < vaultManagers.length; index++) {
+            _checkRole(VAULT_MANAGER_ROLE, vaultManagers[index], true);
             _grantRole(VAULT_MANAGER_ROLE, vaultManagers[index]);
             emit VaultManagerAdded(vaultManagers[index]);
         }
@@ -387,10 +417,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         onlyRole(GENERAL_ADMIN_ROLE)
         returns (bool)
     {
-        if (vaultManagers.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("vaultManagers", vaultManagers.length);
-        }
+        _checkArraySizeLimit("vaultManagers", vaultManagers.length);
         for (uint256 index = 0; index < vaultManagers.length; index++) {
+            _checkRole(VAULT_MANAGER_ROLE, vaultManagers[index], false);
             _revokeRole(VAULT_MANAGER_ROLE, vaultManagers[index]);
             emit VaultManagerRemoved(vaultManagers[index]);
         }
@@ -414,10 +443,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addUser2FAs(address[] calldata users2FA) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (users2FA.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("users2FA", users2FA.length);
-        }
+        _checkArraySizeLimit("users2FA", users2FA.length);
         for (uint256 index = 0; index < users2FA.length; index++) {
+            _checkRole(USER_2FA_ROLE, users2FA[index], true);
             _grantRole(USER_2FA_ROLE, users2FA[index]);
             emit User2FAAdded(users2FA[index]);
         }
@@ -430,10 +458,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function removeUser2FAs(address[] calldata users2FA) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (users2FA.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("users2FA", users2FA.length);
-        }
+        _checkArraySizeLimit("users2FA", users2FA.length);
         for (uint256 index = 0; index < users2FA.length; index++) {
+            _checkRole(USER_2FA_ROLE, users2FA[index], false);
             _revokeRole(USER_2FA_ROLE, users2FA[index]);
             emit User2FARemoved(users2FA[index]);
         }
@@ -456,10 +483,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addContracts(address[] calldata contracts) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (contracts.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("contracts", contracts.length);
-        }
+        _checkArraySizeLimit("contracts", contracts.length);
         for (uint256 index = 0; index < contracts.length; index++) {
+            _checkRole(CONTRACT_ROLE, contracts[index], true);
             _grantRole(CONTRACT_ROLE, contracts[index]);
             emit ContractAdded(contracts[index]);
         }
@@ -472,10 +498,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function removeContracts(address[] calldata contracts) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (contracts.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("contracts", contracts.length);
-        }
+        _checkArraySizeLimit("contracts", contracts.length);
         for (uint256 index = 0; index < contracts.length; index++) {
+            _checkRole(CONTRACT_ROLE, contracts[index], false);
             _revokeRole(CONTRACT_ROLE, contracts[index]);
             emit ContractRemoved(contracts[index]);
         }
@@ -499,10 +524,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addGeneralAdmins(address[] calldata generalAdmins) external onlyRole(GENERAL_ADMIN_ROLE) returns (bool) {
-        if (generalAdmins.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("generalAdmins", generalAdmins.length);
-        }
+        _checkArraySizeLimit("generalAdmins", generalAdmins.length);
         for (uint256 i = 0; i < generalAdmins.length; i++) {
+            _checkRole(GENERAL_ADMIN_ROLE, generalAdmins[i], true);
             _grantRole(GENERAL_ADMIN_ROLE, generalAdmins[i]);
             emit GeneralAdminAdded(generalAdmins[i]);
         }
@@ -519,10 +543,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         onlyRole(GENERAL_ADMIN_ROLE)
         returns (bool)
     {
-        if (generalAdmins.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("generalAdmins", generalAdmins.length);
-        }
+        _checkArraySizeLimit("generalAdmins", generalAdmins.length);
         for (uint256 index = 0; index < generalAdmins.length; index++) {
+            _checkRole(GENERAL_ADMIN_ROLE, generalAdmins[index], false);
             _revokeRole(GENERAL_ADMIN_ROLE, generalAdmins[index]);
             emit GeneralAdminRemoved(generalAdmins[index]);
         }
@@ -546,10 +569,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function addMasterAdmins(address[] calldata masterAdmins) external onlyRole(MASTER_ADMIN_ROLE) returns (bool) {
-        if (masterAdmins.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("masterAdmins", masterAdmins.length);
-        }
+        _checkArraySizeLimit("masterAdmins", masterAdmins.length);
         for (uint256 index = 0; index < masterAdmins.length; index++) {
+            _checkRole(MASTER_ADMIN_ROLE, masterAdmins[index], true);
             _grantRole(MASTER_ADMIN_ROLE, masterAdmins[index]);
             emit MasterAdminAdded(masterAdmins[index]);
         }
@@ -562,10 +584,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @return True if operation succeeded.
      */
     function removeMasterAdmins(address[] calldata masterAdmins) external onlyRole(MASTER_ADMIN_ROLE) returns (bool) {
-        if (masterAdmins.length > s_maxRolesSize) {
-            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("masterAdmins", masterAdmins.length);
-        }
+        _checkArraySizeLimit("masterAdmins", masterAdmins.length);
         for (uint256 index = 0; index < masterAdmins.length; index++) {
+            _checkRole(MASTER_ADMIN_ROLE, masterAdmins[index], false);
             _revokeRole(MASTER_ADMIN_ROLE, masterAdmins[index]);
             emit MasterAdminRemoved(masterAdmins[index]);
         }
@@ -589,9 +610,11 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param code The 2FA code to associate with the user.
      */
     function set2FA(address user, string calldata code) external onlyRole(USER_2FA_ROLE) {
-        s_user2FA[user].code = code;
-        s_user2FA[user].timestamp = block.timestamp;
-        emit code2FAUpdated(user);
+        User2FA memory user2FAInfo = s_user2FA[user];
+        
+        user2FAInfo.code = code;
+        user2FAInfo.timestamp = block.timestamp;        
+        emit Code2FAUpdated(user);
     }
 
     /**

@@ -1,6 +1,9 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
+  console.log("[DEPLOY] Deploying ProtocolConfigUpgradeable...");
+
+  // Carga las variables de entorno desde el archivo .env
   const USER_MANAGER = process.env.USER_MANAGER_ADDRESS;
   const VAULT_MANAGER = process.env.VAULT_MANAGER_ADDRESS;
   const LIQ_MANAGER = process.env.LIQUIDITY_MANAGER_ADDRESS;
@@ -41,12 +44,12 @@ async function main() {
   ];
 
   const uintKeys = [
-    "BP", 
+    "BP",
     "CompanyFeePct"
   ].map(key);
-  
+
   const uintValues = [
-    10000, 
+    10000,
     3000
   ];
 
@@ -57,9 +60,7 @@ async function main() {
   const protocolConfig = await upgrades.deployProxy(
     ProtocolConfigUpgradeable,
     [USER_MANAGER, addressKeys, addressValues, uintKeys, uintValues],
-    {
-      initializer: "initialize",
-    }
+    { initializer: "initialize" }
   );
   const protocolConfigContract = await protocolConfig.waitForDeployment();
 
@@ -71,6 +72,6 @@ async function main() {
 main()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error(err);
+    console.error("[DEPLOY] Error in ProtocolConfigUpgradeable:", err);
     process.exit(1);
   });

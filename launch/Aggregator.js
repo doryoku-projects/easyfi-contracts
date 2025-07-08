@@ -1,6 +1,8 @@
 const { ethers, upgrades } = require("hardhat");
 
 async function main() {
+  console.log("[DEPLOY] Deploying AggregatorUpgradeable...");
+
   // Obtén la fábrica del contrato Agregador Upgradeable
   const AggregatorUpgradeable = await ethers.getContractFactory(
     "AggregatorUpgradeable"
@@ -19,15 +21,12 @@ async function main() {
   );
   await aggregator.waitForDeployment();
 
-  console.log(
-    "Contrato AggregatorUpgradeable desplegado en:",
-    aggregator.address
-  );
+  console.log("[DEPLOY] AggregatorUpgradeable deployed at:", aggregator.address);
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error(error);
+    console.error("[DEPLOY] Error in AggregatorUpgradeable:", error);
     process.exit(1);
   });
