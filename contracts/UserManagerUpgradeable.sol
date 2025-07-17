@@ -610,7 +610,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param code The 2FA code to associate with the user.
      */
     function set2FA(address user, string calldata code) external onlyRole(USER_2FA_ROLE) {
-        User2FA memory user2FAInfo = s_user2FA[user];
+        User2FA storage user2FAInfo = s_user2FA[user];
         
         user2FAInfo.code = code;
         user2FAInfo.timestamp = block.timestamp;        
@@ -634,5 +634,6 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         if (user2FAInfo.timestamp + 5 minutes < block.timestamp) {
             revert UM_2FA_CODE_EXPIRED();
         }
+        s_user2FA[user].timestamp = 0;
     }
 }

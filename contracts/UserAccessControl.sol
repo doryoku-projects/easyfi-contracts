@@ -103,7 +103,7 @@ abstract contract UserAccessControl is UUPSUpgradeable, AccessControlErrors {
      * @dev This modifier checks if the caller is a user manager or a general admin.
      */
     modifier onlyUserManagerOrGeneralAdmin() {
-        if (!(s_userManager.isUserManager(msg.sender) || s_userManager.isMasterAdmin(msg.sender))) {
+        if (!(s_userManager.isUserManager(msg.sender) || s_userManager.isGeneralAdmin(msg.sender))) {
             revert UAC_NOT_USER_MANAGER_OR_GENERAL_ADMIN();
         }
         _;
