@@ -624,7 +624,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.
      */
-    function check2FA(address user, string calldata code) external view onlyContractOrUserManager {
+    function check2FA(address user, string calldata code) external onlyContractOrUserManager {
         User2FA memory user2FAInfo = s_user2FA[user];
 
         if (keccak256(abi.encode(user2FAInfo.code)) != keccak256(abi.encode(code))) {

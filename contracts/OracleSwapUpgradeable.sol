@@ -188,7 +188,8 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         onlyLiquidityManager
         returns (uint256 amountOut)
     {
-        if (address(_swapRouter()) == address(0)) {
+        ISwapRouter _swapRouterInstance = _swapRouter();
+        if (address(_swapRouterInstance) == address(0)) {
             revert OS_SWAP_ROUTER_NOT_SET();
         }
 
@@ -245,7 +246,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
-        IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouter()), amountIn);
+        IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
@@ -258,7 +259,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             sqrtPriceLimitX96: 0
         });
 
-        amountOut = _swapRouter().exactInputSingle(params);
+        amountOut = _swapRouterInstance.exactInputSingle(params);
 
         emit TokensSwapped(tokenIn, tokenOut, amountIn, amountOut, computedAmountOut);
     }
@@ -315,6 +316,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         int24 tickUpper,
         uint128 liquidityAmount
     ) external view onlyLiquidityManager returns (uint256 amount0Min, uint256 amount1Min) {
+        uint16 _bp = _BP();
         address pool = _factory().getPool(token0, token1, fee);
         if (pool == address(0)) revert OS_POOL_NOT_EXIST();
 
@@ -326,8 +328,8 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         (uint256 amount0, uint256 amount1) =
             LiquidityAmounts.getAmountsForLiquidity(sqrtPriceX96, sqrtRatioAX96, sqrtRatioBX96, liquidityAmount);
 
-        amount0Min = (amount0 * s_slippageNumerator) / _BP();
-        amount1Min = (amount1 * s_slippageNumerator) / _BP();
+        amount0Min = (amount0 * s_slippageNumerator) / _bp;
+        amount1Min = (amount1 * s_slippageNumerator) / _bp;
     }
 
     /**
