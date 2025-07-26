@@ -241,16 +241,18 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
-        if (userInfo[userAddress][poolIdHash].tokenId != 0) {
+
+        UserInfo memory _userInfo = userInfo[userAddress][poolIdHash];
+        if (_userInfo.tokenId != 0) {
             if (
                 !(
-                    userInfo[userAddress][poolIdHash].tickLower == tickLower
-                        && userInfo[userAddress][poolIdHash].tickUpper == tickUpper
+                    _userInfo.tickLower == tickLower
+                        && _userInfo.tickUpper == tickUpper
                 )
             ) revert VM_RANGE_MISMATCH();
 
             tokenId =
-                _increaseLiquidityToPosition(userInfo[userAddress][poolIdHash].tokenId, actualReceived, userAddress);
+                _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
         } else {
             tokenId = _mintPosition(
                 poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, userAddress
@@ -371,6 +373,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             .collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePctInstance, send);
 
             s_companyFees += companyTax;
+            _resetUserInfo(user, poolId);
         } else {
             (uint256 collected0, uint256 collected1,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
@@ -391,12 +394,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
             userInfo[user][poolIdHash].feeToken0 += actualCollected0;
             userInfo[user][poolIdHash].feeToken1 += actualCollected1;
+            _nfpmInstance.approve(address(0), tokenId);
         }
 
         _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);
-
-        // If the user is removing all their liquidity, we reset their info
-        percentageToRemove == MAX_PERCENTAGE ? _resetUserInfo(user, poolId) : _nfpmInstance.approve(address(0), tokenId);
     }
 
     /**
