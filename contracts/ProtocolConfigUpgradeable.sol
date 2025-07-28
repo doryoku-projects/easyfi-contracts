@@ -33,8 +33,9 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
     ) public initializer {
         if(_userManager == address(0)) revert PC_ZERO_ADDRESS();
         __UUPSUpgradeable_init();
-
-        if (addressKeys.length == 0 || uintKeys.length == 0) revert PC_ARRAY_LEN_MISMATCH();
+        
+        if (addressKeys.length == 0) revert PC_ZERO_ADDRESS();
+        if (uintKeys.length == 0) revert PC_ZERO_ADDRESS();
         if (addressKeys.length != addressValues.length) revert PC_ARRAY_LEN_MISMATCH();
         if (uintKeys.length != uintValues.length) revert PC_ARRAY_LEN_MISMATCH();
 
