@@ -13,6 +13,7 @@ import "./interfaces/IUserManagerUpgradeable.sol";
  */
 abstract contract UserAccessControl is UUPSUpgradeable, AccessControlErrors {
     IUserManagerUpgradeable internal s_userManager;
+    address internal s_userManagerAddress;
 
     /**
      * @notice onlyUser modifier
@@ -114,7 +115,7 @@ abstract contract UserAccessControl is UUPSUpgradeable, AccessControlErrors {
      * @dev This modifier checks if the caller is a vault manager or a liquidity manager.
      */
     modifier onlyVaultOrLiquidityManager() {
-        if (!(s_userManager.isVaultManager(msg.sender) || s_userManager.isGeneralAdmin(msg.sender))) {
+        if (!(s_userManager.isVaultManager(msg.sender) || s_userManager.isLiquidityManager(msg.sender))) {
             revert UAC_NOT_VAULT_OR_LIQUIDITY_MANAGER();
         }
         _;
