@@ -127,7 +127,7 @@ describe("I_setRoles", function () {
 
   it("Should assign roles correctly", async function () {
   //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
-    await fundWallet();
+    process.env.APP_ENV === "development" && await fundWallet();
     await expect(
       userManagerGeneralAdmin.addLiquidityManagers([
         vaultManagerAddress,

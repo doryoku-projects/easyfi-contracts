@@ -13,7 +13,6 @@ import "./interfaces/IUserManagerUpgradeable.sol";
  */
 abstract contract UserAccessControl is UUPSUpgradeable, AccessControlErrors {
     IUserManagerUpgradeable internal s_userManager;
-    address internal s_userManagerAddress;
 
     /**
      * @notice onlyUser modifier
