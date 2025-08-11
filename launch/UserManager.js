@@ -9,6 +9,7 @@ async function main() {
   marcWallet = process.env.MARC_WALLET;
   pepOwnerWallet = process.env.PEP_WALLET;
   userWallet = process.env.USER_WALLET;
+  TwoFAAddress = process.env.TWO_FA_WALLET; // 2FA_MANAGER
 
   //CONTRACTS
   const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
@@ -28,7 +29,7 @@ async function main() {
   // Reemplaza estos valores con direcciones reales según tu caso.
   const initialAdmins = [marcWallet];
   const initialUserManagers = [pepOwnerWallet];
-  const _2FAManagers = [pepOwnerWallet];
+  const _2FAManagers = [TwoFAAddress];
   const initialContracts = [
     protocolConfigAddress,
     vaultManagerAddress,
