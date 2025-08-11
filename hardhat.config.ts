@@ -9,11 +9,13 @@ const normalizeKey = (key?: string) =>
 
 // Collect keys from env
 const privateKeys = [
-  process.env.USER_PRIVATE_KEY,
   process.env.OWNER_PRIVATE_KEY,
-  process.env.PEP_OWNER_PRIVATE_KEY,
   process.env.MARC_PRIVATE_KEY,
-].map(normalizeKey).filter(Boolean) as string[];
+  process.env.PEP_OWNER_PRIVATE_KEY,
+  process.env.USER_PRIVATE_KEY,
+]
+  .map(normalizeKey)
+  .filter(Boolean) as string[];
 
 const localAccounts = privateKeys.map((key) => ({
   privateKey: key,

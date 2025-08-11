@@ -17,8 +17,7 @@ async function main() {
   );
   console.log("[UPGRADE] Proxy contract updated at:",
     await upgraded.getAddress()
-  );
-}
+  );}
 
 main()
   .then(() => process.exit(0))

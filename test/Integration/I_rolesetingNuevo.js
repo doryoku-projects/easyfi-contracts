@@ -16,6 +16,29 @@ describe("I_setRoles", function () {
   const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
   const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3";
 
+  async function fundWallet() {
+    const routerABI = [
+      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
+    ];
+
+    const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
+    const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
+    const amountIn = ethers.parseEther("1");
+    const params = [
+      token0Address,
+      token1Address,
+      500,
+      userWallet.address,
+      Math.floor(Date.now() / 1000) + 60 * 10,
+      amountIn,
+      0,
+      0
+    ]
+
+    const tx = await router.exactInputSingle(params, { value: amountIn });
+    await tx.wait();
+  }
+
   before(async function () {
     ownerWallet = new ethers.Wallet( // MASTER_ADMIN
       process.env.OWNER_PRIVATE_KEY,
@@ -33,7 +56,7 @@ describe("I_setRoles", function () {
     );
 
     userWallet = new ethers.Wallet( // NORMAL USER, WHO INTERACTS WITH AGREGATOR
-      process.env.USER_PRIVATE_KEY,
+      process.env.OWNER_PRIVATE_KEY,
       ethers.provider
     );
 
@@ -66,23 +89,31 @@ describe("I_setRoles", function () {
     const allMasterAdmins = await userManagerUserManager.getRoleMembers(
       rolesKeys[0]
     );
+    console.log("allMasterAdmins", allMasterAdmins);
     const allAdmins = await userManagerUserManager.getRoleMembers(rolesKeys[1]);
+    console.log("allAdmins", allAdmins);
     const allUserManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[2]
     );
+    console.log("allUserManagers", allUserManagers);
     const allLiquidityManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[3]
     );
+    console.log("allLiquidityManagers", allLiquidityManagers);
     const allVaultManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[4]
     );
+    console.log("allVaultManagers", allVaultManagers);
     const allUsers = await userManagerUserManager.getRoleMembers(rolesKeys[5]);
+    console.log("allUsers", allUsers);
     const all2FAManagers = await userManagerUserManager.getRoleMembers(
       rolesKeys[6]
     );
+    console.log("all2FAManagers", all2FAManagers);
     const allContracts = await userManagerUserManager.getRoleMembers(
       rolesKeys[7]
     );
+    console.log("allContracts", allContracts);
 
     console.log("Master Admins:", allMasterAdmins);
     console.log("Admins:", allAdmins);
@@ -96,6 +127,7 @@ describe("I_setRoles", function () {
 
   it("Should assign roles correctly", async function () {
   //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
+    await fundWallet();
     await expect(
       userManagerGeneralAdmin.addLiquidityManagers([
         vaultManagerAddress,

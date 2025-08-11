@@ -1,15 +1,15 @@
 // scripts/deployUserManager.js
 const { ethers, upgrades } = require("hardhat");
+const fs = require("fs");
+const path = require("path");
 
-async function main() {
+async function deployUserManager() {
   console.log("[DEPLOY] Deploying UserManagerUpgradeable...");
-  let ownerWallet, userWallet, pepOwnerWallet, marcWallet;
+  let pepOwnerWallet, marcWallet, twoFAWallet;
 
-  ownerWallet = process.env.OWNER_WALLET;
-  marcWallet = process.env.MARC_WALLET;
-  pepOwnerWallet = process.env.PEP_WALLET;
-  userWallet = process.env.USER_WALLET;
-  TwoFAAddress = process.env.TWO_FA_WALLET; // 2FA_MANAGER
+  marcWallet = process.env.MARC_WALLET; // GENERAL_ADMIN
+  pepOwnerWallet = process.env.PEP_WALLET; // USER_MANAGER
+  twoFAWallet = process.env.TWO_FA_WALLET; // 2FA_MANAGER
 
   //CONTRACTS
   const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
@@ -18,18 +18,16 @@ async function main() {
   const liquidityHelperAddress = process.env.LIQUIDITY_HELPER_ADDRESS;
   const oracleSwapAddress = process.env.ORACLE_SWAP_ADDRESS;
   const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-
   const maxRolesSize = 10;
 
   const UserManagerUpgradeable = await ethers.getContractFactory(
     "UserManagerUpgradeable"
   );
-
   // Define los administradores iniciales y los gestores de usuario iniciales.
   // Reemplaza estos valores con direcciones reales según tu caso.
   const initialAdmins = [marcWallet];
   const initialUserManagers = [pepOwnerWallet];
-  const _2FAManagers = [TwoFAAddress];
+  const _2FAManagers = [twoFAWallet];
   const initialContracts = [
     protocolConfigAddress,
     vaultManagerAddress,
@@ -55,12 +53,27 @@ async function main() {
     { initializer: "initialize" }
   );
   await userManager.waitForDeployment();
-  console.log("[DEPLOY] UserManagerUpgradeable deployed at:", userManager.address);
+  const deployedAddress = await userManager.getAddress();
+  console.log("[DEPLOY] UserManagerUpgradeable deployed at:", deployedAddress);
+
+  const filePath = path.join(__dirname, "../deployments.json");
+
+  let deployments = {};
+  if (fs.existsSync(filePath)) {
+    deployments = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  }
+  deployments["UserManagerUpgradeable"] = deployedAddress;
+
+  fs.writeFileSync(filePath, JSON.stringify(deployments, null, 2));
+
+  console.log(`[DEPLOY] Address saved to deployments.json`);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("[DEPLOY] Error in UserManagerUpgradeable:", error);
-    process.exit(1);
-  });
+module.exports = deployUserManager;
+
+// main()
+//   .then(() => process.exit(0))
+//   .catch((error) => {
+//     console.error("[DEPLOY] Error in UserManagerUpgradeable:", error);
+//     process.exit(1);
+//   });
