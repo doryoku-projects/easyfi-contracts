@@ -12,6 +12,7 @@ const privateKeys = [
   process.env.OWNER_PRIVATE_KEY,
   process.env.MARC_PRIVATE_KEY,
   process.env.PEP_OWNER_PRIVATE_KEY,
+  process.env.USER_2FA_PRIVATE_KEY,
   process.env.USER_PRIVATE_KEY,
 ]
   .map(normalizeKey)
