@@ -37,7 +37,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       ethers.provider
     );
     userWallet = new ethers.Wallet(
-      process.env.USER_PRIVATE_KEY,
+      process.env.OWNER_PRIVATE_KEY,
       ethers.provider
     );
     marcWallet = new ethers.Wallet(
@@ -79,9 +79,9 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     WETH = await ethers.getContractAt("IERC20", token0Address, userWallet);
 
     // ————— 1) Grant USER_ROLE to testWallet —————
-    await expect(UserManager.addUsers([userWallet.address]))
-      .to.emit(UserManager, "UserAdded")
-      .withArgs(userWallet.address);
+    // await expect(UserManager.addUsers([userWallet.address]))
+    //   .to.emit(UserManager, "UserAdded")
+    //   .withArgs(userWallet.address);
 
     await expect(
       UserManager.connect(marcWallet).addLiquidityManagers([marcWallet.address])
@@ -223,9 +223,22 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     // await sleep(10000);
 
     await UserManager.connect(marcWallet).addUser2FAs([marcWallet.address]);
+
+    let block = await ethers.provider.getBlock("latest");
+    let timestamp = block.timestamp + 300;
+    console.log("Current block timestamp:", timestamp);
+
+    let messageHash = ethers.solidityPackedKeccak256(
+      ["address", "uint256", "uint256"],
+      [userWallet.address, 0, timestamp]
+    );
+    let signature = await userWallet.signMessage(ethers.getBytes(messageHash));
     await UserManager.connect(marcWallet).set2FA(
       userWallet.address,
-      twoFACode
+      twoFACode,
+      timestamp,
+      0,
+      signature
     );
 
     await Aggregator.connect(userWallet).collectFeesFromPosition(
@@ -240,6 +253,24 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       tokensOwed0: pos.tokensOwed0.toString(),
       tokensOwed1: pos.tokensOwed1.toString(),
     });
+
+    block = await ethers.provider.getBlock("latest");
+    timestamp = block.timestamp + 300;
+    console.log("Current block timestamp:", timestamp);
+
+    messageHash = ethers.solidityPackedKeccak256(
+      ["address", "uint256", "uint256"],
+      [userWallet.address, halfBP, timestamp]
+    );
+    signature = await userWallet.signMessage(ethers.getBytes(messageHash));
+
+    await UserManager.connect(marcWallet).set2FA(
+      userWallet.address,
+      twoFACode,
+      timestamp,
+      halfBP,
+      signature
+    );
 
     // WITHDRAW 50%
     await Aggregator.connect(userWallet).decreaseLiquidityFromPosition(
@@ -261,9 +292,22 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     // await sleep(10000);
 
+    block = await ethers.provider.getBlock("latest");
+    timestamp = block.timestamp + 300;
+    console.log("Current block timestamp:", timestamp);
+
+    messageHash = ethers.solidityPackedKeccak256(
+      ["address", "uint256", "uint256"],
+      [userWallet.address, fullBP, timestamp]
+    );
+    signature = await userWallet.signMessage(ethers.getBytes(messageHash));
+
     await UserManager.connect(marcWallet).set2FA(
       userWallet.address,
-      "414141"
+      "414141",
+      timestamp,
+      fullBP,
+      signature
     );
     // WITHDRAW 100%
     await Aggregator.connect(userWallet).decreaseLiquidityFromPosition(

@@ -173,7 +173,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         onlyUser
         notEmergency
     {
-        s_userManager.check2FA(msg.sender, code);
+        s_userManager.check2FA(msg.sender, code, percentageToRemove);
         if (percentageToRemove == 0) revert AGG_ZERO_PERCENTAGE();
 
         uint256 bp = s_config.getUint(BP_KEY);
@@ -198,7 +198,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         notEmergency
         returns (uint256 collectedToken0, uint256 collectedToken1)
     {
-        s_userManager.check2FA(msg.sender, code);
+        s_userManager.check2FA(msg.sender, code, 0);
 
         IVaultManagerUpgradeable vault = _vaultManager();
 

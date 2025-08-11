@@ -373,7 +373,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             .collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePctInstance, send);
 
             s_companyFees += companyTax;
-            _resetUserInfo(user, poolId);
         } else {
             (uint256 collected0, uint256 collected1,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
@@ -394,10 +393,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
             userInfo[user][poolIdHash].feeToken0 += actualCollected0;
             userInfo[user][poolIdHash].feeToken1 += actualCollected1;
-            _nfpmInstance.approve(address(0), tokenId);
         }
 
         _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);
+        percentageToRemove == 10000 ? _resetUserInfo(user, poolId) : _nfpm().approve(address(0), tokenId);
     }
 
     /**
@@ -533,7 +532,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @param code Two-factor authentication code.
      */
     function withdrawCompanyFees(uint256 percentage, string calldata code) external onlyMasterAdmin {
-        s_userManager.check2FA(msg.sender, code);
+        s_userManager.check2FA(msg.sender, code, percentage);
 
         if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
 

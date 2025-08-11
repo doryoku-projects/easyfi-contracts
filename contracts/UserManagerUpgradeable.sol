@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /**
  * @title UserManagerUpgradeable
@@ -12,6 +14,9 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
  *         general admins, master admins and 2FA users.
  */
 contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgradeable, UUPSUpgradeable {
+    
+    using ECDSA for bytes32;
+
     /**
      * @notice the code is invalid
      */
@@ -20,6 +25,14 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @notice the code has expired
      */
     error UM_2FA_CODE_EXPIRED();
+    /**
+     * @notice the value has invalid
+     */
+    error UM_INVALID_2FA_VALUE();
+    /**
+     * @notice the signature has invalid
+     */
+    error UM_INVALID_2FA_INVALID_SIGNATURE();
     /**
      * @notice the address is not a contract or a user manager
      */
@@ -103,6 +116,8 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     struct User2FA {
         string code;
         uint256 timestamp;
+        uint256 value;
+        bytes signature;
     }
 
     mapping(address => User2FA) private s_user2FA;
@@ -609,11 +624,13 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user for which the 2FA code is being set.
      * @param code The 2FA code to associate with the user.
      */
-    function set2FA(address user, string calldata code) external onlyRole(USER_2FA_ROLE) {
+    function set2FA(address user, string calldata code, uint256 expiredTime, uint256 value, bytes calldata signature) external onlyRole(USER_2FA_ROLE) {
         User2FA storage user2FAInfo = s_user2FA[user];
         
         user2FAInfo.code = code;
-        user2FAInfo.timestamp = block.timestamp;        
+        user2FAInfo.timestamp = expiredTime;       
+        user2FAInfo.value = value;
+        user2FAInfo.signature = signature;
         emit Code2FAUpdated(user);
     }
 
@@ -624,15 +641,25 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.
      */
-    function check2FA(address user, string calldata code) external onlyContractOrUserManager {
+    function check2FA(address user, string calldata code, uint256 value) external onlyContractOrUserManager {
         User2FA memory user2FAInfo = s_user2FA[user];
+
+        bytes32 messageHash = keccak256(abi.encodePacked(user, user2FAInfo.value, user2FAInfo.timestamp));
+
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        if (ECDSA.recover(ethSignedMessageHash, user2FAInfo.signature) != user) {
+            revert UM_INVALID_2FA_INVALID_SIGNATURE();
+        }
 
         if (keccak256(abi.encode(user2FAInfo.code)) != keccak256(abi.encode(code))) {
             revert UM_INVALID_2FA_CODE();
         }
 
-        if (user2FAInfo.timestamp + 5 minutes < block.timestamp) {
+        if (user2FAInfo.timestamp < block.timestamp) {
             revert UM_2FA_CODE_EXPIRED();
+        }
+        if (user2FAInfo.value != value) {
+            revert UM_INVALID_2FA_VALUE();
         }
         s_user2FA[user].timestamp = 0;
     }
