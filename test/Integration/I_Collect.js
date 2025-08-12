@@ -13,7 +13,7 @@ describe("I_Collect", function () {
 
   before(async function () {
     ownerWallet = new ethers.Wallet(
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
     userWallet = new ethers.Wallet(
@@ -21,7 +21,7 @@ describe("I_Collect", function () {
       ethers.provider
     );
     marcWallet = new ethers.Wallet(
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 

@@ -6,6 +6,8 @@ interface IUserManagerUpgradeable {
     struct User2FA {
         string code;
         uint256 timestamp;
+        uint256 value;
+        bytes signature;
     }
 
     function user2FA(address user) external view returns (uint32, uint256);
@@ -56,7 +58,7 @@ interface IUserManagerUpgradeable {
 
     function set2FA(address user, string calldata code) external;
 
-    function check2FA(address user, string calldata code) external;
+    function check2FA(address user, string calldata code, uint256 value) external;
 
     function isEmergency() external view returns (bool);
 }
