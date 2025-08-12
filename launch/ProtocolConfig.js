@@ -24,11 +24,11 @@ async function deployProtocolConfig() {
   // const USER_MANAGER = process.env.USER_MANAGER_ADDRESS;
   const USER_MANAGER = getDeploymentAddress("UserManagerUpgradeable");
 
-  const VAULT_MANAGER = process.env.OWNER_WALLET;
-  const LIQ_MANAGER = process.env.OWNER_WALLET;
-  const LIQ_HELPER = process.env.OWNER_WALLET;
-  const ORACLE_SWAP = process.env.OWNER_WALLET;
-  const AGGREGATOR = process.env.OWNER_WALLET;
+  const VAULT_MANAGER = process.env.MASTER_ADMIN_WALLET;
+  const LIQ_MANAGER = process.env.MASTER_ADMIN_WALLET;
+  const LIQ_HELPER = process.env.MASTER_ADMIN_WALLET;
+  const ORACLE_SWAP = process.env.MASTER_ADMIN_WALLET;
+  const AGGREGATOR = process.env.MASTER_ADMIN_WALLET;
   const NFPM = process.env.UNISWAP_NFT_ADDRESS;
   const SWAP_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
   const FACTORY = process.env.FACTORY_ADDRESS;

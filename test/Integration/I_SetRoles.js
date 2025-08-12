@@ -17,17 +17,17 @@ describe("I_setRoles", function () {
   const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3"; // ARBITRUM ORACLE CHAINLINK USDC
   before(async function () {
     ownerWallet = new ethers.Wallet( // MASTER_ADMIN
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     marcWallet = new ethers.Wallet( // GENERAL_ADMIN
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     pepOwnerWallet = new ethers.Wallet( // USER_MANAGER
-      process.env.PEP_OWNER_PRIVATE_KEY,
+      process.env.USER_MANAGER_PRIVATE_KEY,
       ethers.provider
     );
 

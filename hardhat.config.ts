@@ -9,9 +9,9 @@ const normalizeKey = (key?: string) =>
 
 // Collect keys from env
 const privateKeys = [
-  process.env.OWNER_PRIVATE_KEY,
-  process.env.MARC_PRIVATE_KEY,
-  process.env.PEP_OWNER_PRIVATE_KEY,
+  process.env.MASTER_ADMIN_PRIVATE_KEY,
+  process.env.GENERAL_ADMIN_PRIVATE_KEY,
+  process.env.USER_MANAGER_PRIVATE_KEY,
   process.env.USER_2FA_PRIVATE_KEY,
   process.env.USER_PRIVATE_KEY,
 ]
@@ -45,7 +45,7 @@ const config: HardhatUserConfig = {
     },
     base: {
       url: process.env.BASE_MAINNET_RPC_URL,
-      accounts: [`0x${process.env.OWNER_PRIVATE_KEY}`],
+      accounts: [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`],
       chainId: 8453,
     },
     localhost: {
@@ -60,14 +60,14 @@ const config: HardhatUserConfig = {
     virtual: {
       url: process.env.TENDERLY_RPC_URL,
       chainId: 12345,
-      accounts: process.env.OWNER_PRIVATE_KEY
-        ? [`0x${process.env.OWNER_PRIVATE_KEY}`]
+      accounts: process.env.MASTER_ADMIN_PRIVATE_KEY
+        ? [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`]
         : [],
     },
     mainnet: {
       url: process.env.ARBITRUM_MAINNET_RPC_URL,
       chainId: 42161,
-      accounts: [`0x${process.env.OWNER_PRIVATE_KEY}`],
+      accounts: [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`],
     },
   },
   tenderly: {

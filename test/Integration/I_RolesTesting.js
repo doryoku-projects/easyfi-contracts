@@ -8,15 +8,15 @@ describe("I_RolesTesting — UserManagerUpgradeable roles", function () {
 
   before(async () => {
     ownerWallet = new ethers.Wallet(
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
     generalAdminWallet = new ethers.Wallet(
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
     userManagerWallet = new ethers.Wallet(
-      process.env.PEP_OWNER_PRIVATE_KEY,
+      process.env.USER_MANAGER_PRIVATE_KEY,
       ethers.provider
     );
     randomWallet = ethers.Wallet.createRandom().connect(ethers.provider);

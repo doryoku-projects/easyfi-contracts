@@ -7,8 +7,8 @@ async function deployUserManager() {
   console.log("[DEPLOY] Deploying UserManagerUpgradeable...");
   let pepOwnerWallet, marcWallet, twoFAWallet;
 
-  marcWallet = process.env.MARC_WALLET; // GENERAL_ADMIN
-  pepOwnerWallet = process.env.PEP_WALLET; // USER_MANAGER
+  marcWallet = process.env.GENERAL_ADMIN_WALLET; // GENERAL_ADMIN
+  pepOwnerWallet = process.env.USER_MANAGER_WALLET; // USER_MANAGER
   twoFAWallet = process.env.USER_2FA_WALLET; // 2FA_MANAGER
 
   //CONTRACTS

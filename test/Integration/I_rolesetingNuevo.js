@@ -17,6 +17,7 @@ describe("I_setRoles", function () {
   const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3";
 
   async function fundWallet() {
+    console.log("Funding wallet...")
     const routerABI = [
       "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
     ];
@@ -41,22 +42,22 @@ describe("I_setRoles", function () {
 
   before(async function () {
     ownerWallet = new ethers.Wallet( // MASTER_ADMIN
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     marcWallet = new ethers.Wallet( // GENERAL_ADMIN
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     pepOwnerWallet = new ethers.Wallet( // USER_MANAGER
-      process.env.PEP_OWNER_PRIVATE_KEY,
+      process.env.USER_MANAGER_PRIVATE_KEY,
       ethers.provider
     );
 
     userWallet = new ethers.Wallet( // NORMAL USER, WHO INTERACTS WITH AGREGATOR
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.USER_PRIVATE_KEY,
       ethers.provider
     );
 

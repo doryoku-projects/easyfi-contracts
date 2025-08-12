@@ -18,17 +18,17 @@ describe("I_setRoles", function () {
 
   before(async function () {
     ownerWallet = new ethers.Wallet( // MASTER_ADMIN
-      process.env.OWNER_PRIVATE_KEY,
+      process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     marcWallet = new ethers.Wallet( // GENERAL_ADMIN
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
     pepOwnerWallet = new ethers.Wallet( // USER_MANAGER
-      process.env.PEP_OWNER_PRIVATE_KEY,
+      process.env.USER_MANAGER_PRIVATE_KEY,
       ethers.provider
     );
 

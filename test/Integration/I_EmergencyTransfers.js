@@ -13,7 +13,7 @@ describe("I_EmergencyTransfers", function () {
     before(async function () {
         // Get signers: assume the first is the master admin
         ownerWallet = new ethers.Wallet(
-            process.env.OWNER_PRIVATE_KEY,
+            process.env.MASTER_ADMIN_PRIVATE_KEY,
             ethers.provider
           );
         
@@ -23,7 +23,7 @@ describe("I_EmergencyTransfers", function () {
           );
           
         marcWallet = new ethers.Wallet(
-            process.env.MARC_PRIVATE_KEY,
+            process.env.GENERAL_ADMIN_PRIVATE_KEY,
             ethers.provider
           );
 

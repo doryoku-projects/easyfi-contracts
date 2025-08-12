@@ -13,7 +13,7 @@ describe("I_MigrateBatches via Aggregator", function () {
       ethers.provider
     );
     marcWallet = new ethers.Wallet(
-      process.env.MARC_PRIVATE_KEY,
+      process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
