@@ -29,6 +29,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -182,12 +184,29 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         return s_config.getUint(CFG_COMPANY_FEE_PCT);
     }
 
+        /**
+     * @notice Returns the client fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function _clientFeePct() internal view returns (uint256) {
+        return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+    
+
     /**
      * @notice Returns the aggregator address.
      * @return address aggregator.
      */
     function _aggregator() internal view returns (address) {
         return s_config.getAddress(CFG_AGGREGATOR);
+    }
+
+        /**
+     * @notice Returns the client address.
+     * @return address client.
+     */
+    function _client() internal view returns (address) {
+        return s_config.getAddress(CFG_CLIENT_ADDRESS);
     }
 
     /**
@@ -241,7 +260,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
-
+ 
         UserInfo memory _userInfo = userInfo[userAddress][poolIdHash];
         if (_userInfo.tokenId != 0) {
             if (
@@ -249,7 +268,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                     _userInfo.tickLower == tickLower
                         && _userInfo.tickUpper == tickUpper
                 )
-            ) revert VM_RANGE_MISMATCH();
+            ) revert VM_RANGE_MISMATCH(); 
 
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -528,26 +547,39 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     /**
      * @notice Withdraw a percentage of the company’s accumulated fees.
-     * @param percentage Percentage of fees to withdraw (basis points).
      * @param code Two-factor authentication code.
      */
-    function withdrawCompanyFees(uint256 percentage, string calldata code) external onlyMasterAdmin {
-        s_userManager.check2FA(msg.sender, code, percentage);
+
+     // all uniswap fees are in the name of company fees, so this function is used to withdraw them
+    function withdrawCompanyFees(string calldata code) external onlyMasterAdmin {
+        uint256 companyPercentage = _companyFeePct();
+        uint256 clientPercentage = _clientFeePct();
+        address clientAddress = _client();
+        s_userManager.check2FA(msg.sender, code,companyPercentage); 
 
         if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
 
-        uint256 amountToWithdraw;
+        uint256 amountToWithdrawForCompany;
+        uint256 amountToWithdrawForClient;
         
         // If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
-            amountToWithdraw = (s_companyFees * percentage) / MAX_PERCENTAGE;
-            s_companyFees -= amountToWithdraw;
+            amountToWithdrawForCompany = (s_companyFees * companyPercentage) / MAX_PERCENTAGE;
+            amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
+            
+            s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
-            _mainToken().safeTransfer(msg.sender, amountToWithdraw);
+
+            _mainToken().safeTransfer(msg.sender, amountToWithdrawForCompany);
+            _mainToken().safeTransfer(clientAddress, amountToWithdrawForClient);
         }
 
-        emit WithdrawCompanyFees(amountToWithdraw);
+        
+
+        emit WithdrawCompanyFees(amountToWithdrawForCompany + amountToWithdrawForClient);
     }
+
+    
 
     /**
      * @notice Emergency batch withdrawal of multiple ERC20 tokens.
@@ -588,3 +620,4 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit EmergencyERC721BatchWithdrawal(to);
     }
 }
+

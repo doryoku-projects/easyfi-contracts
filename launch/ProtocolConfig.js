@@ -33,6 +33,7 @@ async function deployProtocolConfig() {
   const SWAP_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
   const FACTORY = process.env.FACTORY_ADDRESS;
   const MAIN_TOKEN = process.env.MAIN_TOKEN_ADDRESS;
+  const CLIENT_ADDRESS = process.env.CLIENT_ADDRESS;
 
   // const key = (s) => ethers.encodeBytes32String(s);
   const key = (s) =>
@@ -48,6 +49,7 @@ async function deployProtocolConfig() {
     "SwapRouter",
     "Factory",
     "MainToken",
+    "ClientAddress"
   ].map(key);
 
   const addressValues = [
@@ -60,16 +62,19 @@ async function deployProtocolConfig() {
     SWAP_ROUTER,
     FACTORY,
     MAIN_TOKEN,
+    CLIENT_ADDRESS
   ];
 
   const uintKeys = [
     "BP", 
-    "CompanyFeePct"
+    "CompanyFeePct",
+    "ClientFeePct"
   ].map(key);
   
   const uintValues = [
     10000, 
-    3000
+    3000, // company fee percentage (30%)
+    7000 // client fee percentage (70%)
   ];
 
   const ProtocolConfigUpgradeable = await ethers.getContractFactory(
