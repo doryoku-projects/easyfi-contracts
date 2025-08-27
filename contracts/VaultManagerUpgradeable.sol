@@ -29,8 +29,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
-    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
-    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -46,6 +45,9 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     mapping(address => mapping(bytes32 => UserInfo)) private userInfo;
+
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 amount);
@@ -188,7 +190,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the client fee percentage.
      * @return uint256 fee percentage.
      */
-    function _clientFeePct() internal view returns (uint256) {
+    function _clientFeePct() public view returns (uint256) {
         return s_config.getUint(CFG_CLIENT_FEE_PCT);
     }
     
@@ -562,7 +564,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         uint256 amountToWithdrawForCompany;
         uint256 amountToWithdrawForClient;
         
-        // If the company has fees, we withdraw a percentage of them
+        //If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
             amountToWithdrawForCompany = (s_companyFees * companyPercentage) / MAX_PERCENTAGE;
             amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;

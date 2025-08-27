@@ -10,6 +10,7 @@ describe("I_CompanyFeesWithdraw", function () {
     const valid2FACode = "123456";
     const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
     const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
+    const ClientAddress = process.env.CLIENT_ADDRESS;
 
     before(async function () {
         // Get signers: assume the first is the master admin
@@ -35,8 +36,8 @@ describe("I_CompanyFeesWithdraw", function () {
           );
 
         
-    // await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
-    // await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
+    await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
+    await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
 
 
     // doing this signature for withdrawal of company fees
@@ -83,6 +84,12 @@ describe("I_CompanyFeesWithdraw", function () {
         const companyBalance = await VaultManager.getCompanyFees();
         console.log("Initial company fees balance:", companyBalance.toString());
 
+        // Check initial balances of client and company
+        const clientBalance = await mainToken.balanceOf(ClientAddress);
+        console.log("Client balance before withdrawal:", clientBalance.toString());
+        const ownerBalance = await mainToken.balanceOf(ownerWallet.address);
+        console.log("Company balance before withdrawal:", ownerBalance.toString());
+
         //adding liquidity to the pool
       const poolId = "ui-232-122";
       const mintAmount = ethers.parseUnits("2000", 6);
@@ -95,8 +102,8 @@ describe("I_CompanyFeesWithdraw", function () {
       token0Address,
       token1Address,
       500,
-      -193840,
-      -191840,
+      -194000, //-193840,
+      -191500,//-191840,
       mintAmount
     );
    await mintTx.wait();
@@ -149,7 +156,7 @@ describe("I_CompanyFeesWithdraw", function () {
       fullBP,
       signature
     );
- console.log("balance before decreasing liquidity:", await mainToken.balanceOf(userWallet.address));
+ console.log("balance before decreasing liquidity of user:", await mainToken.balanceOf(userWallet.address));
       let d_tx = await aggregator.connect(userWallet).decreaseLiquidityFromPosition(
       poolId,
       fullBP,
@@ -158,18 +165,35 @@ describe("I_CompanyFeesWithdraw", function () {
 
     await d_tx.wait();
 
-    console.log("balance after decreasing liquidity:", await mainToken.balanceOf(userWallet.address));
+    console.log("balance after decreasing liquidity of user:", await mainToken.balanceOf(userWallet.address));
+    console.log("balance of vault manager after decreasing liquidity:", await mainToken.balanceOf(vaultManagerAddress));
         
         //withdraw the fees (optional : try this test with comment this fuction for first time and then uncomment it for second time to see the clear difference in the company fees balance)
-        const tx1 = await VaultManager.connect(ownerWallet).withdrawCompanyFees(valid2FACode);
-        await tx1.wait();
+       const tx1 = await VaultManager.connect(ownerWallet).withdrawCompanyFees(valid2FACode);
+       await tx1.wait();
         
          let newBalance = await mainToken.balanceOf(vaultManagerAddress);
         console.log("Contract balance after withdrawing:",newBalance.toString());
 
          const companyBalance_2 = await VaultManager.getCompanyFees();
          console.log("Initial company fees balance:", companyBalance_2.toString());
+
+         // balance of client & company after withdrawal
+         const clientBalanceAfter = await mainToken.balanceOf(ClientAddress);
+         console.log("Client balance after withdrawal:", clientBalanceAfter.toString());
+         const ownerBalanceAfter = await mainToken.balanceOf(ownerWallet.address);
+         console.log("Company balance after withdrawal:", ownerBalanceAfter.toString());
         
       
     });
 });
+
+/**
+ * 
+ * 1) start hydra core
+ * 2) start hydra child
+ * 3) deploy all contracts  
+ * 4) yuvaraj will helps
+ * 5) run subgraph and put it into hydra child and track the transactions!.
+ * 
+ */
