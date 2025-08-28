@@ -12,9 +12,6 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
     mapping(bytes32 => address) private s_addresses;
     mapping(bytes32 => uint256) private s_uints;
 
-
-    
-
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
     event UserManagerSet();
@@ -51,7 +48,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
 
         for (uint256 i = 0; i < uintKeys.length; i++) {
             _setUint(uintKeys[i], uintValues[i]);
-        } 
+        }
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -76,7 +73,6 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         return true;
     }
 
-
     function setAddress(bytes32 key, address newVal) external onlyGeneralOrMasterAdmin {
         _setAddress(key, newVal);
     }
@@ -88,9 +84,6 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         s_addresses[key] = newVal;
         emit ConfigAddressUpdated(key, old, newVal);
     }
-
-
-
 
     function setUint(bytes32 key, uint256 newVal) external onlyGeneralOrMasterAdmin {
         _setUint(key, newVal);

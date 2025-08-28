@@ -47,7 +47,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
-    //bytes32 private constant ROLE_VAULT_MANAGER = keccak256("VAULT_MANAGER_ROLE");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
@@ -123,6 +122,22 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     /**
+     * @notice Returns the company fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function getCompanyFeePct() external view onlyGeneralAdmin returns (uint256) {
+        return s_config.getUint(CFG_COMPANY_FEE_PCT);
+    }
+
+    /**
+     * @notice Returns the client fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function getClientFeePct() external view onlyGeneralAdmin returns (uint256) {
+        return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+
+    /**
      * @notice Function for obtaining the company fees.
      * @return companyFees Company fees.
      */
@@ -193,15 +208,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     function _clientFeePct() internal view returns (uint256) {
         return s_config.getUint(CFG_CLIENT_FEE_PCT);
     }
-    
-    /**
-     * @notice Returns the company fee percentage.
-     * @return uint256 fee percentage.
-     */
-    function getCompanyFeePct() external view onlyGeneralAdmin returns (uint256) {
-        return s_config.getUint(CFG_COMPANY_FEE_PCT);
-    }
-    
 
     /**
      * @notice Returns the aggregator address.
@@ -557,17 +563,16 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     /**
      * @notice Withdraw a percentage of the company’s accumulated fees.
-     * @param code Two-factor authentication code.
      */
-
      // all uniswap fees are in the name of company fees, so this function is used to withdraw them
-    function withdrawCompanyFees(string calldata code) external onlyMasterAdmin {
-        uint256 companyPercentage = _companyFeePct();
+    function withdrawCompanyFees() external onlyMasterAdmin {
         uint256 clientPercentage = _clientFeePct();
         address clientAddress = _client();
-        s_userManager.check2FA(msg.sender, code,companyPercentage); 
-
+        IERC20 _mainTokenInstance = _mainToken();
+        
         if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
+        if (clientAddress == address(0)) revert VM_ZERO_ADDRESS();
+        if (clientPercentage == 0) revert VM_COMPANY_FEES_ZERO();
 
         uint256 amountToWithdrawForCompany;
         uint256 amountToWithdrawForClient;
@@ -576,21 +581,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         if (s_companyFees > 0) {
             amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
             amountToWithdrawForCompany = s_companyFees - amountToWithdrawForClient;
-
             
             s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
-
-            _mainToken().safeTransfer(msg.sender, amountToWithdrawForCompany);
-            _mainToken().safeTransfer(clientAddress, amountToWithdrawForClient);
+            _mainTokenInstance.safeTransfer(msg.sender, amountToWithdrawForCompany);
+            _mainTokenInstance.safeTransfer(clientAddress, amountToWithdrawForClient);
         }
-
-        
-
         emit WithdrawCompanyFees(amountToWithdrawForClient,amountToWithdrawForCompany);
     }
-
-    
 
     /**
      * @notice Emergency batch withdrawal of multiple ERC20 tokens.
