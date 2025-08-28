@@ -99,7 +99,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
-    await VaultManager.setUserPackage(userWallet.address, poolId, 1);
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, poolId, 1);
     // ————— 3) Mint (10k) —————
     const isUser = await UserManager.isUser(userWallet.address);
     console.log("Is user:", isUser);

@@ -64,8 +64,7 @@ async function main() {
     LiquidityManagerAddr,
     LiquidityHelperAddr,
     OracleSwapAddr,
-    AggregatorAddr,
-  ];
+    AggregatorAddr  ];
 
   const [owner, marcWallet, pepOwnerWallet] = await ethers.getSigners();
   const userManagerContract = await ethers.getContractAt("UserManagerUpgradeable", userManagerAddr, marcWallet);
@@ -91,7 +90,8 @@ async function main() {
     LiquidityManagerAddr,
     LiquidityHelperAddr,
     OracleSwapAddr,
-    AggregatorAddr
+    AggregatorAddr,
+    VaultProxyAddr
   ];
 
   const ProtocolConfigContract = await ethers.getContractAt("ProtocolConfigUpgradeable", ProtocolConfigAddr);
@@ -135,8 +135,8 @@ async function main() {
       console.log(`❌ Failed to update ${key}: ${error.message}`);
     }
   }
-  await ProtocolConfigContract.setPackageCap(1, 1000000000, 2000000000, 50)
-  await ProtocolConfigContract.setPackageCap(2, 10000000000, 20000000000, 70)
+  await ProtocolConfigContract.setPackageCap(1000000000, 2000000000, 50)
+  await ProtocolConfigContract.setPackageCap(10000000000, 20000000000, 70)
 
   console.log("✅ Added Contracts in ProtocolConfig");
 

@@ -153,7 +153,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         capInfo.userFeesPct = _userFeesPct;
     }
 
-    function getPackageCap(uint256 packageId) external onlyGeneralAdmin view returns (CapInfo memory) {
+    function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {
         return s_packageCap[packageId];
     }
 }

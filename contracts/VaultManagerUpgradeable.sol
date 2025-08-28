@@ -644,7 +644,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit EmergencyERC721BatchWithdrawal(to);
     }
 
-    function setUserPackage(address user, string calldata poolId, uint256 packageId) external onlyGeneralAdmin {
+    function setUserPackage(address user, string calldata poolId, uint256 packageId) external onlyGeneralOrMasterAdmin {
         IProtocolConfigUpgradeable.CapInfo memory capInfo = s_config.getPackageCap(packageId);
         if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
             revert VM_INVALID_PACKAGE_ID();
