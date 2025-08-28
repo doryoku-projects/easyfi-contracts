@@ -16,7 +16,7 @@ async function main() {
     VaultManagerUpgradeable
   );
   console.log("[UPGRADE] Proxy contract updated at:",
-    await upgraded.getAddress()
+    await upgradedVault.getAddress()
   );}
 
 main()

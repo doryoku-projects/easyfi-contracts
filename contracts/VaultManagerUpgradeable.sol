@@ -12,6 +12,7 @@ import "./interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/ILiquidityManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./interfaces/IVaultProxyUpgradeable.sol";
 
 /**
  * @title VaultManagerUpgradeable
@@ -27,8 +28,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     bytes32 private constant CFG_LIQUIDITY_MANAGER = keccak256("LiquidityManager");
     bytes32 private constant CFG_NFPM = keccak256("NFTPositionMgr");
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
-    bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
+    bytes32 private constant CFG_VAULT_PROXY = keccak256("VaultProxy");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -41,6 +42,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        uint256 liquidityCapLimit;
+        uint256 feeCapLimit;
+        uint256 userFeePct;
+        uint256 collectedFees;
+        uint256 depositLiquidity;
     }
 
     mapping(address => mapping(bytes32 => UserInfo)) private userInfo;
@@ -52,7 +58,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     event UserInfoReset(address indexed user);
     event EmergencyERC20BatchWithdrawal(address indexed to);
     event EmergencyERC721BatchWithdrawal(address indexed to);
-
+    event UserPackageUpdated(address indexed user, uint256 packageId);
+    event Withdrawn(address indexed user, uint256 amount);
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
         if (_protocolConfig == address(0) || _userManager == address(0)) {
@@ -178,8 +185,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the company fee percentage.
      * @return uint256 fee percentage.
      */
-    function _companyFeePct() internal view returns (uint256) {
-        return s_config.getUint(CFG_COMPANY_FEE_PCT);
+    function _companyFeePct(address user, string calldata poolId) internal view returns (uint256) {
+        bytes32 poolIdHash = _formatPoolId(poolId);
+        uint256 companyFeePct = MAX_PERCENTAGE - userInfo[user][poolIdHash].userFeePct;
+        return companyFeePct;
     }
 
     /**
@@ -188,6 +197,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      */
     function _aggregator() internal view returns (address) {
         return s_config.getAddress(CFG_AGGREGATOR);
+    }
+
+    /**
+     * @notice Returns the Vault address.
+     * @return address vaultProxy.
+     */
+    function _vaultProxy() internal view returns (address) {
+        return s_config.getAddress(CFG_VAULT_PROXY);
     }
 
     /**
@@ -207,6 +224,22 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         userPosition.feeToken0 = 0;
         userPosition.feeToken1 = 0;
         emit UserInfoReset(user);
+    }
+
+    /**
+     * @dev Checks if a user's deposit for a pool would exceed their liquidity cap.
+     * @param user Address of the user whose cap is being checked.
+     * @param poolId Identifier of the pool for which the deposit is made.
+     * @param amount Amount of liquidity the user wants to add.
+     */
+     function _checkLiquidityCap(address user, string calldata poolId, uint256 amount) internal view {
+        UserInfo memory userCapInfo = userInfo[user][_formatPoolId(poolId)];
+
+        uint256 newTotal = userCapInfo.depositLiquidity + amount;
+
+        if (userCapInfo.feeCapLimit > 0 && newTotal > userCapInfo.feeCapLimit) {
+            revert VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
+        }
     }
 
     /**
@@ -231,6 +264,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         uint256 amountMainTokenDesired,
         address userAddress
     ) external onlyVaultManager notEmergency returns (uint256 tokenId) {
+        _checkLiquidityCap(userAddress, poolId, amountMainTokenDesired);
         IERC20 mainToken = _mainToken();
 
         uint256 balanceBefore = mainToken.balanceOf(address(this));
@@ -242,7 +276,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         bytes32 poolIdHash = _formatPoolId(poolId);
 
 
-        UserInfo memory _userInfo = userInfo[userAddress][poolIdHash];
+        UserInfo storage _userInfo = userInfo[userAddress][poolIdHash];
         if (_userInfo.tokenId != 0) {
             if (
                 !(
@@ -258,6 +292,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                 poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, userAddress
             );
         }
+        _userInfo.depositLiquidity += actualReceived;
     }
 
     /**
@@ -292,17 +327,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true
         );
 
-        UserInfo memory newPosition = UserInfo({
-            tokenId: tokenId,
-            token0: token0Address,
-            token1: token1Address,
-            tickLower: int128(tickLower),
-            tickUpper: int128(tickUpper),
-            feeToken0: 0,
-            feeToken1: 0
-        });
-
-        userInfo[userAddress][poolIdHash] = newPosition;
+        UserInfo storage userData = userInfo[userAddress][poolIdHash];        
+        userData.tokenId = tokenId;
+        userData.token0 = token0Address;
+        userData.token1 = token1Address;
+        userData.tickLower = int128(tickLower);
+        userData.tickUpper = int128(tickUpper);
+        userData.feeToken0 = 0;
+        userData.feeToken1 = 0;
 
         _nfpm().approve(address(0), tokenId);
 
@@ -337,7 +369,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         onlyVaultManager
         notEmergency
     {
-        uint256 _companyFeePctInstance = _companyFeePct();
+        uint256 _companyFeePctInstance = _companyFeePct(user, poolId);
         INonfungiblePositionManager _nfpmInstance = _nfpm();
         ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
 
@@ -369,13 +401,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                 token1.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee1);
             }
 
-            (, , uint256 companyTax) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
-            .collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePctInstance, send);
-
+            (, , uint256 companyTax, uint256 collectedMainToken) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
+            .collectFeesFromPosition(tokenId, _vaultProxy(), storedFee0, storedFee1, _companyFeePctInstance, send);
+            updateFees(user, poolIdHash, collectedMainToken);
             s_companyFees += companyTax;
         } else {
-            (uint256 collected0, uint256 collected1,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
-                .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
+            (uint256 collected0, uint256 collected1, , uint256 collectedMainToken) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
+                .collectFeesFromPosition(tokenId, _vaultProxy(), 0, 0, _companyFeePctInstance, send);
+            updateFees(user, poolIdHash, collectedMainToken);
 
             uint256 actualCollected0 = 0;
             if (collected0 > 0) {
@@ -395,7 +428,17 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             userInfo[user][poolIdHash].feeToken1 += actualCollected1;
         }
 
-        _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);
+        uint256 currentDeposit = userInfo[user][poolIdHash].depositLiquidity;
+        if (currentDeposit > 0) {
+            uint256 reduction = (currentDeposit * percentageToRemove) / MAX_PERCENTAGE;
+            if (percentageToRemove == MAX_PERCENTAGE) {
+                userInfo[user][poolIdHash].depositLiquidity = 0;
+            } else {
+                userInfo[user][poolIdHash].depositLiquidity = currentDeposit - reduction;
+            }
+        }
+        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);   
+        updateFees(user, poolIdHash, removedAmount);
         percentageToRemove == 10000 ? _resetUserInfo(user, poolId) : _nfpm().approve(address(0), tokenId);
     }
 
@@ -433,9 +476,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax) =
-            _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(), true);
+        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 collectedMainToken) =
+            _liquidityManagerInstance.collectFeesFromPosition(tokenId, _vaultProxy(), storedFee0, storedFee1, _companyFeePct(user, poolId), true);
 
+        updateFees(user, poolIdHash, collectedMainToken);
         s_companyFees += companyTax;
 
         _nfpmInstance.approve(address(0), tokenId);
@@ -549,6 +593,18 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit WithdrawCompanyFees(amountToWithdraw);
     }
 
+    function decreasePositionAndWithdrawFees(address user, string calldata poolId) 
+        external
+        onlyGeneralAdmin
+        notEmergency
+    {
+        UserInfo memory userInformation = userInfo[user][_formatPoolId(poolId)];
+        if(userInformation.collectedFees >= userInformation.liquidityCapLimit) revert VM_REWARD_CAP_REACHED();
+
+        this.decreaseLiquidityPosition(user, poolId, uint128(MAX_PERCENTAGE));
+        emit Withdrawn(user, userInformation.collectedFees);
+    }
+
     /**
      * @notice Emergency batch withdrawal of multiple ERC20 tokens.
      * @param tokens Array of token addresses.
@@ -586,5 +642,39 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             }
         }
         emit EmergencyERC721BatchWithdrawal(to);
+    }
+
+    function setUserPackage(address user, string calldata poolId, uint256 packageId) external onlyGeneralAdmin {
+        IProtocolConfigUpgradeable.CapInfo memory capInfo = s_config.getPackageCap(packageId);
+        if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
+            revert VM_INVALID_PACKAGE_ID();
+        }
+        UserInfo storage userCap = userInfo[user][_formatPoolId(poolId)];
+        bool isNewUser = (userCap.liquidityCapLimit == 0 && userCap.feeCapLimit == 0);
+        userCap.liquidityCapLimit = isNewUser 
+            ? capInfo.liquidityCap 
+            : userCap.liquidityCapLimit + capInfo.liquidityCap;
+
+        userCap.feeCapLimit = isNewUser 
+            ? capInfo.feeCap 
+            : userCap.feeCapLimit + capInfo.feeCap;
+        userCap.userFeePct = capInfo.userFeesPct;
+        emit UserPackageUpdated(user, packageId);
+    }
+
+    function updateFees(address user, bytes32 poolIdHash, uint256 amount) internal {
+        UserInfo storage userCap = userInfo[user][poolIdHash];
+        userCap.collectedFees += amount;
+    }
+
+    function withdrawFunds(address user, string calldata poolId) 
+        external
+        onlyVaultManager
+        notEmergency 
+    {
+        UserInfo storage userCap = userInfo[user][_formatPoolId(poolId)];
+        uint256 amount  = userCap.collectedFees;
+        userCap.collectedFees = 0;
+        IVaultProxyUpgradeable(_vaultProxy()).withdrawFunds(user, address(_mainToken()), amount);
     }
 }

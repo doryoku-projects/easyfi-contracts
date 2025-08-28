@@ -234,4 +234,13 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
             newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, tickLower, tickUpper);
         }
     }
+
+    function withdrawFunds() public
+        nonReentrant
+        onlyUser
+        notEmergency 
+    {
+        IVaultManagerUpgradeable vault = _vaultManager();
+        vault.withdrawFunds(msg.sender);
+    }
 }

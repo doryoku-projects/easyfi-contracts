@@ -20,7 +20,7 @@ interface ILiquidityManagerUpgradeable {
         returns (uint256 increasedAmount0, uint256 increasedAmount1);
 
     function decreaseLiquidityPosition(uint256 tokenId, uint128 percentageToRemove, address user, bool migrate)
-        external;
+        external returns (uint256 collectedMainToken);
 
     function collectFeesFromPosition(
         uint256 tokenId,
@@ -29,7 +29,7 @@ interface ILiquidityManagerUpgradeable {
         uint256 previousCollected1,
         uint256 companyTaxPercentage,
         bool send
-    ) external returns (uint256 collected0, uint256 collected1, uint256 companyFees);
+    ) external returns (uint256 collected0, uint256 collected1, uint256 companyFees, uint256 collectedMainToken);
 
     function moveRangeOfPosition(address user, uint256 tokenId, int24 tickLower, int24 tickUpper)
         external

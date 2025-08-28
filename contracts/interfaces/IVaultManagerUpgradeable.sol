@@ -11,6 +11,11 @@ interface IVaultManagerUpgradeable {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        uint256 feeCapLimit;
+        uint256 liquidityCapLimit;
+        uint256[] shares;
+        uint256 collectedFees;
+        uint256 depositLiquidity;
     }
 
     function mintOrIncreaseLiquidityPosition(
@@ -38,4 +43,13 @@ interface IVaultManagerUpgradeable {
         external
         view
         returns (UserInfo memory userInformation);
+    
+    function decreasePositionAndWithdrawFees(string calldata poolId) external;
+
+    function updateFees(address user, bytes32 poolId, uint256 amount) external;
+
+    function getUserPackage(address user) external view returns (UserInfo memory);
+
+    function withdrawFunds(address user) external;
+
 }

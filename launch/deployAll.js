@@ -9,6 +9,7 @@ const deployLiquidityManager = require("./LiquidityManager");
 const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
 const deployAggregator = require("./Aggregator");
+const deployVaultProxy = require("./VaultProxy");
 
 const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
@@ -35,6 +36,7 @@ async function main() {
   await deployOracleSwap();
   await deployLiquidityHelper();
   await deployAggregator();
+  await deployVaultProxy();
 
   console.log("✅ All contracts deployed successfully!");
 
@@ -45,6 +47,7 @@ async function main() {
   const LiquidityHelperAddr = getDeploymentAddress("LiquidityHelperUpgradeable");
   const OracleSwapAddr = getDeploymentAddress("OracleSwapUpgradeable");
   const AggregatorAddr = getDeploymentAddress("AggregatorUpgradeable");
+  const VaultProxyAddr = getDeploymentAddress("VaultProxyUpgradeable");
 
   console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
   console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
@@ -53,6 +56,7 @@ async function main() {
   console.log("🔗 Attaching to LiquidityHelperUpgradeable at:", LiquidityHelperAddr);
   console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);
   console.log("🔗 Attaching to AggregatorUpgradeable at:", AggregatorAddr);
+  console.log("🔗 Attaching to VaultProxyUpgradeable at:", VaultProxyAddr);
 
   const initialContracts = [
     ProtocolConfigAddr,
@@ -78,7 +82,8 @@ async function main() {
     "LiquidityManager",
     "LiquidityHelper",
     "OracleSwap",
-    "Aggregator"
+    "Aggregator",
+    "VaultProxy",
   ].map(key);
 
   const addressValues = [
@@ -130,6 +135,8 @@ async function main() {
       console.log(`❌ Failed to update ${key}: ${error.message}`);
     }
   }
+  await ProtocolConfigContract.setPackageCap(1, 1000000000, 2000000000, 50)
+  await ProtocolConfigContract.setPackageCap(2, 10000000000, 20000000000, 70)
 
   console.log("✅ Added Contracts in ProtocolConfig");
 

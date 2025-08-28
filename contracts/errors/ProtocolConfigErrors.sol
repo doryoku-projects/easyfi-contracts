@@ -36,4 +36,8 @@ abstract contract ProtocolConfigErrors {
      * @notice Thrown when attempting to read a uint256 that has not been set
      */
     error PC_UINT_NOT_SET();
+
+    error ALREADY_PACKAGE_ID_INFO_UPDATED();
+
+    error PACKAGE_NOT_EXIST();
 }

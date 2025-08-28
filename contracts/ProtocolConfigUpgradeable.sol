@@ -9,8 +9,18 @@ import "./errors/ProtocolConfigErrors.sol";
  * @notice Centralized storage for all protocol-wide addresses and numeric parameters.
  */
 contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
+
+    struct CapInfo {
+        uint256 liquidityCap;
+        uint256 feeCap;
+        uint256 userFeesPct;
+    }
+
+    uint256 private s_packageCounter;
+
     mapping(bytes32 => address) private s_addresses;
     mapping(bytes32 => uint256) private s_uints;
+    mapping(uint256 => CapInfo) private s_packageCap;
 
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
@@ -108,5 +118,42 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         uint256 val = s_uints[key];
         if (val == 0) revert PC_UINT_NOT_SET();
         return val;
+    }
+
+    function setPackageCap(
+        uint256 _liquidityCap,
+        uint256 _feeCap,
+        uint256 _userFeesPct
+    ) external onlyGeneralOrMasterAdmin {
+        s_packageCounter++;
+        uint256 packageId = s_packageCounter;
+
+        CapInfo storage capInfo = s_packageCap[packageId];
+
+        capInfo.liquidityCap = _liquidityCap;
+        capInfo.feeCap = _feeCap;
+        capInfo.userFeesPct = _userFeesPct;
+    }
+
+    function updatePackageCap(
+        uint256 packageId,
+        uint256 _liquidityCap,
+        uint256 _feeCap,
+        uint256 _userFeesPct
+    ) external onlyGeneralOrMasterAdmin {
+        CapInfo storage capInfo = s_packageCap[packageId];
+        if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
+            revert PACKAGE_NOT_EXIST();
+        }
+        if (capInfo.liquidityCap == _liquidityCap && capInfo.feeCap == _feeCap) {
+            revert ALREADY_PACKAGE_ID_INFO_UPDATED();
+        }
+        capInfo.liquidityCap = _liquidityCap;
+        capInfo.feeCap = _feeCap;
+        capInfo.userFeesPct = _userFeesPct;
+    }
+
+    function getPackageCap(uint256 packageId) external onlyGeneralAdmin view returns (CapInfo memory) {
+        return s_packageCap[packageId];
     }
 }
