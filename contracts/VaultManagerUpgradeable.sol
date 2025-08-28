@@ -30,7 +30,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
 
-
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
 
@@ -48,6 +47,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+    //bytes32 private constant ROLE_VAULT_MANAGER = keccak256("VAULT_MANAGER_ROLE");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 amount);
@@ -190,7 +190,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the client fee percentage.
      * @return uint256 fee percentage.
      */
-    function _clientFeePct() public view returns (uint256) {
+    function _clientFeePct() internal view returns (uint256) {
         return s_config.getUint(CFG_CLIENT_FEE_PCT);
     }
     
