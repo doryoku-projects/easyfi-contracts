@@ -18,4 +18,6 @@ interface IProtocolConfigUpgradeable {
     function getAddress(bytes32 key) external view returns (address);
 
     function getUint(bytes32 key) external view returns (uint256);
+
+  
 }

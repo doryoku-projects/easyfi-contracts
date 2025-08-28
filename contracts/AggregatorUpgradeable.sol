@@ -12,7 +12,7 @@ import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/IVaultManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
 
-/**
+/** 
  * @title AggregatorUpgradeable
  * @notice This contract is responsible of interacting with the VaultManager so users can manage their liquidity positions.
  */
