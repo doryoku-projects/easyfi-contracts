@@ -125,7 +125,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the company fee percentage.
      * @return uint256 fee percentage.
      */
-    function getCompanyFeePct() external view onlyGeneralAdmin returns (uint256) {
+    function getCompanyFeePct() external view onlyGeneralOrMasterAdmin returns (uint256) {
         return s_config.getUint(CFG_COMPANY_FEE_PCT);
     }
 
@@ -133,8 +133,16 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the client fee percentage.
      * @return uint256 fee percentage.
      */
-    function getClientFeePct() external view onlyGeneralAdmin returns (uint256) {
+    function getClientFeePct() external view onlyGeneralOrMasterAdmin returns (uint256) {
         return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+
+    /**
+     * @notice Returns the client address.
+     * @return address client address.
+     */
+    function getClient() external view onlyGeneralOrMasterAdmin returns (address) {
+        return s_config.getAddress(CFG_CLIENT_ADDRESS);
     }
 
     /**
@@ -201,7 +209,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         return s_config.getUint(CFG_COMPANY_FEE_PCT);
     }
 
-        /**
+    /**
      * @notice Returns the client fee percentage.
      * @return uint256 fee percentage.
      */
@@ -217,7 +225,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         return s_config.getAddress(CFG_AGGREGATOR);
     }
 
-        /**
+    /**
      * @notice Returns the client address.
      * @return address client.
      */
@@ -580,8 +588,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         //If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
             amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
-            amountToWithdrawForCompany = s_companyFees - amountToWithdrawForClient;
+
+            if (amountToWithdrawForClient < 1) revert VM_COMPANY_FEES_ZERO();
             
+            amountToWithdrawForCompany = s_companyFees - amountToWithdrawForClient;
+
             s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
             _mainTokenInstance.safeTransfer(msg.sender, amountToWithdrawForCompany);
