@@ -130,8 +130,7 @@ console.log("Is myWallet master admin?", await UserManager.hasRole(MASTER_ADMIN_
       signature);
 //client fee
 
-let clientFee = await Vault._clientFeePct() 
-console.log("Client Fee Percentage:", clientFee.toString());
+
 
   // withdraw company fees
 const iface = new ethers.Interface([
@@ -158,6 +157,8 @@ console.log("Client balance in USDC:", clientBalance.toString());
 
 const companyFeesAfter = await Vault.getCompanyFees();
 console.log("Company Fees in Vault after withdrawal:", companyFeesAfter.toString());
+let adminBalance = await mainToken.balanceOf(myWallet.address);
+console.log("admin fees in vault after withdrawal:", adminBalance.toString());
 }
 
 main().catch((error) => {

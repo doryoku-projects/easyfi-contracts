@@ -50,7 +50,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     //bytes32 private constant ROLE_VAULT_MANAGER = keccak256("VAULT_MANAGER_ROLE");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
-    event WithdrawCompanyFees(uint256 amount);
+    event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
     event ProtocolConfigSet();
     event UserManagerSet();
     event UserInfoReset(address indexed user);
@@ -566,8 +566,9 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         
         //If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
-            amountToWithdrawForCompany = (s_companyFees * companyPercentage) / MAX_PERCENTAGE;
             amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
+            amountToWithdrawForCompany = s_companyFees - amountToWithdrawForClient;
+
             
             s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
@@ -578,7 +579,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         
 
-        emit WithdrawCompanyFees(amountToWithdrawForCompany + amountToWithdrawForClient);
+        emit WithdrawCompanyFees(amountToWithdrawForClient,amountToWithdrawForCompany);
     }
 
     
