@@ -194,6 +194,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         return s_config.getUint(CFG_CLIENT_FEE_PCT);
     }
     
+    /**
+     * @notice Returns the company fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function getCompanyFeePct() external view onlyGeneralAdmin returns (uint256) {
+        return s_config.getUint(CFG_COMPANY_FEE_PCT);
+    }
+    
 
     /**
      * @notice Returns the aggregator address.
