@@ -155,11 +155,16 @@ describe("I_setRoles", function () {
 
     // Assign the Vault Manager role to the Aggregator contract
     await expect(
-      userManagerGeneralAdmin.addVaultManagers([aggregatorAddress])
+      userManagerGeneralAdmin.addVaultManagers([aggregatorAddress, vaultManagerAddress])
     ).to.emit(userManagerGeneralAdmin, "VaultManagerAdded");
 
-    const isVaultManager = await userManagerUserManager.isVaultManager(
+    let isVaultManager = await userManagerUserManager.isVaultManager(
       aggregatorAddress
+    );
+    expect(isVaultManager).to.be.true;
+
+    isVaultManager = await userManagerUserManager.isVaultManager(
+      vaultManagerAddress
     );
     expect(isVaultManager).to.be.true;
 
