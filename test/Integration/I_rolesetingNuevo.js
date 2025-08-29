@@ -41,22 +41,22 @@ describe("I_setRoles", function () {
   }
 
   before(async function () {
-    ownerWallet = new ethers.Wallet( // MASTER_ADMIN
+    ownerWallet = new ethers.Wallet(       // MASTER_ADMIN
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
-    marcWallet = new ethers.Wallet( // GENERAL_ADMIN
+    marcWallet = new ethers.Wallet(       // GENERAL_ADMIN
       process.env.GENERAL_ADMIN_PRIVATE_KEY,
       ethers.provider
     );
 
-    pepOwnerWallet = new ethers.Wallet( // USER_MANAGER
+    pepOwnerWallet = new ethers.Wallet(     // USER_MANAGER
       process.env.USER_MANAGER_PRIVATE_KEY,
       ethers.provider
     );
 
-    userWallet = new ethers.Wallet( // NORMAL USER, WHO INTERACTS WITH AGREGATOR
+    userWallet = new ethers.Wallet(       // NORMAL USER, WHO INTERACTS WITH AGREGATOR
       process.env.USER_PRIVATE_KEY,
       ethers.provider
     );
@@ -127,7 +127,7 @@ describe("I_setRoles", function () {
   });
 
   it("Should assign roles correctly", async function () {
-  //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
+    //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
     process.env.APP_ENV === "development" && await fundWallet();
     await expect(
       userManagerGeneralAdmin.addLiquidityManagers([
@@ -177,14 +177,14 @@ describe("I_setRoles", function () {
     expect(isUser).to.be.true;
 
     // Assign the UserManager role to the Aggregator contract
-  //   await expect(
-  //     userManagerUserManager.addUsersManager([aggregatorAddress])
-  //   ).to.emit(userManagerGeneralAdmin, "UserManagerAdded");
-  //   const isUserManager = await userManagerUserManager.isUserManager(
-  //     aggregatorAddress
-  //   );
-  //   expect(isUserManager).to.be.true;
-  
+    //   await expect(
+    //     userManagerUserManager.addUsersManager([aggregatorAddress])
+    //   ).to.emit(userManagerGeneralAdmin, "UserManagerAdded");
+    //   const isUserManager = await userManagerUserManager.isUserManager(
+    //     aggregatorAddress
+    //   );
+    //   expect(isUserManager).to.be.true;
+
   });
 
   it("Should set all necessary contract addresses for correct interaction", async function () {
