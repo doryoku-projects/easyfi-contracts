@@ -11,6 +11,7 @@ interface IVaultManagerUpgradeable {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        uint256 packageId;
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;

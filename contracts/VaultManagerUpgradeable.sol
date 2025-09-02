@@ -42,6 +42,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        uint256 packageId;
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;
@@ -50,6 +51,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     mapping(address => mapping(bytes32 => UserInfo)) private userInfo;
+    mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 amount);
@@ -148,6 +150,20 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         userInformation = userInfo[user][_formatPoolId(poolId)];
     }
 
+    /**
+     * @notice Retrieve stored user position info for a given pool.
+     * @param user Address of the user.
+     * @param poolId Identifier of the pool.
+     * @param packageId Identifier of the pool.
+     * @return uint256 collected fee
+     */
+    function getCollectedFeesByPackage(address user, string calldata poolId, uint256 packageId)
+        external
+        view
+        returns (uint256)
+    {
+        return collectedFeesByPackages[user][_formatPoolId(poolId)][packageId];
+    }
     /**
      * @notice Format a pool identifier string as a bytes32 key.
      * @param poolId The pool identifier.
@@ -644,29 +660,46 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit EmergencyERC721BatchWithdrawal(to);
     }
 
-    function setUserPackage(address user, string calldata poolId, uint256 packageId) external onlyGeneralOrMasterAdmin {
+
+    /**
+     * @notice setUserPackage
+     * @param user Address of the user..
+     * @param poolId Identifier of the pool.
+     * @param packageId Identifier of the Package.
+     * @param feeCapLimit Fee Cap Limit of the package.
+     * @param liquidityCapLimit Liquidity Cap Limit of the package.
+     */
+
+    function setUserPackage(address user, string calldata poolId, uint256 packageId, uint256 feeCapLimit, uint256 liquidityCapLimit) external onlyGeneralOrMasterAdmin {
         IProtocolConfigUpgradeable.CapInfo memory capInfo = s_config.getPackageCap(packageId);
         if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
             revert VM_INVALID_PACKAGE_ID();
         }
         UserInfo storage userCap = userInfo[user][_formatPoolId(poolId)];
-        bool isNewUser = (userCap.liquidityCapLimit == 0 && userCap.feeCapLimit == 0);
-        userCap.liquidityCapLimit = isNewUser 
-            ? capInfo.liquidityCap 
-            : userCap.liquidityCapLimit + capInfo.liquidityCap;
-
-        userCap.feeCapLimit = isNewUser 
-            ? capInfo.feeCap 
-            : userCap.feeCapLimit + capInfo.feeCap;
+        userCap.liquidityCapLimit = liquidityCapLimit;
+        userCap.feeCapLimit = feeCapLimit;
+        userCap.packageId = packageId;
         userCap.userFeePct = capInfo.userFeesPct;
         emit UserPackageUpdated(user, packageId);
     }
 
+    /**
+     * @notice updateFees
+     * @param user Address of the position owner.
+     * @param poolIdHash Identifier of the pool.
+     * @param amount Collected Fees from the position.
+     */
     function updateFees(address user, bytes32 poolIdHash, uint256 amount) internal {
         UserInfo storage userCap = userInfo[user][poolIdHash];
         userCap.collectedFees += amount;
+        collectedFeesByPackages[user][poolIdHash][userCap.packageId] += amount;
     }
 
+    /**
+     * @notice withdrawFunds
+     * @param user Address of the user.
+     * @param poolId Identifier of the pool.
+     */
     function withdrawFunds(address user, string calldata poolId) 
         external
         onlyVaultManager
