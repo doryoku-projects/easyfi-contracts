@@ -1,6 +1,7 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@tenderly/hardhat-tenderly";
+// require("@nomicfoundation/hardhat-verify");
 
 import "dotenv/config";
 
@@ -35,6 +36,9 @@ const config: HardhatUserConfig = {
       viaIR: true,
     },
   },
+  sourcify: {
+    enabled: false
+  },
   networks: {
     hardhat: {
       forking: {
@@ -64,10 +68,10 @@ const config: HardhatUserConfig = {
         ? [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`]
         : [],
     },
-    mainnet: {
+    arbitrumOne: {
       url: process.env.ARBITRUM_MAINNET_RPC_URL,
       chainId: 42161,
-      accounts: [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`],
+      accounts: privateKeys,
     },
   },
   tenderly: {

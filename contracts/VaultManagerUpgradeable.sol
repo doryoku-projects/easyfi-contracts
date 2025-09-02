@@ -45,8 +45,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     mapping(address => mapping(bytes32 => UserInfo)) private userInfo;
 
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+
     event ERC721Deposited(address indexed user, uint256 tokenId);
-    event WithdrawCompanyFees(uint256 amount);
+    event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
     event ProtocolConfigSet();
     event UserManagerSet();
     event UserInfoReset(address indexed user);
@@ -119,6 +122,30 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     /**
+     * @notice Returns the company fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function getCompanyFeePct() external view onlyGeneralOrMasterAdmin returns (uint256) {
+        return s_config.getUint(CFG_COMPANY_FEE_PCT);
+    }
+
+    /**
+     * @notice Returns the client fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function getClientFeePct() external view onlyGeneralOrMasterAdmin returns (uint256) {
+        return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+
+    /**
+     * @notice Returns the client address.
+     * @return address client address.
+     */
+    function getClient() external view onlyGeneralOrMasterAdmin returns (address) {
+        return s_config.getAddress(CFG_CLIENT_ADDRESS);
+    }
+
+    /**
      * @notice Function for obtaining the company fees.
      * @return companyFees Company fees.
      */
@@ -183,11 +210,27 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     /**
+     * @notice Returns the client fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function _clientFeePct() internal view returns (uint256) {
+        return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+
+    /**
      * @notice Returns the aggregator address.
      * @return address aggregator.
      */
     function _aggregator() internal view returns (address) {
         return s_config.getAddress(CFG_AGGREGATOR);
+    }
+
+    /**
+     * @notice Returns the client address.
+     * @return address client.
+     */
+    function _client() internal view returns (address) {
+        return s_config.getAddress(CFG_CLIENT_ADDRESS);
     }
 
     /**
@@ -241,7 +284,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
-
+ 
         UserInfo memory _userInfo = userInfo[userAddress][poolIdHash];
         if (_userInfo.tokenId != 0) {
             if (
@@ -249,7 +292,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                     _userInfo.tickLower == tickLower
                         && _userInfo.tickUpper == tickUpper
                 )
-            ) revert VM_RANGE_MISMATCH();
+            ) revert VM_RANGE_MISMATCH(); 
 
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -528,25 +571,34 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     /**
      * @notice Withdraw a percentage of the company’s accumulated fees.
-     * @param percentage Percentage of fees to withdraw (basis points).
-     * @param code Two-factor authentication code.
      */
-    function withdrawCompanyFees(uint256 percentage, string calldata code) external onlyMasterAdmin {
-        s_userManager.check2FA(msg.sender, code, percentage);
-
-        if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
-
-        uint256 amountToWithdraw;
+     // all uniswap fees are in the name of company fees, so this function is used to withdraw them
+    function withdrawCompanyFees() external onlyMasterAdmin {
+        uint256 clientPercentage = _clientFeePct();
+        address clientAddress = _client();
+        IERC20 _mainTokenInstance = _mainToken();
         
-        // If the company has fees, we withdraw a percentage of them
+        if (s_companyFees == 0) revert VM_COMPANY_FEES_ZERO();
+        if (clientAddress == address(0)) revert VM_ZERO_ADDRESS();
+        if (clientPercentage == 0) revert VM_COMPANY_FEES_ZERO();
+
+        uint256 amountToWithdrawForCompany;
+        uint256 amountToWithdrawForClient;
+        
+        //If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
-            amountToWithdraw = (s_companyFees * percentage) / MAX_PERCENTAGE;
-            s_companyFees -= amountToWithdraw;
+            amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
 
-            _mainToken().safeTransfer(msg.sender, amountToWithdraw);
+            if (amountToWithdrawForClient < 1) revert VM_COMPANY_FEES_ZERO();
+            
+            amountToWithdrawForCompany = s_companyFees - amountToWithdrawForClient;
+
+            s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
+
+            _mainTokenInstance.safeTransfer(msg.sender, amountToWithdrawForCompany);
+            _mainTokenInstance.safeTransfer(clientAddress, amountToWithdrawForClient);
         }
-
-        emit WithdrawCompanyFees(amountToWithdraw);
+        emit WithdrawCompanyFees(amountToWithdrawForClient,amountToWithdrawForCompany);
     }
 
     /**
@@ -588,3 +640,4 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit EmergencyERC721BatchWithdrawal(to);
     }
 }
+

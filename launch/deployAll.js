@@ -70,8 +70,9 @@ async function main() {
 
   console.log("✅ Added Contracts in UserManager");
 
-  const key = (s) =>
+  const key = (s) =>  
     ethers.keccak256(ethers.toUtf8Bytes(s));
+  
 
   const addressKeys = [
     "VaultManager",
@@ -132,6 +133,8 @@ async function main() {
   }
 
   console.log("✅ Added Contracts in ProtocolConfig");
+
+ 
 
   //   const VaultContract = await ethers.getContractAt("VaultManagerUpgradeable", VaultAddr);
 
