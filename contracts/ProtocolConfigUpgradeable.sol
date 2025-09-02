@@ -73,7 +73,6 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         return true;
     }
 
-
     function setAddress(bytes32 key, address newVal) external onlyGeneralOrMasterAdmin {
         _setAddress(key, newVal);
     }

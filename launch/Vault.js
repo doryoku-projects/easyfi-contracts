@@ -25,8 +25,6 @@ async function deployVault() {
   const userManagerUpgradeableAddress = getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = getDeploymentAddress("ProtocolConfigUpgradeable");
 
-  // const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
-  // const userManagerUpgradeableAddress = process.env.USER_MANAGER_ADDRESS;
   const maxWithdrawalSize = 150;
 
   const VaultManagerUpgradeable = await ethers.getContractFactory(

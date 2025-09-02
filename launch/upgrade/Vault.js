@@ -5,9 +5,12 @@ require("dotenv").config();
 async function main() {
   const proxyAddress = process.env.VAULT_MANAGER_ADDRESS;  // Replace with the actual address
 
+  const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log("Current implementation address:", implementationAddress);
   const VaultManagerUpgradeable =
     await ethers.getContractFactory("VaultManagerUpgradeable");
-
+console.log("vault manager upgrable")
   console.log("[UPGRADE] Updating the proxy contract...");
 
   // The proxy contract is updated
@@ -16,8 +19,12 @@ async function main() {
     VaultManagerUpgradeable
   );
   console.log("[UPGRADE] Proxy contract updated at:",
-    await upgraded.getAddress()
-  );}
+    await upgradedVault.getAddress()
+  );
+    const NewimplementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log("Current implementation address:", NewimplementationAddress);
+}
 
 main()
   .then(() => process.exit(0))

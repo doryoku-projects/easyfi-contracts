@@ -5,11 +5,12 @@ const path = require("path");
 
 async function deployUserManager() {
   console.log("[DEPLOY] Deploying UserManagerUpgradeable...");
-  let pepOwnerWallet, marcWallet, twoFAWallet;
+  let pepOwnerWallet, marcWallet, twoFAWallet, masterWallet;
 
   marcWallet = process.env.GENERAL_ADMIN_WALLET; // GENERAL_ADMIN
   pepOwnerWallet = process.env.USER_MANAGER_WALLET; // USER_MANAGER
   twoFAWallet = process.env.USER_2FA_WALLET; // 2FA_MANAGER
+  masterWallet = process.env.MASTER_ADMIN_WALLET; // MASTER_ADMIN
 
   //CONTRACTS
   const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
@@ -25,9 +26,9 @@ async function deployUserManager() {
   );
   // Define los administradores iniciales y los gestores de usuario iniciales.
   // Reemplaza estos valores con direcciones reales según tu caso.
-  const initialAdmins = [marcWallet];
-  const initialUserManagers = [pepOwnerWallet];
-  const _2FAManagers = [twoFAWallet];
+  const initialAdmins = [marcWallet, masterWallet];
+  const initialUserManagers = [pepOwnerWallet, masterWallet];
+  const _2FAManagers = [twoFAWallet, masterWallet];
   const initialContracts = [
     protocolConfigAddress,
     vaultManagerAddress,
