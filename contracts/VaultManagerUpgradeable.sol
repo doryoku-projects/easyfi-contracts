@@ -57,6 +57,9 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
     event ProtocolConfigSet();
@@ -244,6 +247,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     /**
+     * @notice Returns the client fee percentage.
+     * @return uint256 fee percentage.
+     */
+    function _clientFeePct() internal view returns (uint256) {
+        return s_config.getUint(CFG_CLIENT_FEE_PCT);
+    }
+
+    /**
      * @notice Returns the aggregator address.
      * @return address aggregator.
      */
@@ -335,15 +346,15 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
-
         UserInfo storage _userInfo = userInfo[userAddress][poolIdHash];
+
         if (_userInfo.tokenId != 0) {
             if (
                 !(
                     _userInfo.tickLower == tickLower
                         && _userInfo.tickUpper == tickUpper
                 )
-            ) revert VM_RANGE_MISMATCH();
+            ) revert VM_RANGE_MISMATCH(); 
 
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -781,3 +792,4 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
 }
+
