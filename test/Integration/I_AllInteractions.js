@@ -291,6 +291,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     console.log("USER INFO after 50% withdraw:", userInfoHalfWithdraw);
 
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, poolId, 2, 2000000000, 2000000000);
+
     // await sleep(10000);
 
     block = await ethers.provider.getBlock("latest");

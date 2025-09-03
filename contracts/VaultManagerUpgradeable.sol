@@ -515,40 +515,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         notEmergency
         returns (uint256 collectedToken0, uint256 collectedToken1)
     {
-        INonfungiblePositionManager _nfpmInstance = _nfpm();
-        ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
-
-        bytes32 poolIdHash = _formatPoolId(poolId);
-        uint256 tokenId = userInfo[user][poolIdHash].tokenId;
-        if (tokenId == 0) revert VM_NO_POSITION();
-
-        (,, address token0Address, address token1Address,,,,,,,,) = _nfpmInstance.positions(tokenId);
-
-        uint256 storedFee0 = userInfo[user][poolIdHash].feeToken0;
-        uint256 storedFee1 = userInfo[user][poolIdHash].feeToken1;
-
-        IERC20 token0 = IERC20(token0Address);
-        IERC20 token1 = IERC20(token1Address);
-
-        token0.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee0);
-
-        token1.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee1);
-
-        _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
-
-        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 collectedMainToken) =
-            _liquidityManagerInstance.collectFeesFromPosition(tokenId, _vaultProxy(), storedFee0, storedFee1, _companyFeePct(user, poolId), true);
-
-        updateFees(user, poolIdHash, collectedMainToken);
-        s_companyFees += companyTax;
-
-        _nfpmInstance.approve(address(0), tokenId);
-
-        userInfo[user][poolIdHash].feeToken0 = 0;
-        userInfo[user][poolIdHash].feeToken1 = 0;
-
-        collectedToken0 = lmCollected0 + storedFee0;
-        collectedToken1 = lmCollected1 + storedFee1;
+        (collectedToken0, collectedToken1,) = _collectFees(user, poolId);
     }
 
     /**
@@ -729,6 +696,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             revert VM_INVALID_PACKAGE_ID();
         }
         UserInfo storage userCap = userInfo[user][_formatPoolId(poolId)];
+        if(userCap.userFeePct != 0) _collectFees(user, poolId);
         userCap.liquidityCapLimit = liquidityCapLimit;
         userCap.feeCapLimit = feeCapLimit;
         userCap.packageId = packageId;
@@ -763,4 +731,53 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         userCap.collectedFees = 0;
         IVaultProxyUpgradeable(_vaultProxy()).withdrawFunds(user, address(_mainToken()), amount);
     }
+
+    function _collectFees(address user, string calldata poolId)
+        internal
+        returns (uint256 collectedToken0, uint256 collectedToken1, uint256 collectedMainToken)
+    {
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+        ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
+
+        bytes32 poolIdHash = _formatPoolId(poolId);
+        uint256 tokenId = userInfo[user][poolIdHash].tokenId;
+        if (tokenId == 0) revert VM_NO_POSITION();
+
+        (,, address token0Address, address token1Address,,,,,,,,) = _nfpmInstance.positions(tokenId);
+
+        uint256 storedFee0 = userInfo[user][poolIdHash].feeToken0;
+        uint256 storedFee1 = userInfo[user][poolIdHash].feeToken1;
+
+        IERC20 token0 = IERC20(token0Address);
+        IERC20 token1 = IERC20(token1Address);
+
+        token0.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee0);
+
+        token1.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee1);
+
+        _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
+
+        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 _collectedMainToken) =
+            _liquidityManagerInstance.collectFeesFromPosition(
+                tokenId,
+                _vaultProxy(),
+                storedFee0,
+                storedFee1,
+                _companyFeePct(user, poolId),
+                true
+            );
+
+        updateFees(user, poolIdHash, _collectedMainToken);
+        s_companyFees += companyTax;
+
+        _nfpmInstance.approve(address(0), tokenId);
+
+        userInfo[user][poolIdHash].feeToken0 = 0;
+        userInfo[user][poolIdHash].feeToken1 = 0;
+
+        collectedToken0 = lmCollected0 + storedFee0;
+        collectedToken1 = lmCollected1 + storedFee1;
+        collectedMainToken = _collectedMainToken;
+    }
+
 }
