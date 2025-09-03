@@ -99,6 +99,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, poolId, 1, 1000000000, 1000000000);
     // ————— 3) Mint (10k) —————
     const isUser = await UserManager.isUser(userWallet.address);
     console.log("Is user:", isUser);
@@ -289,6 +290,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     ).getUserInfo(userWallet.address, poolId);
 
     console.log("USER INFO after 50% withdraw:", userInfoHalfWithdraw);
+
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, poolId, 2, 2000000000, 2000000000);
 
     // await sleep(10000);
 

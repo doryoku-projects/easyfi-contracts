@@ -48,4 +48,11 @@ abstract contract VaultManagerErrors {
      * @param size The size of the array that exceeded the limit.
      */
     error VM_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
+
+    error VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
+
+    error VM_INVALID_PACKAGE_ID();
+
+    error VM_REWARD_CAP_REACHED();
+
 }
