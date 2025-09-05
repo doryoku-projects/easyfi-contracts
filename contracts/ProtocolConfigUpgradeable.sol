@@ -25,6 +25,9 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
     event UserManagerSet();
+    event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
+    event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
+
 
     /**
      * @notice Initialize all config entries in batch
@@ -132,6 +135,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
+        emit PackageCreated(packageId, _liquidityCap, _feeCap, _userFeesPct);
     }
 
     function updatePackageCap(
@@ -150,6 +154,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
+        emit PackageUpdated(packageId, _liquidityCap, _feeCap, _userFeesPct);
     }
 
     function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {
