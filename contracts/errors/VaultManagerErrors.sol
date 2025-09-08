@@ -53,6 +53,6 @@ abstract contract VaultManagerErrors {
 
     error VM_INVALID_PACKAGE_ID();
 
-    error VM_REWARD_CAP_REACHED();
+    error VM_REWARD_CAP_NOT_REACHED();
 
 }

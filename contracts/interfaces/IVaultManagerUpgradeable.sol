@@ -11,12 +11,15 @@ interface IVaultManagerUpgradeable {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        uint256 collectedFees;
+        uint256 depositLiquidity;
+    }
+
+    struct PackageInfo {
         uint256 packageId;
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;
-        uint256 collectedFees;
-        uint256 depositLiquidity;
     }
 
     function mintOrIncreaseLiquidityPosition(
@@ -43,7 +46,13 @@ interface IVaultManagerUpgradeable {
     function getUserInfo(address user, string calldata poolId)
         external
         view
-        returns (UserInfo memory userInformation);
+        returns (UserInfo memory _userInfo);
+    
+
+    function getUserPackageInfo(address user)
+        external
+        view
+        returns (PackageInfo memory _packageInfo);
     
     function decreasePositionAndWithdrawFees(string calldata poolId) external;
 
