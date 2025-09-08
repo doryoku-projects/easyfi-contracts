@@ -111,16 +111,31 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      * @notice Fetch the information of a user in a specific pool.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
-     * @return userInformation The user’s info as stored by the VaultManager.
+     * @return _userInfo The user’s info as stored by the VaultManager.
      */
     function getUserInfo(address user, string calldata poolId)
         external
         view
         onlyGeneralOrMasterAdmin
-        returns (IVaultManagerUpgradeable.UserInfo memory userInformation)
+        returns (IVaultManagerUpgradeable.UserInfo memory _userInfo)
     {
         IVaultManagerUpgradeable vault = _vaultManager();
-        userInformation = vault.getUserInfo(user, poolId);
+        _userInfo = vault.getUserInfo(user, poolId);
+    }
+
+    /**
+     * @notice Fetch the information of a user in a specific pool.
+     * @param user Address of the user.
+     * @return _packageInfo The user’s info as stored by the VaultManager.
+     */
+    function getUserPackageInfo(address user)
+        external
+        view
+        onlyGeneralOrMasterAdmin
+        returns (IVaultManagerUpgradeable.PackageInfo memory _packageInfo)
+    {
+        IVaultManagerUpgradeable vault = _vaultManager();
+        _packageInfo = vault.getUserPackageInfo(user);
     }
 
     /**
