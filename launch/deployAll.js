@@ -9,7 +9,7 @@ const deployLiquidityManager = require("./LiquidityManager");
 const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
 const deployAggregator = require("./Aggregator");
-const deployVaultProxy = require("./VaultProxy");
+const deployFundsManager = require("./FundsManager");
 
 const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
@@ -36,7 +36,7 @@ async function main() {
   await deployOracleSwap();
   await deployLiquidityHelper();
   await deployAggregator();
-  await deployVaultProxy();
+  await deployFundsManager();
 
   console.log("✅ All contracts deployed successfully!");
 
@@ -47,7 +47,7 @@ async function main() {
   const LiquidityHelperAddr = getDeploymentAddress("LiquidityHelperUpgradeable");
   const OracleSwapAddr = getDeploymentAddress("OracleSwapUpgradeable");
   const AggregatorAddr = getDeploymentAddress("AggregatorUpgradeable");
-  const VaultProxyAddr = getDeploymentAddress("VaultProxyUpgradeable");
+  const FundsManagerAddr = getDeploymentAddress("FundsManagerUpgradeable");
 
   console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
   console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
@@ -56,7 +56,7 @@ async function main() {
   console.log("🔗 Attaching to LiquidityHelperUpgradeable at:", LiquidityHelperAddr);
   console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);
   console.log("🔗 Attaching to AggregatorUpgradeable at:", AggregatorAddr);
-  console.log("🔗 Attaching to VaultProxyUpgradeable at:", VaultProxyAddr);
+  console.log("🔗 Attaching to FundsManagerUpgradeable at:", FundsManagerAddr);
 
   const initialContracts = [
     ProtocolConfigAddr,
@@ -83,7 +83,7 @@ async function main() {
     "LiquidityHelper",
     "OracleSwap",
     "Aggregator",
-    "VaultProxy",
+    "FundsManager",
   ].map(key);
 
   const addressValues = [
@@ -92,7 +92,7 @@ async function main() {
     LiquidityHelperAddr,
     OracleSwapAddr,
     AggregatorAddr,
-    VaultProxyAddr
+    FundsManagerAddr
   ];
 
   const ProtocolConfigContract = await ethers.getContractAt("ProtocolConfigUpgradeable", ProtocolConfigAddr);

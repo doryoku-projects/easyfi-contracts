@@ -17,12 +17,12 @@ function getDeploymentAddress(contractName) {
   return deployments[contractName];
 }
 
-async function deployVaultProxy() {
-  console.log("[DEPLOY] Deploying VaultProxyUpgradeable...");
+async function deployFundsManager() {
+  console.log("[DEPLOY] Deploying FundsManagerUpgradeable...");
 
-  // Obtén la fábrica del contrato vaultProxy Upgradeable
-  const VaultProxyUpgradeable = await ethers.getContractFactory(
-    "VaultProxyUpgradeable"
+  // Obtén la fábrica del contrato fundsManager Upgradeable
+  const FundsManagerUpgradeable = await ethers.getContractFactory(
+    "FundsManagerUpgradeable"
   );
   // Define las direcciones de los módulos (estas pueden ser de contratos ya desplegados)
   // const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
@@ -32,15 +32,15 @@ async function deployVaultProxy() {
 
 
   // Despliega el proxy upgradeable, inicializando el contrato con las direcciones
-  const vaultProxy = await upgrades.deployProxy(
-    VaultProxyUpgradeable,
+  const fundsManager = await upgrades.deployProxy(
+    FundsManagerUpgradeable,
     [userManagerUpgradeableAddress],
     { initializer: "initialize" }
   );
-  await vaultProxy.waitForDeployment();
-  const deployedAddress = await vaultProxy.getAddress();
+  await fundsManager.waitForDeployment();
+  const deployedAddress = await fundsManager.getAddress();
 
-  console.log("[DEPLOY] VaultProxyUpgradeable deployed at:", deployedAddress);
+  console.log("[DEPLOY] FundsManagerUpgradeable deployed at:", deployedAddress);
 
   const filePath = path.join(__dirname, "../deployments.json");
 
@@ -49,10 +49,10 @@ async function deployVaultProxy() {
     deployments = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   }
 
-  deployments["VaultProxyUpgradeable"] = deployedAddress;
+  deployments["FundsManagerUpgradeable"] = deployedAddress;
   fs.writeFileSync(filePath, JSON.stringify(deployments, null, 2));
   console.log("[DEPLOY] Address saved to deployments.json");
 }
 
-module.exports = deployVaultProxy;
+module.exports = deployFundsManager;
 
