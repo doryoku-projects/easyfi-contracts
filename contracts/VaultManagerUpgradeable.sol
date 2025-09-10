@@ -55,7 +55,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     }
 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
-    mapping(address =>  PackageInfo) private packageInfo;
+    mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
     mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
 
@@ -189,13 +189,13 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @param user Address of the user.
      * @return _packageInfo Struct containing the user's package details.
      */
-    function getUserPackageInfo(address user)
+    function getUserPackageInfo(address user, uint256 package_Id)
         external
         view
         onlyVaultManager
         returns (PackageInfo memory _packageInfo)
     {
-        _packageInfo = packageInfo[user];
+        _packageInfo = packageInfo[user][package_Id];
     }
 
     /**
@@ -249,8 +249,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice Returns the company fee percentage.
      * @return uint256 fee percentage.
      */
-    function _companyFeePct(address user) internal view returns (uint256) {
-        uint256 companyFeePct = MAX_PERCENTAGE - packageInfo[user].userFeePct;
+    function _companyFeePct(address user, uint256 package_Id) internal view returns (uint256) {
+        uint256 companyFeePct = MAX_PERCENTAGE - packageInfo[user][package_Id].userFeePct;
         return companyFeePct;
     }
 
@@ -317,10 +317,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         uint256 packageId,
         uint256 amount
     ) internal view {
-        if (packageInfo[user].liquidityCapLimit != 0) {
+        if (packageInfo[user][packageId].liquidityCapLimit != 0) {
             uint256 newTotal = userInfo[user][packageId][_formatPoolId(poolId)].depositLiquidity + amount;
 
-            if (newTotal > packageInfo[user].liquidityCapLimit) {
+            if (newTotal > packageInfo[user][packageId].liquidityCapLimit) {
                 revert VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
             }
         }
@@ -456,7 +456,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         onlyVaultManager
         notEmergency
     {
-        uint256 _companyFeePctInstance = _companyFeePct(user);
+        uint256 _companyFeePctInstance = _companyFeePct(user, packageId);
         INonfungiblePositionManager _nfpmInstance = _nfpm();
         ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
 
@@ -563,7 +563,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
         (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax,) =
-            _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user), true);
+            _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user, packageId), true);
 
         s_companyFees += companyTax;
 
@@ -748,7 +748,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
             revert VM_INVALID_PACKAGE_ID();
         }
-        PackageInfo storage package = packageInfo[user];
+        PackageInfo storage package = packageInfo[user][packageId];
         package.liquidityCapLimit = liquidityCapLimit;
         package.feeCapLimit = feeCapLimit;
         package.packageId = packageId;
@@ -764,7 +764,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      */
     function _updateFees(address user, bytes32 poolIdHash, uint256 packageId, uint256 amount) internal {
         UserInfo storage _userInfo = userInfo[user][packageId][poolIdHash];
-        PackageInfo storage _packageInfo = packageInfo[user];
+        PackageInfo storage _packageInfo = packageInfo[user][packageId];
         _userInfo.collectedFees += amount;
         collectedFeesByPackages[user][poolIdHash][_packageInfo.packageId] += amount;
     }
