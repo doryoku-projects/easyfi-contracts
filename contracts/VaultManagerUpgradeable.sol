@@ -739,18 +739,16 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @notice setUserPackage
      * @param user Address of the user..
      * @param packageId Identifier of the Package.
-     * @param feeCapLimit Fee Cap Limit of the package.
-     * @param liquidityCapLimit Liquidity Cap Limit of the package.
      */
 
-    function setUserPackage(address user, uint256 packageId, uint256 feeCapLimit, uint256 liquidityCapLimit) external onlyGeneralOrMasterAdmin {
+    function setUserPackage(address user, uint256 packageId) external onlyGeneralOrMasterAdmin {
         IProtocolConfigUpgradeable.CapInfo memory capInfo = s_config.getPackageCap(packageId);
         if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
             revert VM_INVALID_PACKAGE_ID();
         }
         PackageInfo storage package = packageInfo[user][packageId];
-        package.liquidityCapLimit = liquidityCapLimit;
-        package.feeCapLimit = feeCapLimit;
+        package.liquidityCapLimit = capInfo.liquidityCap;
+        package.feeCapLimit = capInfo.feeCap;
         package.packageId = packageId;
         package.userFeePct = capInfo.userFeesPct;
         emit UserPackageUpdated(user, packageId);
