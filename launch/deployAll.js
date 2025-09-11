@@ -136,8 +136,6 @@ async function main() {
       console.log(`❌ Failed to update ${key}: ${error.message}`);
     }
   }
-  await ProtocolConfigContract.setPackageCap(1000000000, 2000000000, 50)
-  await ProtocolConfigContract.setPackageCap(10000000000, 20000000000, 70)
 
   console.log("✅ Added Contracts in ProtocolConfig");
 
