@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./UserAccessControl.sol";
 
-contract VaultProxyUpgradeable is UserAccessControl {
+contract FundsManagerUpgradeable is UserAccessControl {
 
     bytes32 private constant MAIN_KEY = keccak256("MainToken");
     event UserWithdrawal(address user, uint256 amount);

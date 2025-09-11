@@ -24,6 +24,7 @@ interface IVaultManagerUpgradeable {
 
     function mintOrIncreaseLiquidityPosition(
         string calldata poolId,
+        uint256 packageId,
         address token0Address,
         address token1Address,
         uint24 fee,
@@ -33,23 +34,23 @@ interface IVaultManagerUpgradeable {
         address userAddress
     ) external returns (uint256 tokenId);
 
-    function decreaseLiquidityPosition(address user, string calldata poolId, uint128 percentageToRemove) external;
+    function decreaseLiquidityPosition(address user, string calldata poolId, uint256 packageId, uint128 percentageToRemove, bool isAdmin) external;
 
-    function collectFees(address user, string calldata poolId)
+    function collectFees(address user, string calldata poolId, uint256 packageId)
         external
         returns (uint256 collectedToken0, uint256 collectedToken1);
 
-    function migratePosition(address user, address manager, string calldata poolId, int24 tickLower, int24 tickUpper)
+    function migratePosition(address user, address manager, string calldata poolId, uint256 packageId, int24 tickLower, int24 tickUpper)
         external
         returns (uint256 newTokenId);
 
-    function getUserInfo(address user, string calldata poolId)
+    function getUserInfo(address user, string calldata poolId, uint256 packageId)
         external
         view
         returns (UserInfo memory _userInfo);
     
 
-    function getUserPackageInfo(address user)
+    function getUserPackageInfo(address user, uint256 packageId)
         external
         view
         returns (PackageInfo memory _packageInfo);
