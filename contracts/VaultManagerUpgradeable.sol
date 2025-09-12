@@ -660,6 +660,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         _nfpmInstance.approve(address(0), _newTokenId);
 
         newTokenId = _newTokenId;
+        emit LiquidityEvent (user, packageId, 0);
+
     }
 
     /**
