@@ -234,7 +234,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         address[] calldata users,
         address manager,
         string calldata poolId,
-        uint256 packageId,
+        uint256[] calldata packageIds,
         int24 tickLower,
         int24 tickUpper
     ) external nonReentrant onlyGeneralOrMasterAdmin notEmergency returns (uint256[] memory newTokenIds) {
@@ -248,7 +248,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         newTokenIds = new uint256[](n);
 
         for (uint256 i = 0; i < n; i++) {
-            newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, packageId, tickLower, tickUpper);
+            newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, packageIds[i], tickLower, tickUpper);
         }
     }
 
