@@ -792,5 +792,14 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         IFundsManagerUpgradeable(_fundsManager()).withdrawFunds(user, address(_mainToken()), amount);
     }
 
+    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+       s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct);
+    }
+
+    function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+       s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
+    }
+
+
 }
 

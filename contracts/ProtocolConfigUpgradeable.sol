@@ -126,7 +126,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         uint256 _liquidityCap,
         uint256 _feeCap,
         uint256 _userFeesPct
-    ) external onlyGeneralOrMasterAdmin {
+    ) external onlyVaultOrLiquidityManager {
         s_packageCounter++;
         uint256 packageId = s_packageCounter;
 
@@ -143,7 +143,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         uint256 _liquidityCap,
         uint256 _feeCap,
         uint256 _userFeesPct
-    ) external onlyGeneralOrMasterAdmin {
+    ) external onlyVaultOrLiquidityManager {
         CapInfo storage capInfo = s_packageCap[packageId];
         if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
             revert PACKAGE_NOT_EXIST();
