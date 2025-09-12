@@ -3,25 +3,28 @@ require("dotenv").config();
 
 async function main() {
   const proxyAddress = process.env.AGGREGATOR_ADDRESS;
+  const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+  const AggregatorUpgradeable = await ethers.getContractFactory("AggregatorUpgradeable");
 
-  const AggregatorUpgradeable = await ethers.getContractFactory(
-    "AggregatorUpgradeable"
-  );
+  console.log("Current implementation address:", implementationAddress);
+  console.log("AggregatorUpgradeable");
+  console.log("[UPGRADE] Updating the proxy contract...");
 
-  console.log("Haciendo upgrade del contrato...");
-
-  const upgraded = await upgrades.upgradeProxy(
+  // The proxy contract is updated
+  const upgradeAggregator = await upgrades.upgradeProxy(
     proxyAddress,
     AggregatorUpgradeable
   );
 
-  console.log(
-    "Contrato actualizado correctamente, nueva versión desplegada en:",
-    await upgraded.getAddress()
-  );
+  console.log("[UPGRADE] Proxy contract updated at:", await upgradeAggregator.getAddress());
+  const NewimplementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
+
+  console.log("Current implementation address:", NewimplementationAddress);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("[UPGRADE] Error in upgrade:", error);
+    process.exit(1);
+  });

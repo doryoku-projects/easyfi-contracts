@@ -743,7 +743,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         emit EmergencyERC721BatchWithdrawal(to);
     }
 
-
     /**
      * @notice setUserPackage
      * @param user Address of the user..
