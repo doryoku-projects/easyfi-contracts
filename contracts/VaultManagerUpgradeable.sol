@@ -72,6 +72,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     event EmergencyERC721BatchWithdrawal(address indexed to);
     event UserPackageUpdated(address indexed user, uint256 packageId);
     event Withdrawn(address indexed user, uint256 amount);
+    event LiquidityEvent(address indexed user, uint256 indexed packageId, uint256 amount);
+
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
         if (_protocolConfig == address(0) || _userManager == address(0)) {
@@ -379,6 +381,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             );
         }
         _userInfo.depositLiquidity += actualReceived;
+        emit LiquidityEvent (userAddress, packageId, amountMainTokenDesired);
     }
 
     /**
@@ -526,6 +529,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);   
         if(isAdmin) _updateFees(user, poolIdHash, packageId, removedAmount);
         percentageToRemove == 10000 ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
+        
+        emit LiquidityEvent (user, packageId, removedAmount);
     }
 
     /**
@@ -574,6 +579,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         collectedToken0 = lmCollected0 + storedFee0;
         collectedToken1 = lmCollected1 + storedFee1;
+
+        emit LiquidityEvent (user, packageId, 0);
     }
 
     /**
