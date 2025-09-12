@@ -26,4 +26,9 @@ interface IProtocolConfigUpgradeable {
     function getUint(bytes32 key) external view returns (uint256);
 
     function getPackageCap(uint256 packageId) external view returns (CapInfo memory);
+
+    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct) external;
+
+    function updatePackageCap ( uint256 packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct) external;
+
 }
