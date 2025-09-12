@@ -55,4 +55,6 @@ abstract contract VaultManagerErrors {
 
     error VM_REWARD_CAP_NOT_REACHED();
 
+    error VM_USER_PACKAGE_ALREADY_EXIST();
+
 }

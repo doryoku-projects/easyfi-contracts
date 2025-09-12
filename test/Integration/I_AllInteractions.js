@@ -121,8 +121,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     let info = await Aggregator.connect(marcWallet).getUserInfo(
       userWallet.address,
-      1,
-      poolId
+      poolId,
+      1
     );
     console.log("  → post-mint userInfo:", info);
     expect(info.tokenId).to.not.equal(0);
@@ -157,8 +157,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     const infoInc = await Aggregator.connect(marcWallet).getUserInfo(
       userWallet.address,
-      1,
-      poolId
+      poolId,
+      1
     );
     console.log("  → post-increase userInfo:", infoInc);
 
@@ -191,7 +191,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       [userWallet.address],
       marcWallet.address,
       poolId,
-      1,
+      [1],
       newTickLower,
       newTickUpper
     );
@@ -199,8 +199,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     //Get new user info
     info = await Aggregator.connect(marcWallet).getUserInfo(
       userWallet.address,
-      1,
-      poolId
+      poolId,
+      1
     );
 
     console.log("  → post-migrate userInfo:", info);
@@ -295,7 +295,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     const userInfoHalfWithdraw = await Aggregator.connect(
       marcWallet
-    ).getUserInfo(userWallet.address, 1, poolId);
+    ).getUserInfo(userWallet.address, poolId, 1);
 
     console.log("USER INFO after 50% withdraw:", userInfoHalfWithdraw);
 
@@ -330,7 +330,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     const userInfoFullWithdraw = await Aggregator.connect(
       marcWallet
-    ).getUserInfo(userWallet.address, 1, poolId);
+    ).getUserInfo(userWallet.address, poolId, 1);
 
     console.log("USER INFO after 100% withdraw:", userInfoFullWithdraw);
 

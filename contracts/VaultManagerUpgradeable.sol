@@ -756,6 +756,9 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             revert VM_INVALID_PACKAGE_ID();
         }
         PackageInfo storage package = packageInfo[user][packageId];
+        if (package.packageId  == packageId) {
+            revert VM_USER_PACKAGE_ALREADY_EXIST();
+        }
         package.liquidityCapLimit = capInfo.liquidityCap;
         package.feeCapLimit = capInfo.feeCap;
         package.packageId = packageId;
