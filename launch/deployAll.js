@@ -9,6 +9,7 @@ const deployLiquidityManager = require("./LiquidityManager");
 const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
 const deployAggregator = require("./Aggregator");
+const deployFundsManager = require("./FundsManager");
 
 const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
@@ -35,6 +36,7 @@ async function main() {
   await deployOracleSwap();
   await deployLiquidityHelper();
   await deployAggregator();
+  await deployFundsManager();
 
   console.log("✅ All contracts deployed successfully!");
 
@@ -45,6 +47,7 @@ async function main() {
   const LiquidityHelperAddr = getDeploymentAddress("LiquidityHelperUpgradeable");
   const OracleSwapAddr = getDeploymentAddress("OracleSwapUpgradeable");
   const AggregatorAddr = getDeploymentAddress("AggregatorUpgradeable");
+  const FundsManagerAddr = getDeploymentAddress("FundsManagerUpgradeable");
 
   console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
   console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
@@ -53,6 +56,7 @@ async function main() {
   console.log("🔗 Attaching to LiquidityHelperUpgradeable at:", LiquidityHelperAddr);
   console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);
   console.log("🔗 Attaching to AggregatorUpgradeable at:", AggregatorAddr);
+  console.log("🔗 Attaching to FundsManagerUpgradeable at:", FundsManagerAddr);
 
   const initialContracts = [
     ProtocolConfigAddr,
@@ -60,8 +64,7 @@ async function main() {
     LiquidityManagerAddr,
     LiquidityHelperAddr,
     OracleSwapAddr,
-    AggregatorAddr,
-  ];
+    AggregatorAddr  ];
 
   const [owner, marcWallet, pepOwnerWallet] = await ethers.getSigners();
   const userManagerContract = await ethers.getContractAt("UserManagerUpgradeable", userManagerAddr, marcWallet);
@@ -79,7 +82,8 @@ async function main() {
     "LiquidityManager",
     "LiquidityHelper",
     "OracleSwap",
-    "Aggregator"
+    "Aggregator",
+    "FundsManager",
   ].map(key);
 
   const addressValues = [
@@ -87,7 +91,8 @@ async function main() {
     LiquidityManagerAddr,
     LiquidityHelperAddr,
     OracleSwapAddr,
-    AggregatorAddr
+    AggregatorAddr,
+    FundsManagerAddr
   ];
 
   const ProtocolConfigContract = await ethers.getContractAt("ProtocolConfigUpgradeable", ProtocolConfigAddr);

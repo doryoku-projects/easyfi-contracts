@@ -1,5 +1,4 @@
 const { ethers, upgrades } = require("hardhat");
-require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
@@ -18,29 +17,30 @@ function getDeploymentAddress(contractName) {
   return deployments[contractName];
 }
 
-async function deployOracleSwap() {
-  console.log("[DEPLOY] Deploying OracleSwapUpgradeable...");
+async function deployFundsManager() {
+  console.log("[DEPLOY] Deploying FundsManagerUpgradeable...");
 
-  // Obtén la fábrica del contrato Agregador Upgradeable
-  const OracleSwapUpgradeable = await ethers.getContractFactory(
-    "OracleSwapUpgradeable"
+  // Obtén la fábrica del contrato fundsManager Upgradeable
+  const FundsManagerUpgradeable = await ethers.getContractFactory(
+    "FundsManagerUpgradeable"
   );
+  // Define las direcciones de los módulos (estas pueden ser de contratos ya desplegados)
+  // const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
+  // const userManagerUpgradeableAddress = process.env.USER_MANAGER_ADDRESS;
 
   const userManagerUpgradeableAddress = getDeploymentAddress("UserManagerUpgradeable");
-  const protocolConfigAddress = getDeploymentAddress("ProtocolConfigUpgradeable");
+
 
   // Despliega el proxy upgradeable, inicializando el contrato con las direcciones
-  const oracleSwap = await upgrades.deployProxy(
-    OracleSwapUpgradeable,
-    [protocolConfigAddress, userManagerUpgradeableAddress],
+  const fundsManager = await upgrades.deployProxy(
+    FundsManagerUpgradeable,
+    [userManagerUpgradeableAddress],
     { initializer: "initialize" }
   );
+  await fundsManager.waitForDeployment();
+  const deployedAddress = await fundsManager.getAddress();
 
-  await oracleSwap.waitForDeployment();
-  const deployedAddress = await oracleSwap.getAddress();
-
-  console.log("[DEPLOY] OracleSwapUpgradeable deployed at:", deployedAddress);
-
+  console.log("[DEPLOY] FundsManagerUpgradeable deployed at:", deployedAddress);
 
   const filePath = path.join(__dirname, "../deployments.json");
 
@@ -49,16 +49,10 @@ async function deployOracleSwap() {
     deployments = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   }
 
-  deployments["OracleSwapUpgradeable"] = deployedAddress;
+  deployments["FundsManagerUpgradeable"] = deployedAddress;
   fs.writeFileSync(filePath, JSON.stringify(deployments, null, 2));
   console.log("[DEPLOY] Address saved to deployments.json");
 }
 
-module.exports = deployOracleSwap;
+module.exports = deployFundsManager;
 
-// main()
-//   .then(() => process.exit(0))
-//   .catch((error) => {
-//     console.error("[DEPLOY] Error in OracleSwapUpgradeable:", error);
-//     process.exit(1);
-//   });

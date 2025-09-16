@@ -66,15 +66,15 @@ async function deployProtocolConfig() {
   ];
 
   const uintKeys = [
-    "BP", 
+    "BP",
     "CompanyFeePct",
     "ClientFeePct"
   ].map(key);
   
   const uintValues = [
-    10000, 
+    10000, // Base Point (100%)
     3000, // company fee percentage (30%)
-    7000 // client fee percentage (70%)
+    5000 // client fee percentage (50%)
   ];
 
   const ProtocolConfigUpgradeable = await ethers.getContractFactory(

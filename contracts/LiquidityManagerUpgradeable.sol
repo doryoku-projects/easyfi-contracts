@@ -576,7 +576,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 previousCollected1,
         uint256 companyTax,
         bool send
-    ) public onlyLiquidityManager notEmergency returns (uint256 collected0, uint256 collected1, uint256 companyFees) {
+    ) public onlyLiquidityManager notEmergency returns (uint256 collected0, uint256 collected1, uint256 companyFees, uint256 collectedMainToken) {
         address _vaultManagerInstance = _vaultManager();
         INonfungiblePositionManager _nfpmInstance = INonfungiblePositionManager(_nfpm());
         IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
@@ -628,7 +628,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             }
 
             if (userTax0 > 0 || userTax1 > 0) {
-                _oracleSwapInstance.convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
+                collectedMainToken = _oracleSwapInstance.convertToMainTokenAndSend(user, userTax0, userTax1, token0Address, token1Address, fee);
             }
 
             companyFees = (companyTax0 > 0 || companyTax1 > 0)
@@ -664,7 +664,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     {
         (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
 
-        (cumulatedFee0, cumulatedFee1,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
+        (cumulatedFee0, cumulatedFee1, ,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
 
         uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
 

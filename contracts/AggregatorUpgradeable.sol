@@ -12,7 +12,7 @@ import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/IVaultManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
 
-/** 
+/**
  * @title AggregatorUpgradeable
  * @notice This contract is responsible of interacting with the VaultManager so users can manage their liquidity positions.
  */
@@ -111,16 +111,31 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      * @notice Fetch the information of a user in a specific pool.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
-     * @return userInformation The user’s info as stored by the VaultManager.
+     * @return _userInfo The user’s info as stored by the VaultManager.
      */
-    function getUserInfo(address user, string calldata poolId)
+    function getUserInfo(address user, string calldata poolId, uint256 packageId)
         external
         view
         onlyGeneralOrMasterAdmin
-        returns (IVaultManagerUpgradeable.UserInfo memory userInformation)
+        returns (IVaultManagerUpgradeable.UserInfo memory _userInfo)
     {
         IVaultManagerUpgradeable vault = _vaultManager();
-        userInformation = vault.getUserInfo(user, poolId);
+        _userInfo = vault.getUserInfo(user, poolId, packageId);
+    }
+
+    /**
+     * @notice Fetch the information of a user in a specific pool.
+     * @param user Address of the user.
+     * @return _packageInfo The user’s info as stored by the VaultManager.
+     */
+    function getUserPackageInfo(address user, uint256 packageId)
+        external
+        view
+        onlyGeneralOrMasterAdmin
+        returns (IVaultManagerUpgradeable.PackageInfo memory _packageInfo)
+    {
+        IVaultManagerUpgradeable vault = _vaultManager();
+        _packageInfo = vault.getUserPackageInfo(user, packageId);
     }
 
     /**
@@ -136,6 +151,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      */
     function mintPositionOrIncreaseLiquidity(
         string calldata poolId,
+        uint256 packageId,
         address token0Address,
         address token1Address,
         uint24 fee,
@@ -157,7 +173,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         mainToken.safeIncreaseAllowance(address(vault), actualReceived);
 
         tokenId = vault.mintOrIncreaseLiquidityPosition(
-            poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, msg.sender
+            poolId, packageId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, msg.sender
         );
     }
 
@@ -167,7 +183,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      * @param percentageToRemove Percentage of the position’s liquidity to remove.
      * @param code Two-factor authentication code.
      */
-    function decreaseLiquidityFromPosition(string calldata poolId, uint128 percentageToRemove, string calldata code)
+    function decreaseLiquidityFromPosition(string calldata poolId, uint256 packageId, uint128 percentageToRemove, string calldata code)
         public
         nonReentrant
         onlyUser
@@ -181,7 +197,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
 
         IVaultManagerUpgradeable vault = _vaultManager();
 
-        vault.decreaseLiquidityPosition(msg.sender, poolId, percentageToRemove);
+        vault.decreaseLiquidityPosition(msg.sender, poolId, packageId, percentageToRemove, false);
     }
 
     /**
@@ -191,7 +207,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
      * @return collectedToken0 Amount of token0 collected.
      * @return collectedToken1 Amount of token1 collected.
      */
-    function collectFeesFromPosition(string calldata poolId, string calldata code)
+    function collectFeesFromPosition(string calldata poolId, uint256 packageId, string calldata code)
         public
         nonReentrant
         onlyUser
@@ -202,7 +218,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
 
         IVaultManagerUpgradeable vault = _vaultManager();
 
-        (collectedToken0, collectedToken1) = vault.collectFees(msg.sender, poolId);
+        (collectedToken0, collectedToken1) = vault.collectFees(msg.sender, poolId, packageId);
     }
 
     /**
@@ -218,6 +234,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         address[] calldata users,
         address manager,
         string calldata poolId,
+        uint256[] calldata packageIds,
         int24 tickLower,
         int24 tickUpper
     ) external nonReentrant onlyGeneralOrMasterAdmin notEmergency returns (uint256[] memory newTokenIds) {
@@ -231,7 +248,16 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         newTokenIds = new uint256[](n);
 
         for (uint256 i = 0; i < n; i++) {
-            newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, tickLower, tickUpper);
+            newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, packageIds[i], tickLower, tickUpper);
         }
+    }
+
+    function withdrawFunds() public
+        nonReentrant
+        onlyUser
+        notEmergency 
+    {
+        IVaultManagerUpgradeable vault = _vaultManager();
+        vault.withdrawFunds(msg.sender);
     }
 }
