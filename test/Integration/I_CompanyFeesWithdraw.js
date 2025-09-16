@@ -36,8 +36,8 @@ describe("I_CompanyFeesWithdraw", function () {
           );
 
         
-    await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
-    await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
+  //await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
+  //await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
 
 
     // doing this signature for withdrawal of company fees
@@ -91,7 +91,7 @@ describe("I_CompanyFeesWithdraw", function () {
         console.log("Company balance before withdrawal:", ownerBalance.toString());
 
         //adding liquidity to the pool
-      const poolId = "ui-232-122";
+      const poolId = "176fdc3c-8b9b-4a32-9ff8-bb41ecaa02bc";
       const mintAmount = ethers.parseUnits("2000", 6);
       await mainToken.connect(userWallet).approve(aggregatorAddress, mintAmount);
       
@@ -102,11 +102,14 @@ describe("I_CompanyFeesWithdraw", function () {
       token0Address,
       token1Address,
       500,
-      -194000, //-193840,
-      -191500,//-191840,
+     -193840,// -194000, //
+      -191840,//-191500,//
       mintAmount
     );
    await mintTx.wait();
+
+            let userInfo = await aggregator.getUserInfo(userWallet.address, poolId);
+         console.log("User info after withdrawal:", userInfo);
 
         //swapping 
 
@@ -137,40 +140,40 @@ describe("I_CompanyFeesWithdraw", function () {
 
     //decreasing liquidity
 
-     const fullBP = 10000;
-     const decreaseLiqFACode = "123123";
-     let block = await ethers.provider.getBlock("latest");
-     let timestamp = block.timestamp + 300;
-     console.log("Current block timestamp:", timestamp);
+//      const fullBP = 10000;
+//      const decreaseLiqFACode = "123123";
+//      let block = await ethers.provider.getBlock("latest");
+//      let timestamp = block.timestamp + 300;
+//      console.log("Current block timestamp:", timestamp);
 
-    let messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address,fullBP, timestamp]
-    );
-     let signature = await userWallet.signMessage(ethers.getBytes(messageHash));
+//     let messageHash = ethers.solidityPackedKeccak256(
+//       ["address", "uint256", "uint256"],
+//       [userWallet.address,fullBP, timestamp]
+//     );
+//      let signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 
-      await userManager.connect(userWallet).set2FA(
-      userWallet.address,
-      decreaseLiqFACode,
-      timestamp,
-      fullBP,
-      signature
-    );
- console.log("balance before decreasing liquidity of user:", await mainToken.balanceOf(userWallet.address));
-      let d_tx = await aggregator.connect(userWallet).decreaseLiquidityFromPosition(
-      poolId,
-      fullBP,
-      decreaseLiqFACode
-    );
+//       await userManager.connect(userWallet).set2FA(
+//       userWallet.address,
+//       decreaseLiqFACode,
+//       timestamp,
+//       fullBP,
+//       signature
+//     );
+  console.log("balance before decreasing liquidity of user:", await mainToken.balanceOf(userWallet.address));
+//       let d_tx = await aggregator.connect(userWallet).decreaseLiquidityFromPosition(
+//       poolId,
+//       fullBP,
+//       decreaseLiqFACode
+//     );
 
-    await d_tx.wait();
+//     await d_tx.wait();
 
     console.log("balance after decreasing liquidity of user:", await mainToken.balanceOf(userWallet.address));
     console.log("balance of vault manager after decreasing liquidity:", await mainToken.balanceOf(vaultManagerAddress));
         
         //withdraw the fees (optional : try this test with comment this fuction for first time and then uncomment it for second time to see the clear difference in the company fees balance)
-       const tx1 = await VaultManager.connect(ownerWallet).withdrawCompanyFees(valid2FACode);
-       await tx1.wait();
+      //  const tx1 = await VaultManager.connect(ownerWallet).withdrawCompanyFees(valid2FACode);
+      //  await tx1.wait();
         
          let newBalance = await mainToken.balanceOf(vaultManagerAddress);
         console.log("Contract balance after withdrawing:",newBalance.toString());
@@ -184,6 +187,7 @@ describe("I_CompanyFeesWithdraw", function () {
          const ownerBalanceAfter = await mainToken.balanceOf(ownerWallet.address);
          console.log("Company balance after withdrawal:", ownerBalanceAfter.toString());
         
+
       
     });
 });

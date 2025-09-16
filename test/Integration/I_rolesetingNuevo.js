@@ -87,6 +87,7 @@ describe("I_setRoles", function () {
     ].map(key);
 
     //Obtaining all the wallets x each role
+    console.log(rolesKeys)
     const allMasterAdmins = await userManagerUserManager.getRoleMembers(
       rolesKeys[0]
     );
