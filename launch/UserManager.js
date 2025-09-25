@@ -10,7 +10,7 @@ async function deployUserManager() {
   marcWallet = process.env.GENERAL_ADMIN_WALLET; // GENERAL_ADMIN
   pepOwnerWallet = process.env.USER_MANAGER_WALLET; // USER_MANAGER
   twoFAWallet = process.env.USER_2FA_WALLET; // 2FA_MANAGER
-  masterWallet = process.env.MASTER_ADMIN_WALLET; // MASTER_ADMIN
+  masterWallet = "0x5a12c37653c862E2546b54520c33cD2F64531320" // MASTER_ADMIN
 
   //CONTRACTS
   const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
@@ -69,6 +69,10 @@ async function deployUserManager() {
 
   console.log(`[DEPLOY] Address saved to deployments.json`);
 }
+deployUserManager().then(() => process.exit(0)).catch((error) => {
+  console.error("[DEPLOY] Error in UserManagerUpgradeable:", error);
+  process.exit(1);
+});
 
 module.exports = deployUserManager;
 

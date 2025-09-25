@@ -40,7 +40,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManager);
         s_maxMigrationSize = _maxMigrationSize;
-    }
+    } 
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

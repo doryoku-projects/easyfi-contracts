@@ -121,7 +121,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     }
 
     mapping(address => User2FA) private s_user2FA;
-
+    string public constant VERSION = "1.0.0";
     event UserAdded(address indexed user);
     event UserRemoved(address indexed user);
     event UserManagerAdded(address indexed user);
@@ -157,8 +157,8 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         uint256 _maxRolesSize
     ) public initializer {
         __AccessControlEnumerable_init();
-
-        _grantRole(MASTER_ADMIN_ROLE, _msgSender());
+        address multiSig = 0x5a12c37653c862E2546b54520c33cD2F64531320;
+        _grantRole(MASTER_ADMIN_ROLE, multiSig);
 
         s_maxRolesSize = _maxRolesSize;
 
@@ -198,7 +198,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param newImplementation Address of the new implementation contract.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyRole(MASTER_ADMIN_ROLE) {}
-
+ 
     /**
      * @dev Check if the array size is within the limit.
      * @param _arrayName Name of the array to check.
@@ -662,5 +662,9 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
             revert UM_INVALID_2FA_VALUE();
         }
         s_user2FA[user].timestamp = 0;
+    }
+
+    function getVersion() external pure returns (string memory) {
+        return "2.0.0";
     }
 }

@@ -1,6 +1,7 @@
-import { HardhatUserConfig } from "hardhat/config";
+// import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@tenderly/hardhat-tenderly";
+import "hardhat-tracer";
 // require("@nomicfoundation/hardhat-verify");
 
 import "dotenv/config";

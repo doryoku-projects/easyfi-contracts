@@ -91,51 +91,61 @@ describe("I_CompanyFeesWithdraw", function () {
         console.log("Company balance before withdrawal:", ownerBalance.toString());
 
         //adding liquidity to the pool
-      const poolId = "176fdc3c-8b9b-4a32-9ff8-bb41ecaa02bc";
-      const mintAmount = ethers.parseUnits("2000", 6);
-      await mainToken.connect(userWallet).approve(aggregatorAddress, mintAmount);
-      
-      const mintTx = await aggregator.connect(
-      userWallet
-    ).mintPositionOrIncreaseLiquidity(
-      poolId,
-      token0Address,
-      token1Address,
-      500,
-     -193840,// -194000, //
-      -191840,//-191500,//
-      mintAmount
-    );
-   await mintTx.wait();
 
-            let userInfo = await aggregator.getUserInfo(userWallet.address, poolId);
+                let userPackage =   {
+            address: userWallet.address,
+            package_id: 1,
+            package_name: "spurge"
+        }
+      //  let setUserPackage_tx = await VaultManager.connect(ownerWallet).setUserPackage(userPackage.address, userPackage.package_id)
+      //   await setUserPackage_tx.wait();
+      //   console.log("setUserPackage_tx", setUserPackage_tx);
+       const poolId = "176fdc3c-8b9b-4a32-9ff8-bb41ecaa02bc";
+  //     const mintAmount = ethers.parseUnits("2", 6);
+  //    await mainToken.connect(userWallet).approve(aggregatorAddress, mintAmount);
+      
+  //     const mintTx = await aggregator.connect(
+  //     userWallet
+  //   ).mintPositionOrIncreaseLiquidity(
+  //     poolId,
+  //     1, //package id
+  //     token0Address,
+  //     token1Address,
+  //     500,
+  //    -199000,// -194000, //
+  //   -197000,//-191500,//
+  //     mintAmount
+  //   );
+  //  await mintTx.wait();
+
+            let userInfo = await aggregator.getUserInfo(userWallet.address, poolId, 1);
          console.log("User info after withdrawal:", userInfo);
 
         //swapping 
 
-        const routerABI = [
-      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
-      ];
-      console.log("balance before swapping:", await mainToken.balanceOf(userWallet.address));
-      const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
-      const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
-      let amountIn = ethers.parseEther("3");
-      const sqrtPriceLimit = TickMath.getSqrtRatioAtTick(-199005); // upper tick of your range
-      console.log("sqrtPriceLimit:", sqrtPriceLimit);
-      const params = [
-      token0Address,
-      token1Address,
-      500,
-      userWallet.address,
-      Math.floor(Date.now() / 1000) + 60 * 10,
-      amountIn,
-      0,
-      0  
-    ]
+  //       const routerABI = [
+  //     "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
+  //     ];
+  //     console.log("balance before swapping:", await mainToken.balanceOf(userWallet.address));
+  //     const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
+  //     const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
+  //     let amountIn = ethers.parseEther("3");
+  //     const sqrtPriceLimit = TickMath.getSqrtRatioAtTick(-199005); // upper tick of your range
+  //     console.log("sqrtPriceLimit:", sqrtPriceLimit);
+  //     const params = [
+  //     token0Address,
+  //     token1Address,
+  //     500,
+  //     userWallet.address,
+  //     Math.floor(Date.now() / 1000) + 60 * 10,
+  //     amountIn,
+  //     0,
+  //     0  
+  //   ]
 
-    const tx = await router.exactInputSingle(params, { value: amountIn });
-    await tx.wait();
-  console.log("balance after swapping:", await mainToken.balanceOf(userWallet.address));
+  //   const tx = await router.exactInputSingle(params, { value: amountIn });
+  //   await tx.wait();
+  // console.log("balance after swapping:", await mainToken.balanceOf(userWallet.address));
 
 
     //decreasing liquidity

@@ -48,7 +48,7 @@ interface IVaultManagerUpgradeable {
         external
         view
         returns (UserInfo memory _userInfo);
-    
+     
 
     function getUserPackageInfo(address user, uint256 packageId)
         external
