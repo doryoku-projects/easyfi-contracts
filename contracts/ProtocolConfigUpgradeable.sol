@@ -127,6 +127,7 @@ contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
         uint256 _feeCap,
         uint256 _userFeesPct
     ) external onlyVaultOrLiquidityManager {
+        if (_userFeesPct > 10_000) revert PC_PERCENTAGE_OVERFLOW();
         s_packageCounter++;
         uint256 packageId = s_packageCounter;
 

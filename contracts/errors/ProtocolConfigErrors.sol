@@ -40,4 +40,6 @@ abstract contract ProtocolConfigErrors {
     error ALREADY_PACKAGE_ID_INFO_UPDATED();
 
     error PACKAGE_NOT_EXIST();
+
+    error PC_PERCENTAGE_OVERFLOW();
 }

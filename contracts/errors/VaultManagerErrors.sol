@@ -57,4 +57,5 @@ abstract contract VaultManagerErrors {
 
     error VM_USER_PACKAGE_ALREADY_EXIST();
 
+    error VM_TOkEN_MISMATCH();
 }

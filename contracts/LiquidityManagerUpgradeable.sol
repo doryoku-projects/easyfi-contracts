@@ -282,7 +282,8 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         int24 tickUpper,
         uint256 amountDesired,
         address user,
-        bool isVault
+        bool isVault, 
+        bool migrate
     )
         public
         onlyLiquidityManager
@@ -363,7 +364,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
                 actualAmount1Desired,
                 usedAmount0,
                 usedAmount1,
-                user,
+                migrate ? address(this) : user,
                 fee
             );
         }
@@ -533,7 +534,13 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (uint256 collected0, uint256 collected1) = _nfpmInstance.collect(collectParams);
+        uint256 balanceFee0Before = IERC20(token0Address).balanceOf(address(this));
+        uint256 balanceFee1Before = IERC20(token1Address).balanceOf(address(this));
+
+        _nfpmInstance.collect(collectParams);
+
+        uint256 collected0 = IERC20(token0Address).balanceOf(address(this)) - balanceFee0Before;
+        uint256 collected1 = IERC20(token1Address).balanceOf(address(this)) - balanceFee1Before;
 
         if (IERC20(token0Address).balanceOf(address(this)) < collected0) {
             revert LM_INSUFFICIENT_TOKEN0_BALANCE();
@@ -593,7 +600,13 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (collected0, collected1) = _nfpmInstance.collect(collectParams);
+        uint256 balance0BeforeCollect = token0.balanceOf(address(this));
+        uint256 balance1BeforeCollect = token1.balanceOf(address(this));
+
+        _nfpmInstance.collect(collectParams);
+
+        collected0 = token0.balanceOf(address(this)) - balance0BeforeCollect;
+        collected1 = token1.balanceOf(address(this)) - balance1BeforeCollect;
 
         uint256 actualPreviousCollected0 = 0;
         if (previousCollected0 > 0) {
@@ -669,7 +682,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
 
         (newTokenId,,) =
-            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, manager, false);
+            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, manager, false, true);
 
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
     }

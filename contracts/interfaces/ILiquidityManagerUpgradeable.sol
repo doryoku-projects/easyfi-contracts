@@ -12,7 +12,8 @@ interface ILiquidityManagerUpgradeable {
         int24 tickUpper,
         uint256 amountDesired,
         address user,
-        bool isVault
+        bool isVault,
+        bool migrate
     ) external returns (uint256 tokenId, uint256 usedAmount0, uint256 usedAmount1);
 
     function increaseLiquidityPosition(uint256 tokenId, uint256 amountMainTokenDesired, address user)
