@@ -55,7 +55,6 @@ async function main() {
     const userManagerContract = await ethers.getContractAt("UserManagerUpgradeable", userManagerAddr, marcWallet);
     console.log("### ~ deployAll.js:57 ~ main ~ userManagerAddr:", userManagerAddr);
 
-    const addr = await userManagerContract.tocheckmasteraddr();
     const userManagertx = await userManagerContract.addContracts(initialContracts);
     await userManagertx.wait();
     console.log("✅ Added Contracts in UserManager");
