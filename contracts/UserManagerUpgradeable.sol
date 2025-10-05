@@ -158,7 +158,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     ) public initializer {
         __AccessControlEnumerable_init();
 
-        _grantRole(MASTER_ADMIN_ROLE, _msgSender());
+        _grantRole(MASTER_ADMIN_ROLE, _initialAdmins[1]);
 
         s_maxRolesSize = _maxRolesSize;
 
