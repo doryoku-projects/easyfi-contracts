@@ -293,11 +293,12 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
                 tickLower,
                 tickUpper
             );
-            addedUsed0 = used0;
-            addedUsed1 = used1;
-            returnToken0 = ret0;
-            returnToken1 = ret1;
-        } else if (actualLeft1 > threshold) {
+            addedUsed0 += used0;
+            addedUsed1 += used1;
+            returnToken0 += ret0;
+            returnToken1 += ret1;
+        }
+        if (actualLeft1 > threshold) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
@@ -311,13 +312,17 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
                 tickLower,
                 tickUpper
             );
-            addedUsed0 = used0;
-            addedUsed1 = used1;
-            returnToken0 = ret0;
-            returnToken1 = ret1;
-        } else {
-            returnToken0 = actualLeft0;
-            returnToken1 = actualLeft1;
+            addedUsed0 += used0;
+            addedUsed1 += used1;
+            returnToken0 += ret0;
+            returnToken1 += ret1;
+        }
+        if (actualLeft0 <= threshold) {
+            returnToken0 += actualLeft0;
+        }
+
+        if (actualLeft1 <= threshold) {
+            returnToken1 += actualLeft1;
         }
 
         if (returnToken0 > 0) {

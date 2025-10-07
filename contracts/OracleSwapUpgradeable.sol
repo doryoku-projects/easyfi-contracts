@@ -40,7 +40,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
 
     event SlippageParametersUpdated(uint256 newNumerator);
     event TokensSwapped(
-        address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 amountOutMinimum
+        address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 computedAmountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
     event ProtocolConfigSet();
@@ -157,7 +157,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
      * @param _numerator New slippage numerator in basis points.
      */
     function setSlippageParameters(uint256 _numerator) external onlyGeneralOrMasterAdmin {
-        if (_numerator <= 95_00 || _numerator > _BP()) {  // 95.00%
+        if (_numerator <= (_BP() * 95) / 100 || _numerator > _BP()) { // 95.00%
             revert OS_INVALID_SLIPPAGE_NUMERATOR();
         }
 
@@ -181,12 +181,12 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
      * @param fee Fee tier of the Uniswap V3 pool.
      * @param amountIn Amount of tokenIn to swap.
      * @param recipient Address to receive the output tokens.
-     * @return amountOut Actual amount of tokenOut received.
+     * @return actualReceived Actual amount of tokenOut received.
      */
     function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
         public
         onlyLiquidityManager
-        returns (uint256 amountOut)
+        returns (uint256 actualReceived)
     {
         ISwapRouter _swapRouterInstance = _swapRouter();
         if (address(_swapRouterInstance) == address(0)) {
@@ -259,9 +259,11 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             sqrtPriceLimitX96: 0
         });
 
-        amountOut = _swapRouterInstance.exactInputSingle(params);
+        uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
+        _swapRouterInstance.exactInputSingle(params);
+        actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
 
-        emit TokensSwapped(tokenIn, tokenOut, amountIn, amountOut, computedAmountOut);
+        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOut);
     }
 
     /**

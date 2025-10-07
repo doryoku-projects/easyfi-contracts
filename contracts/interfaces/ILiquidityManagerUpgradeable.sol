@@ -13,7 +13,7 @@ interface ILiquidityManagerUpgradeable {
         uint256 amountDesired,
         address user,
         bool isVault
-    ) external returns (uint256 tokenId, uint256 usedAmount0, uint256 usedAmount1);
+    ) external returns (uint256 tokenId, uint256 usedAmount0, uint256 usedAmount1, uint256 returnToken0, uint256 returnToken1);
 
     function increaseLiquidityPosition(uint256 tokenId, uint256 amountMainTokenDesired, address user)
         external
@@ -33,5 +33,5 @@ interface ILiquidityManagerUpgradeable {
 
     function moveRangeOfPosition(address user, uint256 tokenId, int24 tickLower, int24 tickUpper)
         external
-        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1);
+        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1);
 }
