@@ -423,9 +423,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
             revert VM_ALREADY_HAS_POSITION();
         }
 
-        (uint256 tokenId,,) = _liquidityManager().mintPosition(
-            token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true, false
+        ILiquidityManagerUpgradeable.MintResult memory _mintResult = _liquidityManager().mintPosition(
+            token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true
         );
+        uint256 tokenId = _mintResult.tokenID;
 
         UserInfo storage userData = userInfo[userAddress][packageId][poolIdHash];        
         userData.tokenId = tokenId;
@@ -644,7 +645,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1) =
+        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1) =
             _liquidityManagerInstance.moveRangeOfPosition(manager, tokenId, tickLower, tickUpper);
 
         uint256 actualCumulatedFee0 = 0;
@@ -664,8 +665,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
         userInfo[user][packageId][poolIdHash].tickLower = tickLower;
         userInfo[user][packageId][poolIdHash].tickUpper = tickUpper;
-        userInfo[user][packageId][poolIdHash].feeToken0 += actualCumulatedFee0;
-        userInfo[user][packageId][poolIdHash].feeToken1 += actualCumulatedFee1;
+        userInfo[user][packageId][poolIdHash].feeToken0 += actualCumulatedFee0 + returnToken0;
+        userInfo[user][packageId][poolIdHash].feeToken1 += actualCumulatedFee1 + returnToken1;
 
         _nfpmInstance.approve(address(0), _newTokenId);
 
