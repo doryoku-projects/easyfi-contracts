@@ -252,12 +252,12 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         }
     }
 
-    function withdrawFunds() public
+    function withdrawFunds(string calldata poolId, uint256 packageId) public
         nonReentrant
         onlyUser
         notEmergency 
     {
         IVaultManagerUpgradeable vault = _vaultManager();
-        vault.withdrawFunds(msg.sender);
+        vault.withdrawFunds(msg.sender, poolId, packageId);
     }
 }
