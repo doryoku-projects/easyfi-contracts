@@ -677,9 +677,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
 
     /**
      * @notice Withdraw a percentage of the company’s accumulated fees.
+     * @param to Recipient address.
      */
      // all uniswap fees are in the name of company fees, so this function is used to withdraw them
-    function withdrawCompanyFees() external onlyMasterAdmin {
+    function withdrawCompanyFees(address to) external onlyMasterAdmin {
         uint256 _clientPercentage = _clientFeePct();
         address _clientAddress = _client();
         IERC20 _mainTokenInstance = _mainToken();
@@ -701,7 +702,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
 
             s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
-            _mainTokenInstance.safeTransfer(msg.sender, amountToWithdrawForCompany);
+            _mainTokenInstance.safeTransfer(to, amountToWithdrawForCompany);
             _mainTokenInstance.safeTransfer(_clientAddress, amountToWithdrawForClient);
         }
         emit WithdrawCompanyFees(amountToWithdrawForClient,amountToWithdrawForCompany);
