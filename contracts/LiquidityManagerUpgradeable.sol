@@ -30,6 +30,21 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
 
+    struct LeftoverResult {
+        uint256 extraUsed0;
+        uint256 extraUsed1;
+        uint256 actualReturnToken0;
+        uint256 actualReturnToken1;
+    }
+
+    struct MintResult {
+        uint256 tokenID;
+        uint256 mintedAmount0;
+        uint256 mintedAmount1;
+        uint256 actualReturnToken0;
+        uint256 actualReturnToken1;
+    }
+
     event PositionMinted(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
     event LiquidityAdded(uint256 indexed tokenId, uint256 amount0, uint256 amount1);
     event AmountsDesired(uint256 indexed amount0Desired, uint256 indexed amount1Desired);
@@ -200,8 +215,11 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
      * @param usedAmount1     The amount of token1 actually used.
      * @param user            The user address.
      * @param fee             The fee parameter for the pool.
-     * @return extraUsed0     Extra token0 amount that was actually used for liquidity.
-     * @return extraUsed1     Extra token1 amount that was actually used for liquidity.
+     * @return _leftover Struct containing details about token usage and returns:
+     *  - extraUsed0: Additional token0 amount used beyond the expected amount.
+     *  - extraUsed1: Additional token1 amount used beyond the expected amount.
+     *  - actualReturnToken0: Unused token0 amount returned after minting liquidity.
+     *  - actualReturnToken1: Unused token1 amount returned after minting liquidity.
      */
     function _handleLeftoverLogic(
         uint256 tokenId,
@@ -215,7 +233,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         uint256 usedAmount1,
         address user,
         uint24 fee
-    ) internal returns (uint256 extraUsed0, uint256 extraUsed1) {
+    ) internal returns (LeftoverResult memory _leftover) {
         uint256 leftoverAmount0 = amount0Desired - usedAmount0;
         uint256 leftoverAmount1 = amount1Desired - usedAmount1;
         IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
@@ -256,8 +274,10 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
                 user, actualReturnToken0, actualReturnToken1, token0Address, token1Address, fee
             );
         }
-        extraUsed0 = extraUsed0Local;
-        extraUsed1 = extraUsed1Local;
+        _leftover.extraUsed0 = extraUsed0Local;
+        _leftover.extraUsed1 = extraUsed1Local;
+        _leftover.actualReturnToken0 = actualReturnToken0;
+        _leftover.actualReturnToken1 = actualReturnToken1;
     }
 
     /**
@@ -270,9 +290,12 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
      * @param amountDesired Desired amount of the main token to allocate.
      * @param user Address to which any converted liquidity or fees should be sent.
      * @param isVault Whether the call is initiated by the vault (true) or an external sender (false).
-     * @return tokenID ID of the minted position NFT.
-     * @return mintedAmount0 Amount of token0 actually deposited.
-     * @return mintedAmount1 Amount of token1 actually deposited.
+     * @return _mintResult Struct containing details of the minted liquidity position:
+     *  - tokenID: ID of the newly minted position NFT.
+     *  - mintedAmount0: Actual amount of token0 deposited into the position.
+     *  - mintedAmount1: Actual amount of token1 deposited into the position.
+     *  - actualReturnToken0: Unused token0 amount returned to the caller.
+     *  - actualReturnToken1: Unused token1 amount returned to the caller.
      */
     function mintPosition(
         address token0,
@@ -287,7 +310,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         public
         onlyLiquidityManager
         notEmergency
-        returns (uint256 tokenID, uint256 mintedAmount0, uint256 mintedAmount1)
+        returns (MintResult memory _mintResult)
     {
         // Cache storage variables to reduce SLOADs
         IERC20 _mainTokenInstance = _mainToken();
@@ -349,11 +372,9 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
 
         _nfpmInstance.approve(address(_liquidityHelper()), tokenId);
 
-        uint256 extraUsed0;
-        uint256 extraUsed1;
-
+        LeftoverResult memory _leftover;
         if (actualAmount0Desired > usedAmount0 || actualAmount1Desired > usedAmount1) {
-            (extraUsed0, extraUsed1) = _handleLeftoverLogic(
+            _leftover = _handleLeftoverLogic(
                 tokenId,
                 token0,
                 token1,
@@ -368,8 +389,10 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             );
         }
 
-        mintedAmount0 = usedAmount0 + extraUsed0;
-        mintedAmount1 = usedAmount1 + extraUsed1;
+        _mintResult.mintedAmount0 = usedAmount0 + _leftover.extraUsed0;
+        _mintResult.mintedAmount1 = usedAmount1 + _leftover.extraUsed1;
+        _mintResult.actualReturnToken0 = _leftover.actualReturnToken0;
+        _mintResult.actualReturnToken1 = _leftover.actualReturnToken1;
 
         if (IERC721(address(_nfpmInstance)).ownerOf(tokenId) != address(this)) {
             revert LM_NOT_NFT_OWNER();
@@ -379,8 +402,8 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
 
         _nfpmInstance.safeTransferFrom(address(this), _vaultManagerInstance, tokenId);
 
-        tokenID = tokenId;
-        emit PositionMinted(tokenId, mintedAmount0, mintedAmount1);
+        _mintResult.tokenID = tokenId;
+        emit PositionMinted(tokenId, _mintResult.mintedAmount0, _mintResult.mintedAmount1);
     }
 
     /**
@@ -449,11 +472,10 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
 
         (, uint256 _increasedAmount0, uint256 _increasedAmount1) = _nfpmInstance.increaseLiquidity(params);
 
-        uint256 extraUsed0;
-        uint256 extraUsed1;
+        LeftoverResult memory _leftover;
 
         if (actualAmount0Desired > _increasedAmount0 || actualAmount1Desired > _increasedAmount1) {
-            (extraUsed0, extraUsed1) = _handleLeftoverLogic(
+            _leftover = _handleLeftoverLogic(
                 tokenId,
                 token0Address,
                 token1Address,
@@ -468,8 +490,8 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             );
         }
 
-        increasedAmount0 = _increasedAmount0 + extraUsed0;
-        increasedAmount1 = _increasedAmount1 + extraUsed1;
+        increasedAmount0 = _increasedAmount0 + _leftover.extraUsed0;
+        increasedAmount1 = _increasedAmount1 + _leftover.extraUsed1;
 
         emit LiquidityAdded(tokenId, increasedAmount0, increasedAmount1);
     }
@@ -533,7 +555,13 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (uint256 collected0, uint256 collected1) = _nfpmInstance.collect(collectParams);
+        uint256 balanceFee0Before = IERC20(token0Address).balanceOf(address(this));
+        uint256 balanceFee1Before = IERC20(token1Address).balanceOf(address(this));
+
+        _nfpmInstance.collect(collectParams);
+
+        uint256 collected0 = IERC20(token0Address).balanceOf(address(this)) - balanceFee0Before;
+        uint256 collected1 = IERC20(token1Address).balanceOf(address(this)) - balanceFee1Before;
 
         if (IERC20(token0Address).balanceOf(address(this)) < collected0) {
             revert LM_INSUFFICIENT_TOKEN0_BALANCE();
@@ -593,7 +621,13 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
             amount1Max: type(uint128).max
         });
 
-        (collected0, collected1) = _nfpmInstance.collect(collectParams);
+        uint256 balance0BeforeCollect = token0.balanceOf(address(this));
+        uint256 balance1BeforeCollect = token1.balanceOf(address(this));
+        
+        _nfpmInstance.collect(collectParams);
+
+        collected0 = token0.balanceOf(address(this)) - balance0BeforeCollect;
+        collected1 = token1.balanceOf(address(this)) - balance1BeforeCollect;
 
         uint256 actualPreviousCollected0 = 0;
         if (previousCollected0 > 0) {
@@ -660,17 +694,24 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         external
         onlyLiquidityManager
         notEmergency
-        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1)
+        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1)
     {
+        address _vaultManagerInstance = _vaultManager();
         (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
 
         (cumulatedFee0, cumulatedFee1,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
 
         uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
 
-        (newTokenId,,) =
-            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, manager, false);
+        MintResult memory _mintResult =
+            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, _vaultManagerInstance, false);
 
+        uint256 _returnToken0 = _mintResult.actualReturnToken0;
+        uint256 _returnToken1 = _mintResult.actualReturnToken1;
+
+        newTokenId = _mintResult.tokenID;
+        returnToken0 = _returnToken0;
+        returnToken1 = _returnToken1;
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
     }
 }
