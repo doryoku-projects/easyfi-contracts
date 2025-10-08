@@ -6,7 +6,7 @@ pragma solidity 0.8.30;
 interface ILiquidityManagerUpgradeable {
 
     struct MintResult {
-        uint256 tokenID;
+        uint256 tokenId;
         uint256 mintedAmount0;
         uint256 mintedAmount1;
         uint256 actualReturnToken0;

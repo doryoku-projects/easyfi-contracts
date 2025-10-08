@@ -48,14 +48,28 @@ abstract contract VaultManagerErrors {
      * @param size The size of the array that exceeded the limit.
      */
     error VM_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
-
+    /**
+     * @notice Thrown when attempting to add liquidity to a package beyond its allowed cap
+     */
     error VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
-
+    /**
+     * @notice Thrown when the provided package ID is invalid or does not exist
+     */
     error VM_INVALID_PACKAGE_ID();
-
+    /**
+     * @notice Thrown when a reward operation is attempted before reaching the required cap
+     */
     error VM_REWARD_CAP_NOT_REACHED();
-
+    /**
+     * @notice Thrown when a user already has an active package and cannot create another
+     */
     error VM_USER_PACKAGE_ALREADY_EXIST();
-
-    error VM_TOkEN_MISMATCH();
+    /**
+     * @notice Thrown when the token provided does not match the expected token for the operation
+     */
+    error VM_TOKEN_MISMATCH();
+    /**
+     * @notice Thrown when the PC percentage value exceeds the allowed maximum
+     */
+    error VM_PERCENTAGE_OVERFLOW();
 }

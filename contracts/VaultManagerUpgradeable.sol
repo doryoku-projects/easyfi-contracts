@@ -381,7 +381,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
                 )
             ) revert VM_RANGE_MISMATCH(); 
             
-            if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOkEN_MISMATCH();
+            if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
             
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -426,7 +426,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
         ILiquidityManagerUpgradeable.MintResult memory _mintResult = _liquidityManager().mintPosition(
             token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true
         );
-        uint256 tokenId = _mintResult.tokenID;
+        uint256 tokenId = _mintResult.tokenId;
 
         UserInfo storage userData = userInfo[userAddress][packageId][poolIdHash];        
         userData.tokenId = tokenId;
@@ -721,7 +721,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
      * @param tokens Array of token addresses.
      * @param to Recipient address.
      */
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin onlyEmergency {
+    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin isEmergency {
         if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -742,7 +742,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     function emergencyERC721BatchWithdrawal(address nftContract, uint256[] calldata tokenIds, address to)
         external
         onlyMasterAdmin
-        onlyEmergency
+        isEmergency
     {
         if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
 
@@ -808,6 +808,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     }
 
     function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+       if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct);
     }
 

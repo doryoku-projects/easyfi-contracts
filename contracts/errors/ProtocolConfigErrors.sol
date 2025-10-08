@@ -31,15 +31,16 @@ abstract contract ProtocolConfigErrors {
      * @notice Thrown when attempting to read an address that has not been set
      */
     error PC_ADDRESS_NOT_SET();
-
     /**
      * @notice Thrown when attempting to read a uint256 that has not been set
      */
     error PC_UINT_NOT_SET();
-
+    /**
+     * @notice Thrown when attempting to update package ID info that has already been updated
+     */
     error ALREADY_PACKAGE_ID_INFO_UPDATED();
-
+    /**
+     * @notice Thrown when attempting to access a package that does not exist
+     */
     error PACKAGE_NOT_EXIST();
-
-    error PC_PERCENTAGE_OVERFLOW();
 }
