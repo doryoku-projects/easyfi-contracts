@@ -665,6 +665,6 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     }
 
     function getVersion() external pure returns (string memory) {
-        return "2.0.0";
+        return "3.0.0";
     }
 }

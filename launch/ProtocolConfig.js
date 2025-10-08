@@ -35,9 +35,9 @@ async function deployProtocolConfig() {
   const MAIN_TOKEN = process.env.MAIN_TOKEN_ADDRESS;
   const CLIENT_ADDRESS = process.env.CLIENT_ADDRESS;
 
-  // const key = (s) => ethers.encodeBytes32String(s);
-  const key = (s) =>
-    ethers.keccak256(ethers.toUtf8Bytes(s));
+   const key = (s) => ethers.encodeBytes32String(s)
+  // const key = (s) =>
+  //   ethers.keccak256(ethers.toUtf8Bytes(s));
 
   const addressKeys = [
     "VaultManager",

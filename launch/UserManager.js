@@ -10,8 +10,8 @@ async function deployUserManager() {
   marcWallet = process.env.GENERAL_ADMIN_WALLET; // GENERAL_ADMIN
   pepOwnerWallet = process.env.USER_MANAGER_WALLET; // USER_MANAGER
   twoFAWallet = process.env.USER_2FA_WALLET; // 2FA_MANAGER
-  masterWallet = "0x5a12c37653c862E2546b54520c33cD2F64531320" // MASTER_ADMIN
-
+  masterWallet = process.env.MASTER_ADMIN_WALLET; // MASTER_ADMIN
+ 
   //CONTRACTS
   const protocolConfigAddress = process.env.PROTOCOL_CONFIG_ADDRESS;
   const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;

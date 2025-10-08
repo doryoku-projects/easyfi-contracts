@@ -328,7 +328,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         }
     }
 
-
     /**
      * @notice Mint a new position or increase liquidity on an existing one via LiquidityManager.
      * @param poolId Identifier of the pool.
