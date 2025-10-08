@@ -301,7 +301,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
                         && _userInfo.tickUpper == tickUpper
                 )
             ) revert VM_RANGE_MISMATCH(); 
-            if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOkEN_MISMATCH();
+            if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
 
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -340,9 +340,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
             revert VM_ALREADY_HAS_POSITION();
         }
 
-        (uint256 tokenId,,,,) = _liquidityManager().mintPosition(
+        ILiquidityManagerUpgradeable.MintResult memory _mintResult = _liquidityManager().mintPosition(
             token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true
         );
+
+        uint256 tokenId = _mintResult.tokenId;
 
         UserInfo memory newPosition = UserInfo({
             tokenId: tokenId,
@@ -616,7 +618,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
      * @param tokens Array of token addresses.
      * @param to Recipient address.
      */
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin onlyEmergency {
+    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin isEmergency {
         if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -637,7 +639,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     function emergencyERC721BatchWithdrawal(address nftContract, uint256[] calldata tokenIds, address to)
         external
         onlyMasterAdmin
-        onlyEmergency
+        isEmergency
     {
         if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
 

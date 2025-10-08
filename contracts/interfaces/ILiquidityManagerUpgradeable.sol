@@ -4,6 +4,15 @@ pragma solidity 0.8.30;
 
 /// @notice Interface for the LiquidityManager contract, which manages liquidity positions in a DeFi protocol.
 interface ILiquidityManagerUpgradeable {
+
+    struct MintResult {
+        uint256 tokenId;
+        uint256 mintedAmount0;
+        uint256 mintedAmount1;
+        uint256 actualReturnToken0;
+        uint256 actualReturnToken1;
+    }
+
     function mintPosition(
         address token0,
         address token1,
@@ -13,7 +22,7 @@ interface ILiquidityManagerUpgradeable {
         uint256 amountDesired,
         address user,
         bool isVault
-    ) external returns (uint256 tokenId, uint256 usedAmount0, uint256 usedAmount1, uint256 returnToken0, uint256 returnToken1);
+    ) external returns (MintResult memory _mintResult);
 
     function increaseLiquidityPosition(uint256 tokenId, uint256 amountMainTokenDesired, address user)
         external
