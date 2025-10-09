@@ -38,7 +38,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     }
 
     struct MintResult {
-        uint256 tokenID;
+        uint256 tokenId;
         uint256 mintedAmount0;
         uint256 mintedAmount1;
         uint256 actualReturnToken0;
@@ -291,7 +291,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
      * @param user Address to which any converted liquidity or fees should be sent.
      * @param isVault Whether the call is initiated by the vault (true) or an external sender (false).
      * @return _mintResult Struct containing details of the minted liquidity position:
-     *  - tokenID: ID of the newly minted position NFT.
+     *  - tokenId: ID of the newly minted position NFT.
      *  - mintedAmount0: Actual amount of token0 deposited into the position.
      *  - mintedAmount1: Actual amount of token1 deposited into the position.
      *  - actualReturnToken0: Unused token0 amount returned to the caller.
@@ -402,7 +402,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
 
         _nfpmInstance.safeTransferFrom(address(this), _vaultManagerInstance, tokenId);
 
-        _mintResult.tokenID = tokenId;
+        _mintResult.tokenId = tokenId;
         emit PositionMinted(tokenId, _mintResult.mintedAmount0, _mintResult.mintedAmount1);
     }
 
@@ -706,7 +706,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
         MintResult memory _mintResult =
             mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, _vaultManagerInstance, false);
 
-        newTokenId = _mintResult.tokenID;
+        newTokenId = _mintResult.tokenId;
         returnToken0 = _mintResult.actualReturnToken0;
         returnToken1 = _mintResult.actualReturnToken1;
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
