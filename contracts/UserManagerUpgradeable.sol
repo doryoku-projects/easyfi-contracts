@@ -639,7 +639,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
     /**
      * @notice Validates the provided 2FA code for a user.
-     * @dev Function is restricted to callers with USER_MANAGER_ROLEor approved contracts.
+     * @dev Function is restricted to callers with USER_MANAGER_ROLE or CONTRACT_ROLE.
      * It checks that the supplied 2FA code matches the stored code and that it has not expired (i.e., within 5 minutes of issuance).
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.

@@ -51,5 +51,5 @@ abstract contract VaultManagerErrors {
     /**
      * @notice Thrown when the provided token does not match the expected token
      */
-    error VM_TOkEN_MISMATCH();
+    error VM_TOKEN_MISMATCH();
 }
