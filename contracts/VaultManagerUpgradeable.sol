@@ -18,7 +18,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of managing the vaults and liquidity positions for users.
  * It allows users to mint, increase, decrease, and collect fees from their liquidity positions.
  */
-contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC721Receiver {
+contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultManagerErrors, IERC721Receiver {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
