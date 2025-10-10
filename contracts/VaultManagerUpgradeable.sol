@@ -18,17 +18,17 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @notice This contract is responsible of managing the vaults and liquidity positions for users.
  * It allows users to mint, increase, decrease, and collect fees from their liquidity positions.
  */
-contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
+contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultManagerErrors, IERC721Receiver {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
 
-    uint256 private constant MAX_PERCENTAGE = 100_00;
     bytes32 private constant CFG_LIQUIDITY_MANAGER = keccak256("LiquidityManager");
     bytes32 private constant CFG_NFPM = keccak256("NFTPositionMgr");
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
+    bytes32 private constant BP_KEY = keccak256("BP");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -81,6 +81,13 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @param newImplementation Address of the new implementation contract.
      */
     function _authorizeUpgrade(address newImplementation) internal override onlyMasterAdmin {}
+
+    /**
+     * @dev Basic points(BP) instance from central config.
+     */
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
+    }
 
     /**
      * @notice setMaxWithdrawalSize
@@ -293,6 +300,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
                         && _userInfo.tickUpper == tickUpper
                 )
             ) revert VM_RANGE_MISMATCH(); 
+            if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
 
             tokenId =
                 _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
@@ -331,9 +339,11 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
             revert VM_ALREADY_HAS_POSITION();
         }
 
-        (uint256 tokenId,,) = _liquidityManager().mintPosition(
+        ILiquidityManagerUpgradeable.MintResult memory _mintResult = _liquidityManager().mintPosition(
             token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired, userAddress, true
         );
+
+        uint256 tokenId = _mintResult.tokenId;
 
         UserInfo memory newPosition = UserInfo({
             tokenId: tokenId,
@@ -396,7 +406,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         bool send;
 
         // If the user wants to withdraw all their liquidity, we collect the fees first
-        if (percentageToRemove == MAX_PERCENTAGE) {
+        if (percentageToRemove == _BP()) {
             send = true;
             uint256 storedFee0 = userInfo[user][poolIdHash].feeToken0;
             uint256 storedFee1 = userInfo[user][poolIdHash].feeToken1;
@@ -439,7 +449,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         }
 
         _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, user, false);
-        percentageToRemove == 10000 ? _resetUserInfo(user, poolId) : _nfpm().approve(address(0), tokenId);
+        percentageToRemove == _BP() ? _resetUserInfo(user, poolId) : _nfpm().approve(address(0), tokenId);
     }
 
     /**
@@ -541,7 +551,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1) =
+        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1) =
             _liquidityManagerInstance.moveRangeOfPosition(manager, tokenId, tickLower, tickUpper);
 
         uint256 actualCumulatedFee0 = 0;
@@ -561,8 +571,8 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         userInfo[user][poolIdHash].tokenId = _newTokenId;
         userInfo[user][poolIdHash].tickLower = tickLower;
         userInfo[user][poolIdHash].tickUpper = tickUpper;
-        userInfo[user][poolIdHash].feeToken0 += actualCumulatedFee0;
-        userInfo[user][poolIdHash].feeToken1 += actualCumulatedFee1;
+        userInfo[user][poolIdHash].feeToken0 += actualCumulatedFee0 + returnToken0;
+        userInfo[user][poolIdHash].feeToken1 += actualCumulatedFee1 + returnToken1;
 
         _nfpmInstance.approve(address(0), _newTokenId);
 
@@ -571,9 +581,10 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
     /**
      * @notice Withdraw a percentage of the company’s accumulated fees.
+     * @param to Recipient address.
      */
      // all uniswap fees are in the name of company fees, so this function is used to withdraw them
-    function withdrawCompanyFees() external onlyMasterAdmin {
+    function withdrawCompanyFees(address to) external onlyMasterAdmin {
         uint256 clientPercentage = _clientFeePct();
         address clientAddress = _client();
         IERC20 _mainTokenInstance = _mainToken();
@@ -587,7 +598,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
         
         //If the company has fees, we withdraw a percentage of them
         if (s_companyFees > 0) {
-            amountToWithdrawForClient = (s_companyFees * clientPercentage) / MAX_PERCENTAGE;
+            amountToWithdrawForClient = (s_companyFees * clientPercentage) / _BP();
 
             if (amountToWithdrawForClient < 1) revert VM_COMPANY_FEES_ZERO();
             
@@ -595,7 +606,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
 
             s_companyFees -= (amountToWithdrawForCompany + amountToWithdrawForClient);
 
-            _mainTokenInstance.safeTransfer(msg.sender, amountToWithdrawForCompany);
+            _mainTokenInstance.safeTransfer(to, amountToWithdrawForCompany);
             _mainTokenInstance.safeTransfer(clientAddress, amountToWithdrawForClient);
         }
         emit WithdrawCompanyFees(amountToWithdrawForClient,amountToWithdrawForCompany);
@@ -606,7 +617,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
      * @param tokens Array of token addresses.
      * @param to Recipient address.
      */
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin {
+    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin onEmergency {
         if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -627,6 +638,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors {
     function emergencyERC721BatchWithdrawal(address nftContract, uint256[] calldata tokenIds, address to)
         external
         onlyMasterAdmin
+        onEmergency
     {
         if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
 

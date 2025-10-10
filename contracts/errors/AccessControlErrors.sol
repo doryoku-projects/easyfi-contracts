@@ -47,4 +47,8 @@ abstract contract AccessControlErrors {
      * @notice contract is in emergency mode
      */
     error UAC_EMERGENCY_MODE_ACTIVE();
+    /**
+     * @notice contract is not in emergency mode
+     */
+    error UAC_NOT_IN_EMERGENCY_MODE();
 }
