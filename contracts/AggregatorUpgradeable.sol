@@ -16,7 +16,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @title AggregatorUpgradeable
  * @notice This contract is responsible of interacting with the VaultManager so users can manage their liquidity positions.
  */
-contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl, AggregatorErrors {
+contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, UserAccessControl, AggregatorErrors {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
@@ -36,6 +36,7 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         if (_maxMigrationSize == 0){
             revert AGG_ZERO_MAX_MIGRATION_SIZE();
         }
+        __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_userManager = IUserManagerUpgradeable(_userManager);
@@ -252,12 +253,12 @@ contract AggregatorUpgradeable is ReentrancyGuardUpgradeable, UserAccessControl,
         }
     }
 
-    function withdrawFunds() public
+    function withdrawFunds(string calldata poolId, uint256 packageId) public
         nonReentrant
         onlyUser
         notEmergency 
     {
         IVaultManagerUpgradeable vault = _vaultManager();
-        vault.withdrawFunds(msg.sender);
+        vault.withdrawFunds(msg.sender, poolId, packageId);
     }
 }

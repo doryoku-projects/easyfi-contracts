@@ -99,6 +99,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
+    await VaultManager.connect(marcWallet).setPackageCap(100000000000, 300000000000, 5000);
+    await VaultManager.connect(marcWallet).setPackageCap(200000000000, 600000000000, 6000);
     await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 1);
     // ————— 3) Mint (10k) —————
     const isUser = await UserManager.isUser(userWallet.address);
@@ -235,9 +237,12 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     let timestamp = block.timestamp + 300;
     console.log("Current block timestamp:", timestamp);
 
+    const network = await ethers.provider.getNetwork();
+    const chainId = network.chainId;
+
     let messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, 0, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address, chainId, userManagerAddress, 0, timestamp]
     );
     let signature = await userWallet.signMessage(ethers.getBytes(messageHash));
     await UserManager.connect(marcWallet).set2FA(
@@ -267,8 +272,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Current block timestamp:", timestamp);
 
     messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, halfBP, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address,chainId, userManagerAddress, halfBP, timestamp]
     );
     signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 
@@ -308,8 +313,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Current block timestamp:", timestamp);
 
     messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, fullBP, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address, chainId, userManagerAddress, fullBP, timestamp]
     );
     signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 

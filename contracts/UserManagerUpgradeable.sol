@@ -157,6 +157,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         uint256 _maxRolesSize
     ) public initializer {
         __AccessControlEnumerable_init();
+        __UUPSUpgradeable_init();
 
         _grantRole(MASTER_ADMIN_ROLE, _msgSender());
 
@@ -322,7 +323,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param usersManager Array of addresses to add as user managers.
      * @return True if operation succeeded.
      */
-    function addUsersManager(address[] calldata usersManager) external onlyGeneralAdminOrUserManager returns (bool) {
+    function addUsersManager(address[] calldata usersManager) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
         _checkArraySizeLimit("usersManager", usersManager.length);
         for (uint256 i = 0; i < usersManager.length; i++) {
             _checkRole(USER_MANAGER_ROLE, usersManager[i], true);
@@ -619,10 +620,12 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
     /**
      * @notice Sets a 2FA code for the specified user.
-     * @dev Function can only be called by an account with USER_2FA_ROLE and must be the designated oracle.
-     *      Reverts if msg.sender is not the oracleAddress2FA.
+     * @dev Function can only be called by an account with USER_2FA_ROLE.
      * @param user The address of the user for which the 2FA code is being set.
      * @param code The 2FA code to associate with the user.
+     * @param expiredTime The timestamp until which the 2FA code is valid.
+     * @param value The expected value associated with this 2FA code.
+     * @param signature The signature verifying this 2FA setup.
      */
     function set2FA(address user, string calldata code, uint256 expiredTime, uint256 value, bytes calldata signature) external onlyRole(USER_2FA_ROLE) {
         User2FA storage user2FAInfo = s_user2FA[user];
@@ -636,15 +639,16 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
     /**
      * @notice Validates the provided 2FA code for a user.
-     * @dev Function is restricted to callers with USER_MANAGER_ROLE. It checks that the supplied 2FA code
-     *      matches the stored code and that it has not expired (i.e., within 5 minutes of issuance).
+     * @dev Function is restricted to callers with USER_MANAGER_ROLE or CONTRACT_ROLE.
+     * It checks that the supplied 2FA code matches the stored code and that it has not expired (i.e., within 5 minutes of issuance).
      * @param user The address of the user whose 2FA code is being verified.
      * @param code The 2FA code to validate.
+     * @param value The expected value tied to the 2FA verification.
      */
     function check2FA(address user, string calldata code, uint256 value) external onlyContractOrUserManager {
         User2FA memory user2FAInfo = s_user2FA[user];
 
-        bytes32 messageHash = keccak256(abi.encodePacked(user, user2FAInfo.value, user2FAInfo.timestamp));
+        bytes32 messageHash = keccak256(abi.encodePacked(user, block.chainid, address(this), user2FAInfo.value, user2FAInfo.timestamp));
 
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         if (ECDSA.recover(ethSignedMessageHash, user2FAInfo.signature) != user) {
