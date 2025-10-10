@@ -720,7 +720,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
      * @param tokens Array of token addresses.
      * @param to Recipient address.
      */
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin isEmergency {
+    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin onEmergency {
         if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -741,7 +741,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     function emergencyERC721BatchWithdrawal(address nftContract, uint256[] calldata tokenIds, address to)
         external
         onlyMasterAdmin
-        isEmergency
+        onEmergency
     {
         if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
 
