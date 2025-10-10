@@ -8,7 +8,7 @@ import "./errors/ProtocolConfigErrors.sol";
  * @title ProtocolConfigUpgradeable
  * @notice Centralized storage for all protocol-wide addresses and numeric parameters.
  */
-contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
+contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, ProtocolConfigErrors {
 
     struct CapInfo {
         uint256 liquidityCap;
