@@ -21,7 +21,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @title OracleSwapUpgradeable
  * @notice This contract is responsible of swapping tokens using Uniswap V3 and managing token oracles.
  */
-contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
+contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwapErrors {
     using SafeERC20 for IERC20;
 
     uint256 internal s_slippageNumerator;
@@ -47,6 +47,7 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        __UUPSUpgradeable_init();
         if (_protocolConfig == address(0) || _userManagerAddress == address(0)){
             revert OS_ZERO_ADDRESS();
         }
@@ -260,10 +261,10 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
         });
 
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
-        uint256 amountOut = _swapRouterInstance.exactInputSingle(params);
+        _swapRouterInstance.exactInputSingle(params);
         actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
 
-        emit TokensSwapped(tokenIn, tokenOut, amountIn, amountOut, computedAmountOutMinimum);
+        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOutMinimum);
     }
 
     /**
@@ -445,9 +446,10 @@ contract OracleSwapUpgradeable is UserAccessControl, OracleSwapErrors {
             revert OS_NOT_ENOUGH_TOKENS();
         }
 
-        totalAmountMainToken = mainAmount0 + mainAmount1;
-
-        _mainTokenInstance.safeTransfer(user, totalAmountMainToken);
+        uint256 amountMainToken = mainAmount0 + mainAmount1;
+        uint256 balanceBefore = _mainTokenInstance.balanceOf(user);
+        _mainTokenInstance.safeTransfer(user, amountMainToken);
+        totalAmountMainToken = _mainTokenInstance.balanceOf(user) - balanceBefore;
     }
 
     /**

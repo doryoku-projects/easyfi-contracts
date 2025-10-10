@@ -18,7 +18,7 @@ import "./interfaces/ILiquidityHelperUpgradeable.sol";
  * @notice This contract is responsible of managing liquidity positions in Uniswap v3
  * and interacting with the OracleSwap and LiquidityHelper contracts.
  */
-contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerErrors {
+contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, LiquidityManagerErrors {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
@@ -58,6 +58,7 @@ contract LiquidityManagerUpgradeable is UserAccessControl, LiquidityManagerError
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        __UUPSUpgradeable_init();
         if (_protocolConfig == address(0) || _userManagerAddress == address(0)){
             revert LM_ZERO_ADDRESS();
         }

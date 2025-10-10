@@ -19,12 +19,11 @@ import "./interfaces/IFundsManagerUpgradeable.sol";
  * @notice This contract is responsible of managing the vaults and liquidity positions for users.
  * It allows users to mint, increase, decrease, and collect fees from their liquidity positions.
  */
-contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC721Receiver {
+contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultManagerErrors, IERC721Receiver {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
 
-    uint256 private constant MAX_PERCENTAGE = 100_00;
     bytes32 private constant CFG_LIQUIDITY_MANAGER = keccak256("LiquidityManager");
     bytes32 private constant CFG_NFPM = keccak256("NFTPositionMgr");
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
@@ -539,7 +538,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
         }
         uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);   
         if(isAdmin) _updateFees(user, poolIdHash, packageId, removedAmount);
-        percentageToRemove == 10000 ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
+        percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
         emit LiquidityEvent (user, packageId, removedAmount);
     }
@@ -721,7 +720,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
      * @param tokens Array of token addresses.
      * @param to Recipient address.
      */
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin isEmergency {
+    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin onEmergency {
         if (tokens.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokens", tokens.length);
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -742,7 +741,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     function emergencyERC721BatchWithdrawal(address nftContract, uint256[] calldata tokenIds, address to)
         external
         onlyMasterAdmin
-        isEmergency
+        onEmergency
     {
         if (tokenIds.length > s_maxWithdrawalSize) revert VM_ARRAY_SIZE_LIMIT_EXCEEDED("tokenIds", tokenIds.length);
 
@@ -813,6 +812,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     }
 
     function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+       if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
     }
 
