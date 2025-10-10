@@ -8,14 +8,14 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract ProxyFactory is AccessControl {
 
-    bytes32 private constant GENERAL_ADMIN_ROLE = keccak256("GENERAL_ADMIN_ROLE");
+    bytes32 private constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
 
     event GeneralAdminAdded(address indexed user);
     event ProxyDeployed(address indexed proxyAddress, address indexed admin);
 
     constructor(address[] memory _initialAdmins) {
         for (uint256 i = 0; i < _initialAdmins.length; i++) {
-            _grantRole(GENERAL_ADMIN_ROLE, _initialAdmins[i]);
+            _grantRole(DEPLOYER_ROLE, _initialAdmins[i]);
             emit GeneralAdminAdded(_initialAdmins[i]);
         }
     }
@@ -24,7 +24,7 @@ contract ProxyFactory is AccessControl {
         address implementation,
         bytes memory initializer,
         bytes32 salt
-    ) external onlyRole(GENERAL_ADMIN_ROLE) returns (address deployedAddress) {
+    ) external onlyRole(DEPLOYER_ROLE) returns (address deployedAddress) {
 
         bytes memory proxyCreationCode = abi.encodePacked(
             type(ERC1967Proxy).creationCode,  // Proxy bytecode

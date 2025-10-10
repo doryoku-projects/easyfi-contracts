@@ -1,27 +1,10 @@
-const { ethers, upgrades } = require("hardhat");
-require("dotenv").config();
+const { upgradeContract } = require("./upgradeContract");
 
 async function main() {
-  const proxyAddress = process.env.USER_MANAGER_ADDRESS;
-
-  const UserManagerUpgradeable = await ethers.getContractFactory(
-    "UserManagerUpgradeable"
-  );
-
-  console.log("[UPGRADE] Making upgrade to contract...");
-
-  // await upgrades.forceImport(proxyAddress, UserManagerUpgradeable);
-
-
-  const upgraded = await upgrades.upgradeProxy(
-    proxyAddress,
-    UserManagerUpgradeable
-  );
-
-  console.log(
-    "[UPGRADE] Contract updated successfully, new version deployed at:",
-    await upgraded.getAddress()
-  );
+  await upgradeContract({
+    contractName: "UserManagerUpgradeable",
+    proxyStorageKey: "UserManagerUpgradeable"
+  });
 }
 
 main().catch((error) => {
