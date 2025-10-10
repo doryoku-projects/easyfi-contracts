@@ -24,7 +24,6 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
 
     IProtocolConfigUpgradeable private s_config;
 
-    uint256 private constant MAX_PERCENTAGE = 100_00;
     bytes32 private constant CFG_LIQUIDITY_MANAGER = keccak256("LiquidityManager");
     bytes32 private constant CFG_NFPM = keccak256("NFTPositionMgr");
     bytes32 private constant CFG_MAIN_TOKEN = keccak256("MainToken");
@@ -539,7 +538,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
         }
         uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);   
         if(isAdmin) _updateFees(user, poolIdHash, packageId, removedAmount);
-        percentageToRemove == 10000 ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
+        percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
         emit LiquidityEvent (user, packageId, removedAmount);
     }
@@ -813,6 +812,7 @@ contract VaultManagerUpgradeable is UserAccessControl, VaultManagerErrors, IERC7
     }
 
     function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+       if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
     }
 
