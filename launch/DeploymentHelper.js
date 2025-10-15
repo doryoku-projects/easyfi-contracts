@@ -11,7 +11,7 @@ async function deployUpgradeableContract({
   saltPrefix,
   storageKey
 }) {
-  const [deployer] = await ethers.getSigners();
+  const [deployer, MasterAdmin] = await ethers.getSigners();
 
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
@@ -30,13 +30,13 @@ async function deployUpgradeableContract({
   const PROXY_SALT = ethers.keccak256(
     ethers.solidityPacked(
       ["string", "address"],
-      [saltPrefix, deployer.address]
+      [saltPrefix, MasterAdmin.address]
     )
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
   const factoryAddress = await getDeploymentAddress("proxyFactoryAddress");
-  const proxyFactoryContract = ProxyFactory.attach(factoryAddress);
+  const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(MasterAdmin);
 
   const predictedProxyAddress = await proxyFactoryContract.getDeployed(PROXY_SALT);
   console.log(`Predicted proxy: ${predictedProxyAddress}`);
@@ -93,6 +93,7 @@ async function updateProtocolConfigAddresses({
     let current = ethers.ZeroAddress;
     try {
       current = await ProtocolConfigContract.getAddress(key);
+      console.log(`Current for ${key}: ${current}`);
     } catch (err) {
       console.log(`New address for ${key}`);
     }
