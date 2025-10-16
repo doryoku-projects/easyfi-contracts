@@ -1,18 +1,30 @@
 const { expect, use } = require("chai");
 const { ethers } = require("hardhat");
 const { TickMath } = require('@uniswap/v3-sdk');
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+
+const CONFIG = require("../../launch/config");
 describe("I_CompanyFeesWithdraw", function () {
     let ownerWallet, userWallet;
     let VaultManager;
-    const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-    const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-    const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
+    let vaultManagerAddress, userManagerAddress, aggregatorAddress
+    let addressesPerChain;
+
     const valid2FACode = "123456";
     const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
     const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
     const ClientAddress = process.env.CLIENT_ADDRESS;
 
     before(async function () {
+
+      userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+      vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+      aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
+      const network = await ethers.provider.getNetwork();
+    const chainId = Number(network.chainId);
+    addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+
         // Get signers: assume the first is the master admin
         ownerWallet = new ethers.Wallet(
             process.env.MASTER_ADMIN_PRIVATE_KEY,
@@ -36,8 +48,8 @@ describe("I_CompanyFeesWithdraw", function () {
           );
 
         
-    await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
-    await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
+    // await userManager.addUser2FAs([ownerWallet.address]);// need to comment out when executing first time after deployment
+    // await userManager.addUser2FAs([userWallet.address]); //need to comment out when executing first time after deployment
 
 
     // doing this signature for withdrawal of company fees
@@ -57,9 +69,6 @@ describe("I_CompanyFeesWithdraw", function () {
       timestamp,
       3000,
       signature);
-      
-
-
 
     });
 
@@ -75,7 +84,9 @@ describe("I_CompanyFeesWithdraw", function () {
           aggregatorAddress,
           ownerWallet
         );
-        const mainToken = await ethers.getContractAt("IERC20", process.env.MAIN_TOKEN_ADDRESS, ownerWallet);
+
+        const mainToken = await ethers.getContractAt("IERC20", addressesPerChain.MAIN_TOKEN_ADDRESS, ownerWallet);
+        console.log("### ~ I_CompanyFeesWithdraw.js:91 ~ addressesPerChain.MAIN_TOKEN_ADDRESS:", addressesPerChain.MAIN_TOKEN_ADDRESS);
 
 
         // Check initial fees balance of the contract
@@ -114,8 +125,8 @@ describe("I_CompanyFeesWithdraw", function () {
       "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
       ];
       console.log("balance before swapping:", await mainToken.balanceOf(userWallet.address));
-      const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
-      const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
+      
+      const router = await ethers.getContractAt(routerABI, addressesPerChain.SWAP_ROUTER_ADDRESS);
       let amountIn = ethers.parseEther("3");
       const sqrtPriceLimit = TickMath.getSqrtRatioAtTick(-199005); // upper tick of your range
       console.log("sqrtPriceLimit:", sqrtPriceLimit);

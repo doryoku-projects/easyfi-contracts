@@ -2,15 +2,15 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
 
-describe("I_setRoles", function () {
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+
+describe("I_setRoles", async function () {
   let ownerWallet, userWallet, pepOwnerWallet, marcWallet;
   let userManagerGeneralAdmin, userManagerUserManager;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
-  const oracleSwapAddress = process.env.ORACLE_SWAP_ADDRESS;
-  const liquidityHelperAddress = process.env.LIQUIDITY_HELPER_ADDRESS;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
+  let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
+
+  
   const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
   const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
   const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
@@ -41,6 +41,13 @@ describe("I_setRoles", function () {
   }
 
   before(async function () {
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
+    liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
     ownerWallet = new ethers.Wallet(       // MASTER_ADMIN
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider

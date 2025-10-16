@@ -15,7 +15,7 @@ const deployFundsManager = require("./FundsManager");
 
 async function main() {
     console.log("🚀 Starting full deployment...");
-  
+
   await deployFactory();
   await deployUserManager();
   await deployProtocolConfig();

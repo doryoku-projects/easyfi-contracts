@@ -1,17 +1,19 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 describe("I_Collect", function () {
   let provider, ownerWallet, userWallet;
   let VaultManager, LiquidityManager;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const poolId = "ui-232-122";
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress, aggregatorAddress;
 
+  const poolId = "ui-232-122";
   before(async function () {
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider

@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,10 +10,10 @@ async function sleep(ms) {
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
   let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const liquidityManagerAddr = process.env.LIQUIDITY_MANAGER_ADDRESS;
+
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
+  let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
+
   const mainTokenAddress = process.env.MAIN_TOKEN_ADDRESS; // USDC
   const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH
   const poolId = "ui-232-122";
@@ -32,6 +33,14 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   }
 
   before(async function () {
+
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
+    liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
@@ -68,7 +77,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     );
     LiquidityManager = await ethers.getContractAt(
       "LiquidityManagerUpgradeable",
-      liquidityManagerAddr,
+      liquidityManagerAddress,
       marcWallet
     );
     MainToken = await ethers.getContractAt(
