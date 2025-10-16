@@ -1,30 +1,15 @@
-const { ethers, upgrades } = require("hardhat");
-require("dotenv").config();
+const { upgradeContract } = require("./upgradeContract.js");
 
 async function main() {
-  const proxyAddress = process.env.AGGREGATOR_ADDRESS;
-  const implementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
-  const AggregatorUpgradeable = await ethers.getContractFactory("AggregatorUpgradeable");
-
-  console.log("Current implementation address:", implementationAddress);
-  console.log("AggregatorUpgradeable");
-  console.log("[UPGRADE] Updating the proxy contract...");
-
-  // The proxy contract is updated
-  const upgradeAggregator = await upgrades.upgradeProxy(
-    proxyAddress,
-    AggregatorUpgradeable
-  );
-
-  console.log("[UPGRADE] Proxy contract updated at:", await upgradeAggregator.getAddress());
-  const NewimplementationAddress = await upgrades.erc1967.getImplementationAddress(proxyAddress);
-
-  console.log("Current implementation address:", NewimplementationAddress);
+  await upgradeContract({
+    contractName: "AggregatorUpgradeable",
+    proxyStorageKey: "AggregatorUpgradeable"
+  });
 }
 
 main()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("[UPGRADE] Error in upgrade:", error);
+    console.error(error);
     process.exit(1);
   });
