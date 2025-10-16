@@ -11,7 +11,7 @@ async function deployUpgradeableContract({
   saltPrefix,
   storageKey
 }) {
-  const [deployer, MasterAdmin] = await ethers.getSigners();
+  const [, MasterAdmin] = await ethers.getSigners();
   const whitelabel = process.env.WHITELABEL;
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
