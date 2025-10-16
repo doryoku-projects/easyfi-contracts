@@ -2,7 +2,7 @@ const { ethers } = require("hardhat");
 const { getDeploymentAddress } = require("./DeploymentStore");
 const { updateProtocolConfigAddresses } = require("./DeploymentHelper");
 
-const deployFactory = require("./Factory");
+// const deployFactory = require("./Factory");
 const deployUserManager = require("./UserManager");
 const deployProtocolConfig = require("./ProtocolConfig");
 const deployAggregator = require("./Aggregator");
@@ -13,9 +13,9 @@ const deployOracleSwap = require("./OracleSwap");
 
 
 async function main() {
-    console.log("🚀 Starting full deployment...");
+    console.log("🚀 Starting full deployment...", process.env.WHITELABEL);
   
-  await deployFactory();
+  // await deployFactory();
   await deployUserManager();
   await deployProtocolConfig();
   await deployAggregator();

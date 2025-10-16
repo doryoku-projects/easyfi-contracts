@@ -7,6 +7,7 @@ async function deployUserManager() {
   const initialAdmins = [WALLETS.GENERAL_ADMIN, WALLETS.MASTER_ADMIN];
   const initialUserManagers = [WALLETS.USER_MANAGER, WALLETS.MASTER_ADMIN];
   const _2FAManagers = [WALLETS.USER_2FA, WALLETS.MASTER_ADMIN];
+  const whitelabel = process.env.WHITELABEL;
 
   const initialContracts = [
     process.env.PROTOCOL_CONFIG_ADDRESS,
@@ -29,7 +30,7 @@ async function deployUserManager() {
     contractName: "UserManagerUpgradeable",
     displayName: "UserManager",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS.USER_MANAGER,
+    saltPrefix: CONFIG.SALTS[whitelabel].USER_MANAGER,
     storageKey: "UserManagerUpgradeable"
   });
 }

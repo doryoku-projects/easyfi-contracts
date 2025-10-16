@@ -2,7 +2,6 @@ const { ethers } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
 
-// const DEPLOYMENTS_DIR = path.join(__dirname, "../deployments");
 const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
 /**
@@ -13,6 +12,7 @@ async function _loadAndPrepareDeployments() {
     // Determine the current network's Chain ID
     const network = await ethers.provider.getNetwork();
     const chainId = Number(network.chainId);
+    const whitelabel = process.env.WHITELABEL;
 
     if (!fs.existsSync(DEPLOYMENTS_FILE)) {
         fs.writeFileSync(DEPLOYMENTS_FILE, JSON.stringify({}, null, 2));
@@ -28,15 +28,18 @@ async function _loadAndPrepareDeployments() {
         }
     }
 
-    // Initialize the network object if it doesn't exist (e.g., "11155111": {})
-    if (!masterDeployments[chainId]) {
-        masterDeployments[chainId] = {};
+    if (!masterDeployments[whitelabel]) {        
+        masterDeployments[whitelabel] = {}; 
+    }
+
+    if (!masterDeployments[whitelabel][chainId]) {
+        masterDeployments[whitelabel][chainId] = {};
     }
 
     return { 
         master: masterDeployments, 
         chainId: chainId, 
-        network: masterDeployments[chainId] 
+        network: masterDeployments[whitelabel][chainId] 
     };
 }
 
@@ -72,7 +75,22 @@ async function getDeploymentAddress(contractName) {
     return address;
 }
 
+async function getFactoryDeploymentAddress() {
+    let masterDeployments = {};
+    if (fs.existsSync(DEPLOYMENTS_FILE)) {
+        try {
+            const content = fs.readFileSync(DEPLOYMENTS_FILE, "utf-8");
+            masterDeployments = JSON.parse(content);
+        } catch (e) {
+            console.warn("⚠️ Warning: Could not parse deployments.json. Factory Address not found.");
+        }
+    }
+
+    return masterDeployments["proxyFactoryAddress"];
+}
+
 module.exports = {
     storeDeployment,
     getDeploymentAddress,
+    getFactoryDeploymentAddress
 };

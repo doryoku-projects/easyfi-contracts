@@ -5,6 +5,7 @@ const CONFIG = require("./config");
 async function deployVault() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
+  const whitelabel = process.env.WHITELABEL;
 
   const initializeArgs = [
     protocolConfigAddress,
@@ -16,7 +17,7 @@ async function deployVault() {
     contractName: "VaultManagerUpgradeable",
     displayName: "Vault",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS.VAULT,
+    saltPrefix: CONFIG.SALTS[whitelabel].VAULT,
     storageKey: "VaultUpgradeable"
   });
 }

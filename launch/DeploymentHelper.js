@@ -1,5 +1,5 @@
 const { ethers } = require("hardhat");
-const { storeDeployment, getDeploymentAddress } = require("./DeploymentStore");
+const { storeDeployment, getFactoryDeploymentAddress } = require("./DeploymentStore");
 
 /**
  * Generic UUPS proxy deployment using CREATE3
@@ -35,7 +35,7 @@ async function deployUpgradeableContract({
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
-  const factoryAddress = await getDeploymentAddress("proxyFactoryAddress");
+  const factoryAddress = await getFactoryDeploymentAddress();
   const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(MasterAdmin);
 
   const predictedProxyAddress = await proxyFactoryContract.getDeployed(PROXY_SALT);

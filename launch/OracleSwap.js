@@ -5,6 +5,7 @@ const CONFIG = require("./config");
 async function deployOracleSwap() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
+  const whitelabel = process.env.WHITELABEL;
 
   const initializeArgs = [protocolConfigAddress, userManagerAddress];
 
@@ -12,7 +13,7 @@ async function deployOracleSwap() {
     contractName: "OracleSwapUpgradeable",
     displayName: "OracleSwap",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS.ORACLE_SWAP,
+    saltPrefix: CONFIG.SALTS[whitelabel].ORACLE_SWAP,
     storageKey: "OracleSwapUpgradeable"
   });
 }

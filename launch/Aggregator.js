@@ -5,6 +5,7 @@ const CONFIG = require("./config");
 async function deployAggregator() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
+  const whitelabel = process.env.WHITELABEL;
 
   const initializeArgs = [
     protocolConfigAddress,
@@ -16,7 +17,7 @@ async function deployAggregator() {
     contractName: "AggregatorUpgradeable",
     displayName: "Aggregator",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS.AGGREGATOR,
+    saltPrefix: CONFIG.SALTS[whitelabel].AGGREGATOR,
     storageKey: "AggregatorUpgradeable"
   });
 }

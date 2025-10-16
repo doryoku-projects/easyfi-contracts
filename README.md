@@ -8,11 +8,24 @@ npm install –force
 ```bash
 npx hardhat node --network hardhat
 ```
-### To Deploy contracts
+
+### STEP 1 - Deploy Factory
+```bash
+npx hardhat run ./launch/factory.js --network localhost
+```
+
+### STEP 2 - Deploy contracts 
+
+# NOTICE: set the env var for WHITELABEL for which the contract are to be deployed
 
 ```bash
-npx hardhat run ./launch/deployAll.js --network localhost
+npx cross-env WHITELABEL="wadz" hardhat run ./launch/deployAll.js --network localhost
 ```
+
+# Set of Whitelabels
+- `banana`
+- `wadz`
+
 ### To Run Upgrade Script
 
 ```bash
