@@ -21,7 +21,7 @@ describe("ProtocolConfigUpgradeable", function () {
   const MAIN_TOKEN = process.env.MAIN_TOKEN_ADDRESS;
 
   before(async function () {
-    [admin] = await ethers.getSigners();
+    [, admin] = await ethers.getSigners();
     // Aquí se asume que el contrato ya está desplegado y se obtiene la instancia.
     // Si usas ethers.getContractAt, reemplaza "ProtocolConfigUpgradeable" y la dirección correspondiente.
     protocolConfig = await ethers.getContractAt(

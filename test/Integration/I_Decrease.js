@@ -4,17 +4,19 @@ require("dotenv").config();
 
 describe("I_Decrease", function () {
   let ownerWallet, userWallet, marcWallet;
+  let vaultManagerAddress, userManagerAddress, aggregatorAddress
   let Aggregator, VaultManager, userManager;
-
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
 
   const poolId = "ui-232-122";
   const halfLiquidity = 5000;
   const valid2FACode = "123456";
 
   before(async function () {
+
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider

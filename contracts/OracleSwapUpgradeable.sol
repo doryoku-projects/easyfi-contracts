@@ -264,7 +264,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         _swapRouterInstance.exactInputSingle(params);
         actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
 
-        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOut);
+        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOutMinimum);
     }
 
     /**
