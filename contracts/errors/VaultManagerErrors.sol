@@ -48,4 +48,8 @@ abstract contract VaultManagerErrors {
      * @param size The size of the array that exceeded the limit.
      */
     error VM_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
+    /**
+     * @notice Thrown when the provided token does not match the expected token
+     */
+    error VM_TOKEN_MISMATCH();
 }
