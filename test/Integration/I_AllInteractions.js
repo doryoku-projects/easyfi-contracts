@@ -17,8 +17,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
 
-  const mainTokenAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
-  const token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
+  let mainTokenAddress
+  let token0Address
   const poolId = "ui-232-122";
   const mintAmount = ethers.parseUnits("15", 6);
   const increaseAmount = ethers.parseUnits("10", 6);
@@ -47,6 +47,9 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     const network = await ethers.provider.getNetwork();
     const chainId = Number(network.chainId);
     addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+
+    mainTokenAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
 
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
