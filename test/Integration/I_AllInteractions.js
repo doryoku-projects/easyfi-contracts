@@ -2,12 +2,11 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
 const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+const CONFIG = require("../../launch/config");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
