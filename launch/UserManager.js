@@ -9,12 +9,12 @@ async function deployUserManager() {
   const _2FAManagers = [WALLETS.USER_2FA, WALLETS.MASTER_ADMIN];
 
   const initialContracts = [
-    process.env.PROTOCOL_CONFIG_ADDRESS || ethers.ZeroAddress,
-    process.env.VAULT_MANAGER_ADDRESS || ethers.ZeroAddress,
-    process.env.LIQUIDITY_MANAGER_ADDRESS || ethers.ZeroAddress,
-    process.env.LIQUIDITY_HELPER_ADDRESS || ethers.ZeroAddress,
-    process.env.ORACLE_SWAP_ADDRESS || ethers.ZeroAddress,
-    process.env.AGGREGATOR_ADDRESS || ethers.ZeroAddress
+    process.env.PROTOCOL_CONFIG_ADDRESS,
+    process.env.VAULT_MANAGER_ADDRESS,
+    process.env.LIQUIDITY_MANAGER_ADDRESS,
+    process.env.LIQUIDITY_HELPER_ADDRESS,
+    process.env.ORACLE_SWAP_ADDRESS,
+    process.env.AGGREGATOR_ADDRESS
   ];
 
   const initializeArgs = [

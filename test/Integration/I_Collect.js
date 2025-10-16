@@ -1,17 +1,28 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 describe("I_Collect", function () {
   let provider, ownerWallet, userWallet;
   let VaultManager, LiquidityManager;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress, aggregatorAddress;
+
+  // const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
+  // const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
+  // const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
+  // const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
   const poolId = "ui-232-122";
+  console.log("### ~ I_Collect.js:16 ~ poolId:", poolId);
 
   before(async function () {
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    console.log("### ~ I_Collect.js:20 ~ userManagerAddress:", userManagerAddress);
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+    console.log("### ~ I_Collect.js:23 ~ aggregatorAddress:", aggregatorAddress);
+
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
@@ -26,6 +37,7 @@ describe("I_Collect", function () {
     );
 
     randomWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+    console.log("### ~ I_Collect.js:39 ~ randomWallet:", randomWallet);
 
     userManager = await ethers.getContractAt(
       "UserManagerUpgradeable",
@@ -42,6 +54,7 @@ describe("I_Collect", function () {
 
 
     const valid2FACode = "123456";
+    console.log("### ~ I_Collect.js:56 ~ valid2FACode:", valid2FACode);
     await userManager.addUser2FAs([marcWallet.address]);
 
     await userManager.set2FA(userWallet.address, valid2FACode);
@@ -51,6 +64,7 @@ describe("I_Collect", function () {
       vaultManagerAddress,
       ownerWallet
     );
+    console.log("### ~ I_Collect.js:66 ~ VaultManager:", VaultManager);
 
     LiquidityManager = await ethers.getContractAt(
       "LiquidityManagerUpgradeable",
@@ -68,6 +82,7 @@ describe("I_Collect", function () {
       userWallet.address, 
       poolId
     );
+    console.log("### ~ I_Collect.js:84 ~ userInfo:", userInfo);
     expect(userInfo.tokenId).to.not.equal(
       0,
       "User must have a valid position for fees collection"
