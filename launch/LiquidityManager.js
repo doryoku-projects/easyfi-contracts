@@ -5,15 +5,14 @@ const CONFIG = require("./config");
 async function deployLiquidityManager() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
-  const whitelabel = process.env.WHITELABEL;
-
+  
   const initializeArgs = [protocolConfigAddress, userManagerAddress];
 
   return await deployUpgradeableContract({
     contractName: "LiquidityManagerUpgradeable",
     displayName: "LiquidityManager",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS[whitelabel].LIQUIDITY_MANAGER,
+    saltPrefix: CONFIG.SALTS.LIQUIDITY_MANAGER,
     storageKey: "LiquidityManagerUpgradeable"
   });
 }

@@ -5,7 +5,6 @@ const CONFIG = require("./config");
 async function deployLiquidityHelper() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
-  const whitelabel = process.env.WHITELABEL;
 
   const initializeArgs = [protocolConfigAddress, userManagerAddress];
 
@@ -13,7 +12,7 @@ async function deployLiquidityHelper() {
     contractName: "LiquidityHelperUpgradeable",
     displayName: "LiquidityHelper",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS[whitelabel].LIQUIDITY_HELPER,
+    saltPrefix: CONFIG.SALTS.LIQUIDITY_HELPER,
     storageKey: "LiquidityHelperUpgradeable"
   });
 }

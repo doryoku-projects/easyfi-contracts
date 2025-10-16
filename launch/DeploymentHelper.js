@@ -12,7 +12,7 @@ async function deployUpgradeableContract({
   storageKey
 }) {
   const [deployer, MasterAdmin] = await ethers.getSigners();
-
+  const whitelabel = process.env.WHITELABEL;
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
   const ContractFactory = await ethers.getContractFactory(contractName);
@@ -27,10 +27,13 @@ async function deployUpgradeableContract({
     initializeArgs
   );
 
+  const salt = saltPrefix + "_" + whitelabel.toUpperCase();
+  console.log(`Using salt: ${salt}`);
+
   const PROXY_SALT = ethers.keccak256(
     ethers.solidityPacked(
       ["string", "address"],
-      [saltPrefix, MasterAdmin.address]
+      [salt, MasterAdmin.address]
     )
   );
 

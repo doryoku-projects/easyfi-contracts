@@ -6,8 +6,7 @@ async function deployProtocolConfig() {
   const { WALLETS, EXTERNAL, PROTOCOL, ADDRESSES_PER_CHAIN } = CONFIG;
 
   const USER_MANAGER = await getDeploymentAddress("UserManagerUpgradeable");
-  const whitelabel = process.env.WHITELABEL;
-
+  
   const addressKeys = [
     "VaultManager",
     "LiquidityManager",
@@ -50,7 +49,7 @@ async function deployProtocolConfig() {
     contractName: "ProtocolConfigUpgradeable",
     displayName: "ProtocolConfig",
     initializeArgs,
-    saltPrefix: CONFIG.SALTS[whitelabel].PROTOCOL_CONFIG,
+    saltPrefix: CONFIG.SALTS.PROTOCOL_CONFIG,
     storageKey: "ProtocolConfigUpgradeable"
   });
 }
