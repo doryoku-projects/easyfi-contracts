@@ -3,6 +3,9 @@ const fs = require("fs");
 const path = require("path");
 const CONFIG = require("./config");
 
+const app_env = process.env.APP_ENV
+const DEPLOYMENTS_FILE = path.join(__dirname, `../deployments.${app_env}.json`);
+
 async function storeDeployment(contractName, address) {
     if(APP_ENV === "development") return;
     if (!fs.existsSync(DEPLOYMENTS_FILE)) {
@@ -25,7 +28,6 @@ async function storeDeployment(contractName, address) {
     fs.writeFileSync(DEPLOYMENTS_FILE, JSON.stringify(masterDeployments, null, 2));
 }
 
-const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
 async function deployFactory() {
     const { WALLETS } = CONFIG;
