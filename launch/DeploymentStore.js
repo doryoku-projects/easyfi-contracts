@@ -1,8 +1,8 @@
 const { ethers } = require("hardhat");
 const fs = require("fs");
 const path = require("path");
-
-const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
+const app_env = process.env.APP_ENV
+const DEPLOYMENTS_FILE = path.join(__dirname, `../deployments.${app_env}.json`);
 
 /**
  * Reads the entire master deployments file, initializes structures if needed.
