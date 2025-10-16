@@ -62,7 +62,7 @@ const config: HardhatUserConfig = {
     },
     base: {
       url: process.env.BASE_MAINNET_RPC_URL,
-      accounts: [`0x${process.env.MASTER_ADMIN_PRIVATE_KEY}`],
+      accounts: privateKeys,
       chainId: 8453,
     },
     mainnet: {

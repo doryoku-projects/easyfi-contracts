@@ -17,7 +17,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  * @title LiquidityHelperUpgradeable
  * @notice This contract is responsible of helping the LiquidityManager with some liquidity operations.
  */
-contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors {
+contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, LiquidityHelperErrors {
     using SafeERC20 for IERC20;
 
     IProtocolConfigUpgradeable private s_config;
@@ -32,6 +32,7 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
     event UserManagerSet();
 
     function initialize(address _protocolConfig, address _userManagerAddress) public initializer {
+        __UUPSUpgradeable_init();
         if (_protocolConfig == address(0)|| _userManagerAddress == address(0)){
             revert LH_ZERO_ADDRESS();
         }
@@ -154,9 +155,11 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
 
         uint256 tokenToSwap = leftoverAmount - tokenToMint;
 
+        uint256 balanceBefore = IERC20(tokenFrom).balanceOf(address(_oracleSwapInstance));
         IERC20(tokenFrom).safeTransfer(address(_oracleSwapInstance), tokenToSwap);
-
-        uint256 swappedAmount = _oracleSwapInstance.swapTokens(tokenFrom, tokenTo, fee, tokenToSwap, address(this));
+        uint256 actualTransferred = IERC20(tokenFrom).balanceOf(address(_oracleSwapInstance)) - balanceBefore;
+        
+        uint256 swappedAmount = _oracleSwapInstance.swapTokens(tokenFrom, tokenTo, fee, actualTransferred, address(this));
         if (swappedAmount == 0) revert LH_SWAP_RETURNED_ZERO();
 
         uint256 amount0Desired;
@@ -293,11 +296,12 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
                 tickLower,
                 tickUpper
             );
-            addedUsed0 = used0;
-            addedUsed1 = used1;
-            returnToken0 = ret0;
-            returnToken1 = ret1;
-        } else if (actualLeft1 > threshold) {
+            addedUsed0 += used0;
+            addedUsed1 += used1;
+            returnToken0 += ret0;
+            returnToken1 += ret1;
+        }
+        if (actualLeft1 > threshold) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
@@ -311,13 +315,17 @@ contract LiquidityHelperUpgradeable is UserAccessControl, LiquidityHelperErrors 
                 tickLower,
                 tickUpper
             );
-            addedUsed0 = used0;
-            addedUsed1 = used1;
-            returnToken0 = ret0;
-            returnToken1 = ret1;
-        } else {
-            returnToken0 = actualLeft0;
-            returnToken1 = actualLeft1;
+            addedUsed0 += used0;
+            addedUsed1 += used1;
+            returnToken0 += ret0;
+            returnToken1 += ret1;
+        }
+        if (actualLeft0 <= threshold) {
+            returnToken0 += actualLeft0;
+        }
+
+        if (actualLeft1 <= threshold) {
+            returnToken1 += actualLeft1;
         }
 
         if (returnToken0 > 0) {

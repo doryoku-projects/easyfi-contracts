@@ -8,7 +8,7 @@ import "./errors/ProtocolConfigErrors.sol";
  * @title ProtocolConfigUpgradeable
  * @notice Centralized storage for all protocol-wide addresses and numeric parameters.
  */
-contract ProtocolConfigUpgradeable is UserAccessControl, ProtocolConfigErrors {
+contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, ProtocolConfigErrors {
     mapping(bytes32 => address) private s_addresses;
     mapping(bytes32 => uint256) private s_uints;
 

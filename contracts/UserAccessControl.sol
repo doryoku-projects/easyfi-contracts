@@ -128,4 +128,12 @@ abstract contract UserAccessControl is UUPSUpgradeable, AccessControlErrors {
         if (s_userManager.isEmergency()) revert UAC_EMERGENCY_MODE_ACTIVE();
         _;
     }
+    /**
+     * @notice onEmergency modifier
+     * @dev This modifier checks if the contract is in emergency mode.
+     */
+    modifier onEmergency() {
+        if (!s_userManager.isEmergency()) revert UAC_NOT_IN_EMERGENCY_MODE();
+        _;
+    }
 }
