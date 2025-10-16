@@ -2,6 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
 const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+const CONFIG = require("../../launch/config");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -10,12 +11,13 @@ async function sleep(ms) {
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
   let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
+  let addressesPerChain;
 
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
 
-  const mainTokenAddress = process.env.MAIN_TOKEN_ADDRESS; // USDC
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH
+  let mainTokenAddress
+  let token0Address
   const poolId = "ui-232-122";
   const mintAmount = ethers.parseUnits("15", 6);
   const increaseAmount = ethers.parseUnits("10", 6);
@@ -40,6 +42,13 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
+    const network = await ethers.provider.getNetwork();
+    const chainId = Number(network.chainId);
+    addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+
+    mainTokenAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
 
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
@@ -282,7 +291,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     messageHash = ethers.solidityPackedKeccak256(
       ["address", "uint256", "address", "uint256", "uint256"],
-      [userWallet.address,chainId, userManagerAddress, halfBP, timestamp]
+      [userWallet.address, chainId, userManagerAddress, halfBP, timestamp]
     );
     signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 

@@ -6,7 +6,7 @@ async function deployProtocolConfig() {
   const { WALLETS, EXTERNAL, PROTOCOL, ADDRESSES_PER_CHAIN } = CONFIG;
 
   const USER_MANAGER = await getDeploymentAddress("UserManagerUpgradeable");
-
+  
   const addressKeys = [
     "VaultManager",
     "LiquidityManager",

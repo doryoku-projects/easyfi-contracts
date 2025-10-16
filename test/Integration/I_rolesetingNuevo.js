@@ -2,6 +2,8 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
 
+const CONFIG = require("../../launch/config");
+
 const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 describe("I_setRoles", async function () {
@@ -9,20 +11,16 @@ describe("I_setRoles", async function () {
   let userManagerGeneralAdmin, userManagerUserManager;
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
-
-  
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
-  const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
-  const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
-  const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3";
+  let addressesPerChain, token0Address, token1Address, ethPriceFeed, usdcPriceFeed;
 
   async function fundWallet() {
+
     console.log("Funding wallet...")
     const routerABI = [
       "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
     ];
 
-    const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
+    const UNISWAP_V3_ROUTER = addressesPerChain.SWAP_ROUTER_ADDRESS;
     const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
     const amountIn = ethers.parseEther("1");
     const params = [
@@ -41,6 +39,14 @@ describe("I_setRoles", async function () {
   }
 
   before(async function () {
+    const network = await ethers.provider.getNetwork();
+    const chainId = Number(network.chainId);
+    addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
+    token1Address = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
+    usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
+
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
     vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
