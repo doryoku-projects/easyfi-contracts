@@ -15,7 +15,7 @@ async function deployUpgradeableContract({
   const whitelabel = process.env.WHITELABEL;
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
-  const ContractFactory = await ethers.getContractFactory(contractName);
+  const ContractFactory = await ethers.getContractFactory(contractName, MasterAdmin);
   const implementation = await ContractFactory.deploy();
   await implementation.waitForDeployment();
   const implementationAddress = await implementation.getAddress();

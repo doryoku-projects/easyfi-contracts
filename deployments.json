@@ -1,0 +1,15 @@
+{
+  "proxyFactoryAddress": "0x4cE8A176CAf86C2aeB1cED948Cc92992EF9E5237",
+  "wadz_test1": {
+    "42161": {
+      "UserManagerUpgradeable": "0x56B32755Ab051fC04A2CFA4bCB713d948Ea862F9",
+      "ProtocolConfigUpgradeable": "0x7e40c03C62270D9E9BBccbEA347a569043752F3b",
+      "AggregatorUpgradeable": "0x64537aCC83E9E24947e4ac443C67F19525Dc4395",
+      "VaultUpgradeable": "0xdCc0eb68DE59e81553942c1447A51F8d35d289A0",
+      "LiquidityManagerUpgradeable": "0x3335E241Dd333fDb36a38D5935Ac1eEC9de76BE4",
+      "LiquidityHelperUpgradeable": "0x0E84509eEc93F4d2F819c15CB44d958221EA9aFa",
+      "OracleSwapUpgradeable": "0x90977BDaDE926a43Df8D58968AEb1FC49dbEDFE6",
+      "FundsManagerUpgradeable": "0xDd759226606011Be3cc1bcA75674d28628cd9Ebb"
+    }
+  }
+}
