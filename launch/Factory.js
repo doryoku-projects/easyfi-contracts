@@ -1,6 +1,30 @@
 const { ethers, run } = require("hardhat");
-const {storeDeployment} = require("./DeploymentStore")
+const fs = require("fs");
+const path = require("path");
 const CONFIG = require("./config");
+
+async function storeDeployment(contractName, address) {
+    if (!fs.existsSync(DEPLOYMENTS_FILE)) {
+            fs.writeFileSync(DEPLOYMENTS_FILE, JSON.stringify({}, null, 2));
+        }
+    
+        let masterDeployments = {};
+        if (fs.existsSync(DEPLOYMENTS_FILE)) {
+            try {
+                const content = fs.readFileSync(DEPLOYMENTS_FILE, "utf-8");
+                masterDeployments = JSON.parse(content);
+            } catch (e) {
+                console.warn("⚠️ Warning: Could not parse deployments.json. Starting fresh for this run.");
+            }
+        }
+    
+        masterDeployments[contractName] = address;
+    
+        // Write the entire master object back to the file
+        fs.writeFileSync(DEPLOYMENTS_FILE, JSON.stringify(masterDeployments, null, 2));
+}
+
+const DEPLOYMENTS_FILE = path.join(__dirname, "../deployments.json");
 
 async function deployFactory() {
     const { WALLETS } = CONFIG;
@@ -34,11 +58,11 @@ async function deployFactory() {
     }
 }
 
-module.exports = deployFactory;
+// module.exports = deployFactory;
 
-// deployFactory()
-//   .then(() => process.exit(0))
-//   .catch((error) => {
-//     console.error("   Deployment failed:", error);
-//     process.exit(1);
-//   });
+deployFactory()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("   Deployment failed:", error);
+    process.exit(1);
+  });
