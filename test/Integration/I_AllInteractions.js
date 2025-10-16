@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
