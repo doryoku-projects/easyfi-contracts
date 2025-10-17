@@ -41,21 +41,21 @@ async function upgradeContract({
     newImplementationAddress
   );
 
-  if (verifyContract && network.name !== "hardhat" && network.name !== "localhost") {
-    await newImplementation.deploymentTransaction().wait(6);
+  // if (verifyContract && network.name !== "hardhat" && network.name !== "localhost") {
+  //   await newImplementation.deploymentTransaction().wait(6);
     
-    try {
-      await run("verify:verify", {
-        address: newImplementationAddress,
-        constructorArguments: [],
-      });
-      console.log("✅ Verified\n");
-    } catch (error) {
-      if (!error.message.includes("Already Verified")) {
-        console.log("⚠️  Verification failed\n");
-      }
-    }
-  }
+  //   try {
+  //     await run("verify:verify", {
+  //       address: newImplementationAddress,
+  //       constructorArguments: [],
+  //     });
+  //     console.log("✅ Verified\n");
+  //   } catch (error) {
+  //     if (!error.message.includes("Already Verified")) {
+  //       console.log("⚠️  Verification failed\n");
+  //     }
+  //   }
+  // }
   
   return { proxyAddress, newImplementationAddress };
 }
