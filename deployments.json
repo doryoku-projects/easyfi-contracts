@@ -1,15 +1,15 @@
 {
   "proxyFactoryAddress": "0x4cE8A176CAf86C2aeB1cED948Cc92992EF9E5237",
-  "wadz_test1": {
+  "wadz_test2": {
     "42161": {
-      "UserManagerUpgradeable": "0x56B32755Ab051fC04A2CFA4bCB713d948Ea862F9",
-      "ProtocolConfigUpgradeable": "0x7e40c03C62270D9E9BBccbEA347a569043752F3b",
-      "AggregatorUpgradeable": "0x64537aCC83E9E24947e4ac443C67F19525Dc4395",
-      "VaultUpgradeable": "0xdCc0eb68DE59e81553942c1447A51F8d35d289A0",
-      "LiquidityManagerUpgradeable": "0x3335E241Dd333fDb36a38D5935Ac1eEC9de76BE4",
-      "LiquidityHelperUpgradeable": "0x0E84509eEc93F4d2F819c15CB44d958221EA9aFa",
-      "OracleSwapUpgradeable": "0x90977BDaDE926a43Df8D58968AEb1FC49dbEDFE6",
-      "FundsManagerUpgradeable": "0xDd759226606011Be3cc1bcA75674d28628cd9Ebb"
+      "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
+      "ProtocolConfigUpgradeable": "0x9366E6BE677858047d2AC2C0c173C076134aca2A",
+      "AggregatorUpgradeable": "0x01ED41BDE3BfA4548688FdA5D7940275b42188c2",
+      "VaultUpgradeable": "0x650fC7307F87A42F52EEAC743b177aa062af8d28",
+      "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
+      "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
+      "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
+      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967"
     }
   }
 }
