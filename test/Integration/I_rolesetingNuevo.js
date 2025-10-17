@@ -17,7 +17,7 @@ describe("I_setRoles", async function () {
 
     console.log("Funding wallet...")
     const routerABI = [
-      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
+      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
     ];
 
     const UNISWAP_V3_ROUTER = addressesPerChain.SWAP_ROUTER_ADDRESS;
@@ -28,7 +28,6 @@ describe("I_setRoles", async function () {
       token1Address,
       500,
       userWallet.address,
-      Math.floor(Date.now() / 1000) + 60 * 10,
       amountIn,
       0,
       0
