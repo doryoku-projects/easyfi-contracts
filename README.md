@@ -72,3 +72,13 @@ await upgradeContract({
   reinitializeArgs: [1000, "0xAddress"]
 });
 ```
+
+## Deploy and update role setting in s single script
+
+```bash
+# Makes the file executable so it can be run directly.
+chmod +x run.sh
+
+# Run the script
+./run.sh
+```
