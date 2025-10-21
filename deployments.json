@@ -19,5 +19,16 @@
       "LiquidityHelperUpgradeable": "0x9Bb1df2E22822b81526D0dbF1f004c35E07Ae381",
       "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5"
     }
+  },
+  "easyfi": {
+    "42161": {
+      "UserManagerUpgradeable": "0x0222182652806b40cD170c106B9101C13f09E1A6",
+      "ProtocolConfigUpgradeable": "0x071adF192775D411e71b598028B7690Dc0B6bC01",
+      "AggregatorUpgradeable": "0x58c17c70bEd7775f5A170A2f820a1aC8866fa5Cd",
+      "VaultUpgradeable": "0x8aa4C5c21938d0a0Db4F12e39AEAFE826FE9cfd3",
+      "LiquidityManagerUpgradeable": "0xa955fCF3A01d4F663568624c5d5CEE09399b1622",
+      "LiquidityHelperUpgradeable": "0x0FE19F17194EDf93d7CC5FF4d8caF48A23705fBf",
+      "OracleSwapUpgradeable": "0xFbe935bCCd283e9514e149B3099781411351B4F0"
+    }
   }
 }

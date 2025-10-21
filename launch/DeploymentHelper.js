@@ -1,5 +1,6 @@
 const { ethers } = require("hardhat");
 const { storeDeployment, getFactoryDeploymentAddress } = require("./DeploymentStore");
+const { WALLETS } = require("./config");
 
 /**
  * Generic UUPS proxy deployment using CREATE3
@@ -11,11 +12,12 @@ async function deployUpgradeableContract({
   saltPrefix,
   storageKey
 }) {
-  const [, MasterAdmin] = await ethers.getSigners();
+  const [Deployer, ] = await ethers.getSigners();
+  const masterAdminAddress = WALLETS.MASTER_ADMIN;
   const whitelabel = process.env.WHITELABEL;
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
-  const ContractFactory = await ethers.getContractFactory(contractName, MasterAdmin);
+  const ContractFactory = await ethers.getContractFactory(contractName, Deployer);
   const implementation = await ContractFactory.deploy();
   await implementation.waitForDeployment();
   const implementationAddress = await implementation.getAddress();
@@ -33,13 +35,13 @@ async function deployUpgradeableContract({
   const PROXY_SALT = ethers.keccak256(
     ethers.solidityPacked(
       ["string", "address"],
-      [salt, MasterAdmin.address]
+      [salt, masterAdminAddress]
     )
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
   const factoryAddress = await getFactoryDeploymentAddress();
-  const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(MasterAdmin);
+  const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(Deployer);
 
   const predictedProxyAddress = await proxyFactoryContract.getDeployed(PROXY_SALT);
   console.log(`Predicted proxy: ${predictedProxyAddress}`);
