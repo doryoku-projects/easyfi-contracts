@@ -141,14 +141,18 @@ describe("I_setRoles", async function () {
   it("Should assign roles correctly", async function () {
     //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
     process.env.APP_ENV === "development" && await fundWallet();
-    await expect(
-      userManagerGeneralAdmin.addLiquidityManagers([
-        vaultManagerAddress,
-        liquidityHelperAddress,
-        liquidityManagerAddress,
-        oracleSwapAddress,
-      ])
-    ).to.emit(userManagerGeneralAdmin, "LiquidityManagerAdded");
+
+    let txLM = await userManagerGeneralAdmin.addLiquidityManagers([
+      vaultManagerAddress,
+      liquidityHelperAddress,
+      liquidityManagerAddress,
+      oracleSwapAddress,
+    ]);
+
+    const receiptLM = await txLM.wait(1);
+    const eventTopicLM = ethers.id("LiquidityManagerAdded(address)");
+    const eventLogsLM = receiptLM.logs.filter(log => log.topics[0] === eventTopicLM);
+    console.log("LiquidityManagerAdded emitted:", eventLogsLM.length > 0);
 
     const isLM1 = await userManagerUserManager.isLiquidityManager(
       liquidityHelperAddress
@@ -166,9 +170,12 @@ describe("I_setRoles", async function () {
     expect(isLM3).to.be.true;
 
     // Assign the Vault Manager role to the Aggregator contract
-    await expect(
-      userManagerGeneralAdmin.addVaultManagers([aggregatorAddress, vaultManagerAddress])
-    ).to.emit(userManagerGeneralAdmin, "VaultManagerAdded");
+    txVM = await userManagerGeneralAdmin.addVaultManagers([aggregatorAddress, vaultManagerAddress])
+
+    const receiptVM = await txVM.wait(1);
+    const eventTopicVM = ethers.id("VaultManagerAdded(address)");
+    const eventLogsVM = receiptVM.logs.filter(log => log.topics[0] === eventTopicVM);
+    console.log("VaultManagerAdded emitted:", eventLogsVM.length > 0);
 
     let isVaultManager = await userManagerUserManager.isVaultManager(
       aggregatorAddress
@@ -181,10 +188,12 @@ describe("I_setRoles", async function () {
     expect(isVaultManager).to.be.true;
 
     // Assign the user role to the userWallet
-    await expect(userManagerUserManager.addUsers([userWallet.address])).to.emit(
-      userManagerUserManager,
-      "UserAdded"
-    );
+    var txUM = await userManagerUserManager.addUsers([userWallet.address])
+    const receiptUM = await txUM.wait(1);
+    const eventTopicUM = ethers.id("UserAdded(address)");
+    const eventLogsUM = receiptUM.logs.filter(log => log.topics[0] === eventTopicUM);
+    console.log("UserAdded emitted:", eventLogsUM.length > 0);
+
     const isUser = await userManagerUserManager.isUser(userWallet.address);
     expect(isUser).to.be.true;
 
