@@ -4,13 +4,15 @@ const { ethers } = require("hardhat");
 describe("I_EmergencyTransfers", function () {
     let provider, ownerWallet, userWallet;
     let VaultManager, LiquidityManager;
-    const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-
-    const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
+    let vaultManagerAddress, userManagerAddress
 
     const valid2FACode = "123456";
 
     before(async function () {
+
+      userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+      vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+
         // Get signers: assume the first is the master admin
         ownerWallet = new ethers.Wallet(
             process.env.MASTER_ADMIN_PRIVATE_KEY,

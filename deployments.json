@@ -1,0 +1,34 @@
+{
+  "proxyFactoryAddress": "0x4cE8A176CAf86C2aeB1cED948Cc92992EF9E5237",
+  "easyfi_test": {
+    "8453": {
+      "UserManagerUpgradeable": "0xdE18B7481BAAd6039A49aA3Bc08C2DF562674309",
+      "ProtocolConfigUpgradeable": "0xc51A644162c28B53A6178b87E37BeE5fb9c77C14",
+      "AggregatorUpgradeable": "0xf8e4178b2CF82A81021814E7C6BF056527E7E297",
+      "VaultUpgradeable": "0x57589b508e886A3D822d1c60Eb2Eed1c63706084",
+      "LiquidityManagerUpgradeable": "0xe80a0BA9F10C4C0b147C1F780C65848422a6C5E9",
+      "LiquidityHelperUpgradeable": "0x9Bb1df2E22822b81526D0dbF1f004c35E07Ae381",
+      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5"
+    },
+    "42161": {
+      "UserManagerUpgradeable": "0xdE18B7481BAAd6039A49aA3Bc08C2DF562674309",
+      "ProtocolConfigUpgradeable": "0xc51A644162c28B53A6178b87E37BeE5fb9c77C14",
+      "AggregatorUpgradeable": "0xf8e4178b2CF82A81021814E7C6BF056527E7E297",
+      "VaultUpgradeable": "0x57589b508e886A3D822d1c60Eb2Eed1c63706084",
+      "LiquidityManagerUpgradeable": "0xe80a0BA9F10C4C0b147C1F780C65848422a6C5E9",
+      "LiquidityHelperUpgradeable": "0x9Bb1df2E22822b81526D0dbF1f004c35E07Ae381",
+      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5"
+    }
+  },
+  "easyfi": {
+    "42161": {
+      "UserManagerUpgradeable": "0x0222182652806b40cD170c106B9101C13f09E1A6",
+      "ProtocolConfigUpgradeable": "0x071adF192775D411e71b598028B7690Dc0B6bC01",
+      "AggregatorUpgradeable": "0x58c17c70bEd7775f5A170A2f820a1aC8866fa5Cd",
+      "VaultUpgradeable": "0x8aa4C5c21938d0a0Db4F12e39AEAFE826FE9cfd3",
+      "LiquidityManagerUpgradeable": "0xa955fCF3A01d4F663568624c5d5CEE09399b1622",
+      "LiquidityHelperUpgradeable": "0x0FE19F17194EDf93d7CC5FF4d8caF48A23705fBf",
+      "OracleSwapUpgradeable": "0xFbe935bCCd283e9514e149B3099781411351B4F0"
+    }
+  }
+}

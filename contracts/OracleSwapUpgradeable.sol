@@ -5,7 +5,7 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "@uniswap/swap-router-contracts/contracts/interfaces/IV3SwapRouter.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -128,8 +128,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     /**
      * @dev Fetch swap router instance from central config.
      */
-    function _swapRouter() internal view returns (ISwapRouter) {
-        return ISwapRouter(s_config.getAddress(SWAP_ROUTER_KEY));
+    function _swapRouter() internal view returns (IV3SwapRouter) {
+        return IV3SwapRouter(s_config.getAddress(SWAP_ROUTER_KEY));
     }
 
     /**
@@ -189,7 +189,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         onlyLiquidityManager
         returns (uint256 actualReceived)
     {
-        ISwapRouter _swapRouterInstance = _swapRouter();
+        IV3SwapRouter _swapRouterInstance = _swapRouter();
         if (address(_swapRouterInstance) == address(0)) {
             revert OS_SWAP_ROUTER_NOT_SET();
         }
@@ -249,12 +249,11 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
             tokenIn: tokenIn,
             tokenOut: tokenOut,
             fee: fee,
             recipient: recipient,
-            deadline: block.timestamp,
             amountIn: amountIn,
             amountOutMinimum: computedAmountOutMinimum,
             sqrtPriceLimitX96: 0
@@ -264,7 +263,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         _swapRouterInstance.exactInputSingle(params);
         actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
 
-        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOut);
+        emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOutMinimum);
     }
 
     /**
