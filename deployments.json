@@ -30,5 +30,16 @@
       "LiquidityHelperUpgradeable": "0x0FE19F17194EDf93d7CC5FF4d8caF48A23705fBf",
       "OracleSwapUpgradeable": "0xFbe935bCCd283e9514e149B3099781411351B4F0"
     }
+  },
+  "syndfi": {
+    "42161": {
+      "UserManagerUpgradeable": "0x6f39EF0dA3f9F3F05328331AEb4bc6C4b67580f3",
+      "ProtocolConfigUpgradeable": "0x8Ee332b66BE6D77Becd52b1e4a175526eBcE2095",
+      "AggregatorUpgradeable": "0xF30CEa721718e72A46Dc1386852Caaa5B35239C0",
+      "VaultUpgradeable": "0x7cEA2c548FA4E206b076429A298c0440542b11CC",
+      "LiquidityManagerUpgradeable": "0xa56dCBd019fb7d4964Ad4d43187dfF2151bf2137",
+      "LiquidityHelperUpgradeable": "0x6dA91da76C6CB92006C22c85d9a21Ea60C08913d",
+      "OracleSwapUpgradeable": "0xBb6Fc2c922ff08De37698E0f02B62570fC851D03"
+    }
   }
 }
