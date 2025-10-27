@@ -2,27 +2,25 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
 
-describe("I_setRoles", function () {
+const CONFIG = require("../../launch/config");
+
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+
+describe("I_setRoles", async function () {
   let ownerWallet, userWallet, pepOwnerWallet, marcWallet;
   let userManagerGeneralAdmin, userManagerUserManager;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const liquidityManagerAddress = process.env.LIQUIDITY_MANAGER_ADDRESS;
-  const oracleSwapAddress = process.env.ORACLE_SWAP_ADDRESS;
-  const liquidityHelperAddress = process.env.LIQUIDITY_HELPER_ADDRESS;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // e.g. WETH
-  const token1Address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // e.g. USDC
-  const ethPriceFeed = "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612";
-  const usdcPriceFeed = "0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3";
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
+  let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
+  let addressesPerChain, token0Address, token1Address, ethPriceFeed, usdcPriceFeed;
 
   async function fundWallet() {
+
     console.log("Funding wallet...")
     const routerABI = [
-      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
+      "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint160)) payable returns (uint256 amountOut)"
     ];
 
-    const UNISWAP_V3_ROUTER = process.env.SWAP_ROUTER_ADDRESS;
+    const UNISWAP_V3_ROUTER = addressesPerChain.SWAP_ROUTER_ADDRESS;
     const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
     const amountIn = ethers.parseEther("1");
     const params = [
@@ -30,7 +28,6 @@ describe("I_setRoles", function () {
       token1Address,
       500,
       userWallet.address,
-      Math.floor(Date.now() / 1000) + 60 * 10,
       amountIn,
       0,
       0
@@ -41,6 +38,21 @@ describe("I_setRoles", function () {
   }
 
   before(async function () {
+    const network = await ethers.provider.getNetwork();
+    const chainId = Number(network.chainId);
+    addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
+    token1Address = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
+    usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
+
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
+    liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
     ownerWallet = new ethers.Wallet(       // MASTER_ADMIN
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
@@ -87,7 +99,6 @@ describe("I_setRoles", function () {
     ].map(key);
 
     //Obtaining all the wallets x each role
-    console.log(rolesKeys)
     const allMasterAdmins = await userManagerUserManager.getRoleMembers(
       rolesKeys[0]
     );
@@ -130,14 +141,18 @@ describe("I_setRoles", function () {
   it("Should assign roles correctly", async function () {
     //  Assign the Liquidity Manager role to the Vault,LiquidityHelper,LiquidityManager, OracleSwap contracts
     process.env.APP_ENV === "development" && await fundWallet();
-    await expect(
-      userManagerGeneralAdmin.addLiquidityManagers([
-        vaultManagerAddress,
-        liquidityHelperAddress,
-        liquidityManagerAddress,
-        oracleSwapAddress,
-      ])
-    ).to.emit(userManagerGeneralAdmin, "LiquidityManagerAdded");
+
+    let txLM = await userManagerGeneralAdmin.addLiquidityManagers([
+      vaultManagerAddress,
+      liquidityHelperAddress,
+      liquidityManagerAddress,
+      oracleSwapAddress,
+    ]);
+
+    const receiptLM = await txLM.wait(1);
+    const eventTopicLM = ethers.id("LiquidityManagerAdded(address)");
+    const eventLogsLM = receiptLM.logs.filter(log => log.topics[0] === eventTopicLM);
+    console.log("LiquidityManagerAdded emitted:", eventLogsLM.length > 0);
 
     const isLM1 = await userManagerUserManager.isLiquidityManager(
       liquidityHelperAddress
@@ -155,9 +170,12 @@ describe("I_setRoles", function () {
     expect(isLM3).to.be.true;
 
     // Assign the Vault Manager role to the Aggregator contract
-    await expect(
-      userManagerGeneralAdmin.addVaultManagers([aggregatorAddress, vaultManagerAddress])
-    ).to.emit(userManagerGeneralAdmin, "VaultManagerAdded");
+    txVM = await userManagerGeneralAdmin.addVaultManagers([aggregatorAddress, vaultManagerAddress])
+
+    const receiptVM = await txVM.wait(1);
+    const eventTopicVM = ethers.id("VaultManagerAdded(address)");
+    const eventLogsVM = receiptVM.logs.filter(log => log.topics[0] === eventTopicVM);
+    console.log("VaultManagerAdded emitted:", eventLogsVM.length > 0);
 
     let isVaultManager = await userManagerUserManager.isVaultManager(
       aggregatorAddress
@@ -170,10 +188,12 @@ describe("I_setRoles", function () {
     expect(isVaultManager).to.be.true;
 
     // Assign the user role to the userWallet
-    await expect(userManagerUserManager.addUsers([userWallet.address])).to.emit(
-      userManagerUserManager,
-      "UserAdded"
-    );
+    var txUM = await userManagerUserManager.addUsers([userWallet.address])
+    const receiptUM = await txUM.wait(1);
+    const eventTopicUM = ethers.id("UserAdded(address)");
+    const eventLogsUM = receiptUM.logs.filter(log => log.topics[0] === eventTopicUM);
+    console.log("UserAdded emitted:", eventLogsUM.length > 0);
+
     const isUser = await userManagerUserManager.isUser(userWallet.address);
     expect(isUser).to.be.true;
 

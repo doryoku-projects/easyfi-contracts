@@ -48,7 +48,7 @@ interface IVaultManagerUpgradeable {
         external
         view
         returns (UserInfo memory _userInfo);
-     
+    
 
     function getUserPackageInfo(address user, uint256 packageId)
         external
@@ -61,6 +61,6 @@ interface IVaultManagerUpgradeable {
 
     function getUserPackage(address user) external view returns (UserInfo memory);
 
-    function withdrawFunds(address user) external;
+    function withdrawFunds(address user, string calldata poolId, uint256 packageId) external;
 
 }

@@ -23,7 +23,7 @@ interface IUserManagerUpgradeable {
     function addUsersManager(address[] calldata usersManager) external returns (bool);
 
     function removeUsersManager(address[] calldata usersManager) external returns (bool);
- 
+
     function isUserManager(address user) external view returns (bool);
 
     function addLiquidityManagers(address[] calldata liquidityManagers) external returns (bool);

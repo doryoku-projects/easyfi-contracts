@@ -1,6 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 require("dotenv").config();
+const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+const CONFIG = require("../../launch/config");
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,12 +11,13 @@ async function sleep(ms) {
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
   let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
-  const aggregatorAddress = process.env.AGGREGATOR_ADDRESS;
-  const vaultManagerAddress = process.env.VAULT_MANAGER_ADDRESS;
-  const userManagerAddress = process.env.USER_MANAGER_ADDRESS;
-  const liquidityManagerAddr = process.env.LIQUIDITY_MANAGER_ADDRESS;
-  const mainTokenAddress = process.env.MAIN_TOKEN_ADDRESS; // USDC
-  const token0Address = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH
+  let addressesPerChain;
+
+  let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
+  let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
+
+  let mainTokenAddress
+  let token0Address
   const poolId = "ui-232-122";
   const mintAmount = ethers.parseUnits("15", 6);
   const increaseAmount = ethers.parseUnits("10", 6);
@@ -32,6 +35,21 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   }
 
   before(async function () {
+
+    userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
+    oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
+    liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
+    aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+
+    const network = await ethers.provider.getNetwork();
+    const chainId = Number(network.chainId);
+    addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+
+    mainTokenAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
+
     ownerWallet = new ethers.Wallet(
       process.env.MASTER_ADMIN_PRIVATE_KEY,
       ethers.provider
@@ -68,7 +86,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     );
     LiquidityManager = await ethers.getContractAt(
       "LiquidityManagerUpgradeable",
-      liquidityManagerAddr,
+      liquidityManagerAddress,
       marcWallet
     );
     MainToken = await ethers.getContractAt(
@@ -99,6 +117,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
+    await VaultManager.connect(marcWallet).setPackageCap(100000000000, 300000000000, 5000);
+    await VaultManager.connect(marcWallet).setPackageCap(200000000000, 600000000000, 6000);
     await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 1);
     // ————— 3) Mint (10k) —————
     const isUser = await UserManager.isUser(userWallet.address);
@@ -235,9 +255,12 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     let timestamp = block.timestamp + 300;
     console.log("Current block timestamp:", timestamp);
 
+    const network = await ethers.provider.getNetwork();
+    const chainId = network.chainId;
+
     let messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, 0, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address, chainId, userManagerAddress, 0, timestamp]
     );
     let signature = await userWallet.signMessage(ethers.getBytes(messageHash));
     await UserManager.connect(marcWallet).set2FA(
@@ -267,8 +290,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Current block timestamp:", timestamp);
 
     messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, halfBP, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address, chainId, userManagerAddress, halfBP, timestamp]
     );
     signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 
@@ -308,8 +331,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Current block timestamp:", timestamp);
 
     messageHash = ethers.solidityPackedKeccak256(
-      ["address", "uint256", "uint256"],
-      [userWallet.address, fullBP, timestamp]
+      ["address", "uint256", "address", "uint256", "uint256"],
+      [userWallet.address, chainId, userManagerAddress, fullBP, timestamp]
     );
     signature = await userWallet.signMessage(ethers.getBytes(messageHash));
 
