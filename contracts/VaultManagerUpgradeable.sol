@@ -332,6 +332,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             if (newTotal > packageInfo[user][packageId].liquidityCapLimit) {
                 revert VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
             }
+        } else {
+            revert VM_LIQUIDITY_CAP_NOT_SET();
         }
     }
 
@@ -378,7 +380,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
                     _userInfo.tickLower == tickLower
                         && _userInfo.tickUpper == tickUpper
                 )
-            ) revert VM_RANGE_MISMATCH(); 
+            ) revert VM_RANGE_MISMATCH();
             
             if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
             
