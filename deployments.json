@@ -41,5 +41,16 @@
       "LiquidityHelperUpgradeable": "0x6dA91da76C6CB92006C22c85d9a21Ea60C08913d",
       "OracleSwapUpgradeable": "0xBb6Fc2c922ff08De37698E0f02B62570fC851D03"
     }
+  },
+  "finode": {
+    "42161": {
+      "UserManagerUpgradeable": "0x500169E3e35F74E200A4b0c30A42990657975F34",
+      "ProtocolConfigUpgradeable": "0xFE381061937F1991d361Da55A6595E33a83F6909",
+      "AggregatorUpgradeable": "0xB4853985c14bD2296B058daAE4abD90840a19B39",
+      "VaultUpgradeable": "0xc19F0719E8d0738Bb82E24f37409Aa2971d57e67",
+      "LiquidityManagerUpgradeable": "0x763D19B2a0a908C5856D323Fa93b359F4d4852Ad",
+      "LiquidityHelperUpgradeable": "0x490f4C939593068c6Ca25b90B6cC0ceebC5E6C37",
+      "OracleSwapUpgradeable": "0x11146cd076CdD48B958BE6D24B965484AF47E38f"
+    }
   }
 }
