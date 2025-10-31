@@ -29,6 +29,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant CFG_THRESHOLD = keccak256("ThresholdLimit");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -41,6 +42,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        bool thresholdPassed;
     }
 
     mapping(address => mapping(bytes32 => UserInfo)) private userInfo;
@@ -241,6 +243,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
+     * @notice Returns the client address.
+     * @return address client.
+     */
+    function _threshold() internal view returns (uint256) {
+        return s_config.getUint(CFG_THRESHOLD);
+    }
+
+    /**
      * @dev Reset stored user position info for a pool to defaults.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
@@ -281,6 +291,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 amountMainTokenDesired,
         address userAddress
     ) external onlyVaultManager notEmergency returns (uint256 tokenId) {
+        bytes32 poolIdHash = _formatPoolId(poolId);
+        UserInfo storage _userInfo = userInfo[userAddress][poolIdHash];
+        if (!_userInfo.thresholdPassed) {
+            uint256 threshold = _threshold();
+           if (amountMainTokenDesired < threshold) {
+                revert VM_MINIMUM_THRESHOLD_NOT_MET();
+            }
+        }
         IERC20 mainToken = _mainToken();
 
         uint256 balanceBefore = mainToken.balanceOf(address(this));
@@ -289,10 +307,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         mainToken.safeIncreaseAllowance(address(_liquidityManager()), actualReceived);
 
-        bytes32 poolIdHash = _formatPoolId(poolId);
-
- 
-        UserInfo memory _userInfo = userInfo[userAddress][poolIdHash];
         if (_userInfo.tokenId != 0) {
             if (
                 !(
@@ -352,7 +366,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             tickLower: int128(tickLower),
             tickUpper: int128(tickUpper),
             feeToken0: 0,
-            feeToken1: 0
+            feeToken1: 0,
+            thresholdPassed: true
         });
 
         userInfo[userAddress][poolIdHash] = newPosition;
@@ -426,6 +441,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             .collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePctInstance, send);
 
             s_companyFees += companyTax;
+            userInfo[user][poolIdHash].thresholdPassed = false;
         } else {
             (uint256 collected0, uint256 collected1,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);

@@ -52,4 +52,8 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when the provided token does not match the expected token
      */
     error VM_TOKEN_MISMATCH();
+    /**
+     * @notice Thrown when the threshold is exceeded
+     */
+    error VM_MINIMUM_THRESHOLD_NOT_MET();
 }

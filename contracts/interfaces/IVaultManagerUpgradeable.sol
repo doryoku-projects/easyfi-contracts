@@ -11,6 +11,7 @@ interface IVaultManagerUpgradeable {
         int128 tickUpper;
         uint256 feeToken0;
         uint256 feeToken1;
+        bool thresholdPassed;
     }
 
     function mintOrIncreaseLiquidityPosition(
