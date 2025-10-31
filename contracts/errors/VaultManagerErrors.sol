@@ -72,4 +72,8 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when the PC percentage value exceeds the allowed maximum
      */
     error VM_PERCENTAGE_OVERFLOW();
+    /**
+     * @notice Thrown when the threshold is exceeded
+     */
+    error VM_MINIMUM_THRESHOLD_NOT_MET();
 }
