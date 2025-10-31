@@ -13,6 +13,7 @@ interface IVaultManagerUpgradeable {
         uint256 feeToken1;
         uint256 collectedFees;
         uint256 depositLiquidity;
+        bool thresholdPassed;
     }
 
     struct PackageInfo {

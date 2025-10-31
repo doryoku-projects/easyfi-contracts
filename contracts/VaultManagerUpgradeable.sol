@@ -31,6 +31,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant CFG_FUNDS_MANAGER = keccak256("FundsManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant CFG_THRESHOLD = keccak256("ThresholdLimit");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -45,6 +46,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 feeToken1;
         uint256 collectedFees;
         uint256 depositLiquidity;
+        bool thresholdPassed;
     }
 
     struct PackageInfo {
@@ -296,6 +298,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
+     * @notice Returns the client address.
+     * @return address client.
+     */
+    function _threshold() internal view returns (uint256) {
+        return s_config.getUint(CFG_THRESHOLD);
+    }
+
+    /**
      * @dev Reset stored user position info for a pool to defaults.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
@@ -359,6 +369,16 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 amountMainTokenDesired,
         address userAddress
     ) external onlyVaultManager notEmergency returns (uint256 tokenId) {
+        bytes32 poolIdHash = _formatPoolId(poolId);
+        UserInfo storage _userInfo = userInfo[userAddress][packageId][poolIdHash];
+        if (!_userInfo.thresholdPassed) {
+            uint256 threshold = _threshold();
+           if (amountMainTokenDesired < threshold) {
+                revert VM_MINIMUM_THRESHOLD_NOT_MET();
+            }
+            _userInfo.thresholdPassed = true;
+        }
+            
         _checkLiquidityCap(userAddress, poolId, packageId, amountMainTokenDesired);
         IERC20 mainToken = _mainToken();
 
@@ -368,9 +388,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         mainToken.safeIncreaseAllowance(address(_liquidityManager()), actualReceived);
 
-        bytes32 poolIdHash = _formatPoolId(poolId);
 
-        UserInfo storage _userInfo = userInfo[userAddress][packageId][poolIdHash];
 
         if (_userInfo.tokenId != 0) {
             if (
@@ -505,6 +523,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             .collectFeesFromPosition(tokenId, isAdmin ? _fundsManager() : user, storedFee0, storedFee1, _companyFeePctInstance, send);
             _updateFees(user, poolIdHash, packageId, collectedMainToken);
             s_companyFees += companyTax;
+            userInfo[user][packageId][poolIdHash].thresholdPassed = false;
         } else {
             (uint256 collected0, uint256 collected1, ,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
