@@ -72,4 +72,8 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when the PC percentage value exceeds the allowed maximum
      */
     error VM_PERCENTAGE_OVERFLOW();
+    /**
+     * @notice Thrown when the liquidity cap is not set for a package
+     */
+    error VM_LIQUIDITY_CAP_NOT_SET();
 }

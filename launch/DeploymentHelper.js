@@ -11,12 +11,17 @@ async function deployUpgradeableContract({
   saltPrefix,
   storageKey
 }) {
-  const [, MasterAdmin] = await ethers.getSigners();
+  const [deployer, MasterAdmin] = await ethers.getSigners();
+
   const whitelabel = process.env.WHITELABEL;
   console.log(`[DEPLOY] ${displayName || contractName}...`);
 
-  const ContractFactory = await ethers.getContractFactory(contractName, MasterAdmin);
-  const implementation = await ContractFactory.deploy();
+  // Get current nonce from network to avoid cache issues
+  const currentNonce = await ethers.provider.getTransactionCount(deployer.address, 'latest');
+  console.log(`Current deployer nonce: ${currentNonce}`);
+
+  const ContractFactory = await ethers.getContractFactory(contractName, deployer);
+  const implementation = await ContractFactory.deploy({ nonce: currentNonce });
   await implementation.waitForDeployment();
   const implementationAddress = await implementation.getAddress();
 
@@ -33,27 +38,32 @@ async function deployUpgradeableContract({
   const PROXY_SALT = ethers.keccak256(
     ethers.solidityPacked(
       ["string", "address"],
-      [salt, MasterAdmin.address]
+      [salt, deployer.address]
     )
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
   const factoryAddress = await getFactoryDeploymentAddress();
-  const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(MasterAdmin);
+  const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(deployer);
 
   const predictedProxyAddress = await proxyFactoryContract.getDeployed(PROXY_SALT);
   console.log(`Predicted proxy: ${predictedProxyAddress}`);
 
+  // Get fresh nonce for proxy deployment (implementation used currentNonce)
+  const proxyNonce = await ethers.provider.getTransactionCount(deployer.address, 'latest');
+  console.log(`Proxy deployment nonce: ${proxyNonce}`);
+
   const tx = await proxyFactoryContract.deploy(
     implementationAddress,
     initData,
-    PROXY_SALT
+    PROXY_SALT,
+    { nonce: proxyNonce }
   );
   const receipt = await tx.wait();
   console.log(`Gas used: ${receipt.gasUsed.toString()}`);
 
   await storeDeployment(storageKey || contractName, predictedProxyAddress);
-  
+
   return predictedProxyAddress;
 }
 
@@ -73,7 +83,7 @@ async function updateProtocolConfigAddresses({
   addressMapping
 }) {
 
-  const [, owner, marcWallet, pepOwnerWallet] = await ethers.getSigners();
+  const [deployer, owner, marcWallet, pepOwnerWallet] = await ethers.getSigners();
 
   const ProtocolConfigContract = await ethers.getContractAt(
     "ProtocolConfigUpgradeable",
@@ -108,7 +118,7 @@ async function updateProtocolConfigAddresses({
 
     const isAdmin = await userManagerContract.connect(pepOwnerWallet).isMasterAdmin(owner.address);
     console.log(`Signer is master admin: ${isAdmin}`);
-    
+
     if (!isAdmin) {
       console.log(`❌ Cannot set ${key}, signer not MasterAdmin`);
       continue;

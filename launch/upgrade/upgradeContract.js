@@ -40,22 +40,6 @@ async function upgradeContract({
     `${proxyStorageKey}_impl_${Date.now()}`,
     newImplementationAddress
   );
-
-  // if (verifyContract && network.name !== "hardhat" && network.name !== "localhost") {
-  //   await newImplementation.deploymentTransaction().wait(6);
-    
-  //   try {
-  //     await run("verify:verify", {
-  //       address: newImplementationAddress,
-  //       constructorArguments: [],
-  //     });
-  //     console.log("✅ Verified\n");
-  //   } catch (error) {
-  //     if (!error.message.includes("Already Verified")) {
-  //       console.log("⚠️  Verification failed\n");
-  //     }
-  //   }
-  // }
   
   return { proxyAddress, newImplementationAddress };
 }
