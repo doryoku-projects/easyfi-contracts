@@ -17,7 +17,14 @@
       "VaultUpgradeable": "0x57589b508e886A3D822d1c60Eb2Eed1c63706084",
       "LiquidityManagerUpgradeable": "0xe80a0BA9F10C4C0b147C1F780C65848422a6C5E9",
       "LiquidityHelperUpgradeable": "0x9Bb1df2E22822b81526D0dbF1f004c35E07Ae381",
-      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5"
+      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5",
+      "AggregatorUpgradeable_impl_1763365910012": "0xaA0Ff50DC98336d95E69ACBB53367ecAbb976aD3",
+      "LiquidityHelperUpgradeable_impl_1763366216781": "0xb27C0992033aeAB1196c04f40e1f2D4189B0a487",
+      "OracleSwapUpgradeable_impl_1763366236026": "0x4D7e6Ec33933188FdB852cE847bD5143B1Dea19D",
+      "ProtocolConfigUpgradeable_impl_1763366282906": "0x089477794CCcB28E3041BC64E4817F68782D1232",
+      "UserManagerUpgradeable_impl_1763366292463": "0x62761d6b9A1f60dBF5a319c345e036eFAEEF078A",
+      "VaultUpgradeable_impl_1763366378597": "0x1Ad621bb1c4be264691EFF3a3C255E540024dcB7",
+      "LiquidityManagerUpgradeable_impl_1763366462826": "0xff29EAF7Bfee3F7C4C6f97382164B4000Cf61AfD"
     }
   },
   "easyfi": {
