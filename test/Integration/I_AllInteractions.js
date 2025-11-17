@@ -42,6 +42,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
+    protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
 
     const network = await ethers.provider.getNetwork();
     const chainId = Number(network.chainId);
@@ -94,6 +95,11 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       mainTokenAddress,
       userWallet
     );
+    ProtocolConfig = await ethers.getContractAt(
+      "ProtocolConfigUpgradeable",
+      protocolConfigAddress,
+      ownerWallet
+    );
     WETH = await ethers.getContractAt("IERC20", token0Address, userWallet);
 
     // ————— 1) Grant USER_ROLE to testWallet —————
@@ -116,6 +122,10 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     const balETH0 = await ethers.provider.getBalance(userWallet.address);
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
+    
+    const keyCompany = ethers.keccak256(ethers.toUtf8Bytes("ThresholdLimit"));
+    const tx = await ProtocolConfig.setUint(keyCompany, 20000000);
+    await tx.wait();
 
     // ————— 3) Mint (10k) —————
     const isUser = await UserManager.isUser(userWallet.address);
