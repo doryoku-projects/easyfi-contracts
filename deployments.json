@@ -8,7 +8,9 @@
       "VaultUpgradeable": "0x57589b508e886A3D822d1c60Eb2Eed1c63706084",
       "LiquidityManagerUpgradeable": "0xe80a0BA9F10C4C0b147C1F780C65848422a6C5E9",
       "LiquidityHelperUpgradeable": "0x9Bb1df2E22822b81526D0dbF1f004c35E07Ae381",
-      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5"
+      "OracleSwapUpgradeable": "0xAEeF307d646adD4735C2fCac3B5a7E9b9e07D2c5",
+      "OracleSwapUpgradeable_impl_1763400825757": "0x3864B3b4394b0369D73D0E966fc0E8db276057D3",
+      "LiquidityManagerUpgradeable_impl_1763401789902": "0x81470aa77FB250e12F19C505514384481C501729"
     },
     "42161": {
       "UserManagerUpgradeable": "0xdE18B7481BAAd6039A49aA3Bc08C2DF562674309",
