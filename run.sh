@@ -1,4 +1,3 @@
-
 #!/bin/bash
 set -e  # exit on error
 
@@ -6,9 +5,9 @@ set -e  # exit on error
 # npx hardhat run ./launch/factory.js --network localhost
 
 echo "🚀 Step 2: Deploy with contracts..."
-npx cross-env WHITELABEL="finode" hardhat run ./launch/deployAll.js --network arbitrumOne                 
+npx cross-env WHITELABEL="syndfi" hardhat run ./launch/deployAll.js --network base                 
 
 echo "🧪 Step 3: Run role setting updates..."
-npx cross-env WHITELABEL="finode" hardhat test test/Integration/I_rolesetingNuevo.js --network arbitrumOne
+npx cross-env WHITELABEL="syndfi" hardhat test test/Integration/I_rolesetingNuevo.js --network base
 
 echo "✅ Done! Contracts upgraded and tested successfully."

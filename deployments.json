@@ -30,6 +30,15 @@
     }
   },
   "easyfi": {
+    "8453": {
+      "UserManagerUpgradeable": "0xB96F1Ecf3ee65Fe6FB8191586846DfC0C49204D8",
+      "ProtocolConfigUpgradeable": "0xE67089F38eF8166e8677c159a4e0D8fA0eCB3d24",
+      "AggregatorUpgradeable": "0xec202E940086785ce9C030850D136d0627df9F0D",
+      "VaultUpgradeable": "0xAEB83C4AA001B855f3E7A3308A2b922Ed45a067a",
+      "LiquidityManagerUpgradeable": "0xf8bbDA9B3a75B1ab3a6FD4DF9A0E9B2A0Bc06332",
+      "LiquidityHelperUpgradeable": "0x929644ba6134D2EC21195cEb6aBa42071BFCa0EE",
+      "OracleSwapUpgradeable": "0xf45e9F363d1c7fF766BD8f8C98Ce9Cc216621E85"
+    },
     "42161": {
       "UserManagerUpgradeable": "0x0222182652806b40cD170c106B9101C13f09E1A6",
       "ProtocolConfigUpgradeable": "0x071adF192775D411e71b598028B7690Dc0B6bC01",
@@ -41,6 +50,15 @@
     }
   },
   "syndfi": {
+    "8453": {
+      "UserManagerUpgradeable": "0xcEa6Da330B311759fC28d176Fea28f848271988A",
+      "ProtocolConfigUpgradeable": "0x3D018D4dd64A0C33B2dF4402421542411218FfAc",
+      "AggregatorUpgradeable": "0xFf0F2726b56c537a1cfE52e9c283342569CE05BD",
+      "VaultUpgradeable": "0xd680192DaaE8E6249c9c8B2DFF7e0e203854048f",
+      "LiquidityManagerUpgradeable": "0x676182A2cD34b000Cbd788F60A54252eaBf6029E",
+      "LiquidityHelperUpgradeable": "0x589d8e3F59C534386DF31a5f3d58BEC63ff9BB42",
+      "OracleSwapUpgradeable": "0xbb5fa1c80674fAba555072CF60317113d3b1C7F8"
+    },
     "42161": {
       "UserManagerUpgradeable": "0x6f39EF0dA3f9F3F05328331AEb4bc6C4b67580f3",
       "ProtocolConfigUpgradeable": "0x8Ee332b66BE6D77Becd52b1e4a175526eBcE2095",
@@ -52,6 +70,15 @@
     }
   },
   "finode": {
+    "8453": {
+      "UserManagerUpgradeable": "0x5d5b4A1c80423E18847582b6bdb317F2F573FDc9",
+      "ProtocolConfigUpgradeable": "0x446B7A9b03f8fb067A6bfd40116081215ACDe6A4",
+      "AggregatorUpgradeable": "0xf1835E59b2C3F7E2e6CEEE0A48eA9988d54aCCB5",
+      "VaultUpgradeable": "0x4f4f1e209caEfFea0b716c21Bf4c3aFa4a1191b0",
+      "LiquidityManagerUpgradeable": "0xa55660e214fb39d24D1FC800fA7521923F2A6956",
+      "LiquidityHelperUpgradeable": "0x20968bB92DD637Fe5c2Ac4662612207200C72123",
+      "OracleSwapUpgradeable": "0xa2De108a2E92Ff27267e6015B7218883d221aCC8"
+    },
     "42161": {
       "UserManagerUpgradeable": "0x500169E3e35F74E200A4b0c30A42990657975F34",
       "ProtocolConfigUpgradeable": "0xFE381061937F1991d361Da55A6595E33a83F6909",
