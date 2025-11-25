@@ -7,6 +7,7 @@ interface IProtocolConfigUpgradeable {
         uint256 liquidityCap;
         uint256 feeCap;
         uint256 userFeesPct;
+        uint256 expiryTime;
     }
 
     function initialize(

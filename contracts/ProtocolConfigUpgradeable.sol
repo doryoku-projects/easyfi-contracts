@@ -14,6 +14,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         uint256 liquidityCap;
         uint256 feeCap;
         uint256 userFeesPct;
+        uint256 expiryTime;
     }
 
     uint256 private s_packageCounter;

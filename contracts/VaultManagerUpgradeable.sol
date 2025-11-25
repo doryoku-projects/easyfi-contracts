@@ -52,6 +52,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;
+        uint256 expiryTime;
     }
 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
@@ -70,7 +71,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     event UserInfoReset(address indexed user);
     event EmergencyERC20BatchWithdrawal(address indexed to);
     event EmergencyERC721BatchWithdrawal(address indexed to);
-    event UserPackageUpdated(address indexed user, uint256 packageId);
+    event UserPackageUpdated(address indexed user, uint256 packageId, uint256 expiryTime);
     event Withdrawn(address indexed user, uint256 amount);
     event LiquidityEvent(address indexed user, uint256 indexed packageId, uint256 amount);
 
@@ -326,10 +327,16 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 packageId,
         uint256 amount
     ) internal view {
-        if (packageInfo[user][packageId].liquidityCapLimit != 0) {
-            uint256 newTotal = userInfo[user][packageId][_formatPoolId(poolId)].depositLiquidity + amount;
+        
+        PackageInfo storage _packageInfo = packageInfo[user][packageId];
+        UserInfo storage _userInfo = userInfo[user][packageId][_formatPoolId(poolId)];
+        if (_packageInfo.liquidityCapLimit != 0) {
+            if(_packageInfo.expiryTime != 0 && _packageInfo.expiryTime < block.timestamp) {
+                revert VM_PACKAGE_EXPIRED();
+            }
+            uint256 newTotal = _userInfo.depositLiquidity + amount;
 
-            if (newTotal > packageInfo[user][packageId].liquidityCapLimit) {
+            if (newTotal > _packageInfo.liquidityCapLimit) {
                 revert VM_PACKAGE_LIQUIDITY_CAP_EXCEEDED();
             }
         } else {
@@ -776,7 +783,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         package.feeCapLimit = capInfo.feeCap;
         package.packageId = packageId;
         package.userFeePct = capInfo.userFeesPct;
-        emit UserPackageUpdated(user, packageId);
+        if (capInfo.expiryTime > 0) package.expiryTime = block.timestamp + capInfo.expiryTime;
+        emit UserPackageUpdated(user, packageId, package.expiryTime);
     }
 
     /**

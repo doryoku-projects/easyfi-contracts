@@ -20,6 +20,7 @@ interface IVaultManagerUpgradeable {
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;
+        uint256 expiryTime;
     }
 
     function mintOrIncreaseLiquidityPosition(
