@@ -1,82 +1,82 @@
 var hre = require("hardhat");
 const fs = require("fs");
 const path = require("path");
-let contractName = "UserManagerUpgradeable"; // replace with your contract name
-const abi = [
-  "function upgradeToAndCall(address newImplementation, bytes data)"
-];
+let contractName = "VaultManagerUpgradeable";
 
 var {default: SafeApi} = require("@safe-global/api-kit")
 var safe = require("@safe-global/protocol-kit")
 var {OperationType,MetaTransactionData} = require("@safe-global/types-kit");
 const { default: Safe, EthSafeSignature } = require("@safe-global/protocol-kit");
-async function newImplementation(){
-    let provider = new hre.ethers.JsonRpcProvider(process.env.ARBITRUM_MAINNET_RPC_URL);
-    let wallet = new hre.ethers.Wallet(process.env.MASTER_ADMIN_PRIVATE_KEY,provider);
-    let contract = await hre.ethers.getContractFactory(contractName,wallet);
-    let impl = await contract.deploy();
-    console.log("Deploying new implementation...");
-    await impl.waitForDeployment();
-    let newImp =  await impl.getAddress();
-    let iface = new hre.ethers.Interface(abi)
-    const data = "0x";
-    const calldata = iface.encodeFunctionData("upgradeToAndCall", [newImp, data]);
 
-    let dataToSave = {
-        newImplementation: newImp,
-        calldata: calldata
-    }
-    
-    const filePath = path.join(__dirname, `../${contractName}-rawData.json`);
-    fs.writeFileSync(filePath, JSON.stringify(dataToSave, null, 2));
-    console.log("Data saved to:", filePath);
+async function encodeEmergencyWithdraw() {
+  const provider = new hre.ethers.JsonRpcProvider(process.env.ARBITRUM_MAINNET_RPC_URL);
+  const wallet = new hre.ethers.Wallet(process.env.MASTER_ADMIN_PRIVATE_KEY, provider);
 
-    
-}   
+  const contractAddress = process.env.VAULT_MANAGER_ADDRESS;
+  const contract = await hre.ethers.getContractAt(contractName, contractAddress, wallet);
 
-async function execute() {
-  const safeAddress = "0x549BB741bDAE87872d0bb7082Ee6223D02644963"
-  const proposerAddress = "0x69531380bF6fFcc7aaA2d3e3e75b98a345bd4c10"
-  const proposerPrivateKey = ""
-  const RPC = process.env.ARBITRUM_MAINNET_RPC_URL
+  const tokens = [
+    "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  ];
+
+  const to = "0x0ca5D3f01A5534B516Dc9cEAC8D2C53de1245541";
+
+  const calldata = contract.interface.encodeFunctionData(
+    "emergencyERC20BatchWithdrawal",
+    [tokens, to]
+  );
+
+  const dataToSave = { calldata };
+  fs.writeFileSync(
+    path.join(__dirname, `../EmergencyWithdraw-rawData.json`),
+    JSON.stringify(dataToSave, null, 2)
+  );
+
+  console.log("✅ Encoded calldata saved.");
+}
+
+async function proposeEmergencyWithdraw() {
+  const safeAddress = "0x549BB741bDAE87872d0bb7082Ee6223D02644963";
+  const proposerAddress = "0x69531380bF6fFcc7aaA2d3e3e75b98a345bd4c10";
+  const proposerPrivateKey = "";
+  const RPC = process.env.ARBITRUM_MAINNET_RPC_URL;
 
   const protocolProposer = await Safe.init({
     provider: RPC,
     signer: proposerPrivateKey,
-    safeAddress: safeAddress,
+    safeAddress
   });
 
-  let rawData = fs.readFileSync("UserManagerUpgradeable-rawData.json");
-  let jsonData = JSON.parse(rawData);
-  console.log(jsonData)
+  const rawData = JSON.parse(fs.readFileSync("EmergencyWithdraw-rawData.json"));
+
   const safeTransactionData = {
-    to: process.env.USER_MANAGER_ADDRESS,
+    to: process.env.VAULT_MANAGER_ADDRESS,
     value: "0",
-    data: jsonData.calldata,
+    data: rawData.calldata,
     operation: OperationType.Call,
   };
 
-  const safeTransactions = await protocolProposer.createTransaction({
-    transactions: [safeTransactionData],
-  })
+  const safeTransaction = await protocolProposer.createTransaction({
+    transactions: [safeTransactionData]
+  });
 
   const apiKit = new SafeApi({
-    apiKey: process.env.SAFE_API_KEY,
-    chainId: 42161n
-  })
-  let safeTxHash = await protocolProposer.getTransactionHash(safeTransactions);
-  let senderSignature = await protocolProposer.signHash(safeTxHash);
-console.log("sender signature: ",senderSignature)
- let res =  await apiKit.proposeTransaction({
-  safeAddress,
-  safeTransactionData: safeTransactions.data,
-  safeTxHash,
-  senderAddress: proposerAddress,
-  senderSignature: senderSignature.data
-})
+    chainId: 42161n,
+    apiKey: process.env.SAFE_API_KEY
+  });
 
-console.log("result: ",res)
+  const safeTxHash = await protocolProposer.getTransactionHash(safeTransaction);
+  const senderSignature = await protocolProposer.signHash(safeTxHash);
 
+  await apiKit.proposeTransaction({
+    safeAddress,
+    safeTransactionData: safeTransaction.data,
+    safeTxHash,
+    senderAddress: proposerAddress,
+    senderSignature: senderSignature.data
+  });
+
+  console.log("✅ Transaction Proposed:", safeTxHash);
 }
 
 async function signPendingSafeTransaction() {
@@ -142,14 +142,14 @@ async function executeSafeTransaction() {
     const safeAddress = "0x549BB741bDAE87872d0bb7082Ee6223D02644963";
     const rpcUrl = process.env.ARBITRUM_MAINNET_RPC_URL;
     let provider = new hre.ethers.JsonRpcProvider(rpcUrl);
-    const executorPrivateKey = ""; // MUST be an owner OR delegate
+
+    const executorPrivateKey = "";
     
     const apiKit = new SafeApi({
-      chainId: 42161n, // Arbitrum
+      chainId: 42161n,
       apiKey: process.env.SAFE_API_KEY
     });
 
-    // 1) Fetch pending transaction
     const pending = await apiKit.getPendingTransactions(safeAddress);
 
     if (pending.results.length === 0) {
@@ -160,14 +160,14 @@ async function executeSafeTransaction() {
     const txInfo = pending.results[0];
     console.log("🚀 Executing safeTxHash:", txInfo.safeTxHash);
 
-    // 2) Reconstruct Safe + Transaction
+
     const safe = await Safe.init({
       safeAddress,
       provider: rpcUrl,
       signer: executorPrivateKey
     });
 
-    // Re-construct transaction data in the correct format
+
     const ZERO = "0x0000000000000000000000000000000000000000";
     const d = txInfo;
     const safeTransactionData = {
@@ -175,7 +175,7 @@ async function executeSafeTransaction() {
       value: d?.value ?? "0",
       data: d?.data ?? "0x",
       operation: d?.operation ?? 0,
-      safeTxGas: d?.safeTxGas ?? 0,
+      safeTxGas: d.safeTxGas ?? 0,
       baseGas: d?.baseGas ?? 0,
       gasPrice: d?.gasPrice ?? 0,
       gasToken: d?.gasToken ?? ZERO,
@@ -187,7 +187,6 @@ async function executeSafeTransaction() {
       transactions: [safeTransactionData]
     });
 
-    // 3) Combine existing signatures from Safe Transaction Service
     const signatureBundle = await apiKit.getTransactionConfirmations(txInfo.safeTxHash);
 
     for (const sig of signatureBundle.results) {
@@ -195,7 +194,6 @@ async function executeSafeTransaction() {
       safeTransaction.addSignature(safeSig);
     }
 
-    // 4) Execute
     const txResponse = await safe.executeTransaction(safeTransaction);
     console.log("⛽ Submitted tx:", txResponse.hash);
 
@@ -207,43 +205,25 @@ async function executeSafeTransaction() {
   }
 }
 
+encodeEmergencyWithdraw().then(() => process.exit(0)).catch((error) => {
+  console.error("Error in newImplementation:", error);
+  process.exit(1);
+});
 
-async function getUserMangerVersion(){
-      let provider = new hre.ethers.JsonRpcProvider(process.env.ARBITRUM_MAINNET_RPC_URL);
-    let wallet = new hre.ethers.Wallet(process.env.USER_MANAGER_PRIVATE_KEY,provider);
-    let contractAddress = process.env.USER_MANAGER_ADDRESS; // UserManagerUpgradeable
-    let contract = await hre.ethers.getContractAt("UserManagerUpgradeable",contractAddress,wallet);
-    let masterAdminBytes = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("MASTER_ADMIN_ROLE"));
-    console.log("Role Hash: ",masterAdminBytes);
-    let tx = await contract.connect(wallet).getRoleMembers(masterAdminBytes);
-    let tx2 = await contract.getVersion();
-    console.log("Version: ",tx2);
-    console.log("Master Admins: ",tx);
-}
-// newImplementation().then(() => process.exit(0)).catch((error) => {
-//   console.error("Error in newImplementation:", error);
-//   process.exit(1);
-// });
+proposeEmergencyWithdraw().then(() => process.exit(0)).catch((error) => {
+  console.error("Error in execute:", error);
+  process.exit(1);
+});
 
-// execute().then(() => process.exit(0)).catch((error) => {
-//   console.error("Error in execute:", error);
-//   process.exit(1);
-// });
-
-// signPendingSafeTransaction().then(() => process.exit(0)).catch((error) => {
-//   console.error("Error in signPendingSafeTransaction:", error);
-//   process.exit(1);
-// });
+signPendingSafeTransaction().then(() => process.exit(0)).catch((error) => {
+  console.error("Error in signPendingSafeTransaction:", error);
+  process.exit(1);
+});
 
 executeSafeTransaction().then(() => process.exit(0)).catch((error) => {
   console.error("Error in executeSafeTransaction:", error);
   process.exit(1);
 });
-
-// getUserMangerVersion().then(() => process.exit(0)).catch((error) => {
-//   console.error("Error in getUserMangerVersion:", error);
-//   process.exit(1);
-// });
 
 
 
