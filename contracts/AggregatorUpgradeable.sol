@@ -23,7 +23,7 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
     bytes32 private constant VAULT_KEY = keccak256("VaultManager");
     bytes32 private constant MAIN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
-    bytes32 private constant TWO_FA_REQUIRED_KEY = keccak256("TwoFARequired");
+    bytes32 private constant TWO_FA_REQUIRED_KEY = keccak256("2FARequired");
 
     uint256 private s_maxMigrationSize;
 
