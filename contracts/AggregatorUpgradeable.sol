@@ -23,6 +23,7 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
     bytes32 private constant VAULT_KEY = keccak256("VaultManager");
     bytes32 private constant MAIN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant TWO_FA_REQUIRED_KEY = keccak256("2FARequired");
 
     uint256 private s_maxMigrationSize;
 
@@ -174,7 +175,12 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         onlyUser
         notEmergency
     {
-        s_userManager.check2FA(msg.sender, code, percentageToRemove);
+        bool twoFARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
+
+        if (twoFARequired) {
+            s_userManager.check2FA(msg.sender, code, percentageToRemove);
+        }
+
         if (percentageToRemove == 0) revert AGG_ZERO_PERCENTAGE();
 
         uint256 bp = s_config.getUint(BP_KEY);
@@ -199,7 +205,11 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         notEmergency
         returns (uint256 collectedToken0, uint256 collectedToken1)
     {
-        s_userManager.check2FA(msg.sender, code, 0);
+        bool twoFARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
+
+        if (twoFARequired) {
+            s_userManager.check2FA(msg.sender, code, 0);
+        }
 
         IVaultManagerUpgradeable vault = _vaultManager();
 
