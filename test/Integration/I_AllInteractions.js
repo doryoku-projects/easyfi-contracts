@@ -37,7 +37,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   before(async function () {
 
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");

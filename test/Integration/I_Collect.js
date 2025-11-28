@@ -18,7 +18,7 @@ describe("I_Collect", function () {
   before(async function () {
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
     console.log("### ~ I_Collect.js:20 ~ userManagerAddress:", userManagerAddress);
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
     console.log("### ~ I_Collect.js:23 ~ aggregatorAddress:", aggregatorAddress);

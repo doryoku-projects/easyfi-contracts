@@ -4,7 +4,7 @@ require("dotenv").config();
 async function main() {
   const UserManagerUpgradeable = "0x3E74313B3EbCEdebe14A2D53d824b5e441a0CE4c";
   const ProtocolConfigUpgradeable = "0x0e40D9e07cFf8459c2a3AeB3624540F517aE26E6";
-  const VaultUpgradeable = "0x29f3e74d5985660673be13Fb777d417f520e524f";
+  const VaultManagerUpgradeable = "0x29f3e74d5985660673be13Fb777d417f520e524f";
   const LiquidityManagerUpgradeable = "0x00fb0D85f230055D66Faf2F2986dE197DE7aDCB2";
   const OracleSwapUpgradeable = "0xA642172faA8376dCc258f857f1d79ad0952CD9c3";
   const LiquidityHelperUpgradeable = "0x34e605B4CE38A5eb9aF3C941C514B9A776077632";
@@ -22,7 +22,7 @@ async function main() {
     "0x1000000000000000000", // some ETH
   ]);
 
-  let proxyAddress = VaultUpgradeable;
+  let proxyAddress = VaultManagerUpgradeable;
 
 
   const adminSigner = await ethers.getSigner(MainMasterAdmin);
@@ -66,7 +66,7 @@ console.log("New implementation address:", newImplementationAddress);
   );
   const Vault = await ethers.getContractAt(
     "VaultManagerUpgradeable",
-    VaultUpgradeable,
+    VaultManagerUpgradeable,
     myWallet
   );
 
@@ -140,7 +140,7 @@ const iface = new ethers.Interface([
 const data = iface.encodeFunctionData("withdrawCompanyFees", [valid2FACode]);
 
 const tx5 = await myWallet.sendTransaction({
-  to: VaultUpgradeable,
+  to: VaultManagerUpgradeable,
   data: data
 });
 
