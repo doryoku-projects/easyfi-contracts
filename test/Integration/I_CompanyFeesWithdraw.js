@@ -18,7 +18,7 @@ describe("I_CompanyFeesWithdraw", function () {
     before(async function () {
 
       userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-      vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+      vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
       aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
 
       const network = await ethers.provider.getNetwork();

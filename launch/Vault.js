@@ -17,7 +17,7 @@ async function deployVault() {
     displayName: "Vault",
     initializeArgs,
     saltPrefix: CONFIG.SALTS.VAULT,
-    storageKey: "VaultUpgradeable"
+    storageKey: "VaultManagerUpgradeable"
   });
 }
 

@@ -82,3 +82,22 @@ chmod +x run.sh
 # Run the script
 ./run.sh
 ```
+
+# To run the Upgrade Script via MultiSig
+
+- Update the commands like WHITELABEL, CONTRACT name and FUNCTION_NAME name.
+- Function name should be the function name in the script.
+
+```bash
+npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=newImplementation hardhat run scripts/UpgradeWithMultisig.js --network arbitrumOne
+```
+
+# To run the Call the Function Script via MultiSig
+
+- Update the token address "tokens" and recipient address "To" in the script
+- Function name should be the function name in the script.
+- Update the commands like contract name and function name
+
+```bash
+npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeEmergencyWithdraw hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
+```
