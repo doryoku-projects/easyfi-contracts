@@ -11,7 +11,7 @@ describe("I_EmergencyTransfers", function () {
     before(async function () {
 
       userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-      vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+      vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
 
         // Get signers: assume the first is the master admin
         ownerWallet = new ethers.Wallet(

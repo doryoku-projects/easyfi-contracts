@@ -11,7 +11,7 @@ describe("I_Collect", function () {
   const poolId = "ui-232-122";
   before(async function () {
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
     ownerWallet = new ethers.Wallet(
