@@ -89,7 +89,7 @@ chmod +x run.sh
 - Function name should be the function name in the script.
 
 ```bash
-npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=newImplementation hardhat run scripts/UpgradeWithMultisig.js --network arbitrumOne
+npx cross-env WHITELABEL="easyfi_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=newImplementation hardhat run scripts/UpgradeWithMultisig.js --network arbitrumOne
 ```
 
 # To run the Call the Function Script via MultiSig
@@ -99,5 +99,5 @@ npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTI
 - Update the commands like contract name and function name
 
 ```bash
-npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeEmergencyWithdraw hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
+npx cross-env WHITELABEL="easyfi_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeEmergencyWithdraw hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```
