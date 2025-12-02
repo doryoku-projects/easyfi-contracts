@@ -35,6 +35,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant WETH_KEY = keccak256("Weth");
 
     mapping(address => address) private s_tokenOracles;
 
@@ -249,19 +250,31 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: fee,
-            recipient: recipient,
-            amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum,
-            sqrtPriceLimitX96: 0
-        });
+        if(tokenIn == s_config.getAddress(WETH_KEY) || tokenOut == s_config.getAddress(WETH_KEY)) {
+            IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: fee,
+                recipient: recipient,
+                amountIn: amountIn,
+                amountOutMinimum: computedAmountOutMinimum,
+                sqrtPriceLimitX96: 0
+            });
 
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
         _swapRouterInstance.exactInputSingle(params);
         actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
+        } else {
+            IV3SwapRouter.ExactInputParams memory params = IV3SwapRouter.ExactInputParams({
+                path: abi.encodePacked(tokenIn, fee, tokenOut),
+                recipient: recipient,
+                amountIn: amountIn,
+                amountOutMinimum: computedAmountOutMinimum
+            });
+            uint256 balanceBefore = IERC20(tokenOut).balanceOf(recipient);
+            _swapRouterInstance.exactInput(params);
+            actualReceived = IERC20(tokenOut).balanceOf(recipient) - balanceBefore;
+        }
 
         emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOutMinimum);
     }
