@@ -47,7 +47,7 @@ describe("I_setRoles", async function () {
     usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
 
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
