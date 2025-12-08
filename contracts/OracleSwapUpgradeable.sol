@@ -150,8 +150,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     /**
      * @dev Basic points(BP) instance from central config.
      */
-    function _BP() internal view returns (uint16) {
-        return uint16(s_config.getUint(BP_KEY));
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
     }
 
     /**
@@ -250,7 +250,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-        if(tokenIn == s_config.getAddress(WETH_KEY) || tokenOut == s_config.getAddress(WETH_KEY)) {
             IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -264,17 +263,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
         _swapRouterInstance.exactInputSingle(params);
         actualReceived = IERC20(params.tokenOut).balanceOf(recipient) - balanceBefore;
-        } else {
-            IV3SwapRouter.ExactInputParams memory params = IV3SwapRouter.ExactInputParams({
-                path: abi.encodePacked(tokenIn, fee, tokenOut),
-                recipient: recipient,
-                amountIn: amountIn,
-                amountOutMinimum: computedAmountOutMinimum
-            });
-            uint256 balanceBefore = IERC20(tokenOut).balanceOf(recipient);
-            _swapRouterInstance.exactInput(params);
-            actualReceived = IERC20(tokenOut).balanceOf(recipient) - balanceBefore;
-        }
 
         emit TokensSwapped(tokenIn, tokenOut, amountIn, actualReceived, computedAmountOutMinimum);
     }
@@ -331,7 +319,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         int24 tickUpper,
         uint128 liquidityAmount
     ) external view onlyLiquidityManager returns (uint256 amount0Min, uint256 amount1Min) {
-        uint16 _bp = _BP();
+        uint256 _bp = _BP();
         address pool = _factory().getPool(token0, token1, fee);
         if (pool == address(0)) revert OS_POOL_NOT_EXIST();
 
