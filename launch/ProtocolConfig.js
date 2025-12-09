@@ -38,11 +38,12 @@ async function deployProtocolConfig() {
     ADDRESSES_PER_CHAIN[chainId].TOKEN0_ADDRESS
   ];
 
-  const uintKeys = ["BP", "CompanyFeePct", "ClientFeePct"].map(createConfigKey);
+  const uintKeys = ["BP", "CompanyFeePct", "ClientFeePct", "2FARequired"].map(createConfigKey);
   const uintValues = [
     PROTOCOL.BASE_POINT,
     PROTOCOL.COMPANY_FEE_PCT,
-    PROTOCOL.CLIENT_FEE_PCT
+    PROTOCOL.CLIENT_FEE_PCT,
+    PROTOCOL.TWO_FA_REQUIRED,
   ];
 
   const initializeArgs = [USER_MANAGER, addressKeys, addressValues, uintKeys, uintValues];
