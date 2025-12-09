@@ -85,7 +85,7 @@ chmod +x run.sh
 
 ### To run setting 2fa key for Protocol Config Contract
 ``` bash
-npx cross-env WHITELABEL="wadz" hardhat run .\scripts\set2faKey.js --network localhost
+npx cross-env WHITELABEL="wadz" hardhat run scripts\set2faKey.js --network localhost
 ```
 
 # To run the Upgrade Script via MultiSig

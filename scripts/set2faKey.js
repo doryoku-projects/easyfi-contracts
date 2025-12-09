@@ -6,6 +6,7 @@ async function main() {
     const [new_addr, owner , marcWallet,] = await ethers.getSigners();
     const ProtocolConfigAddr = await getDeploymentAddress("ProtocolConfigUpgradeable");
     const ProtocolConfigContract = await ethers.getContractAt("ProtocolConfigUpgradeable", ProtocolConfigAddr, marcWallet);
+
     await ProtocolConfigContract.setUint(ethers.keccak256(ethers.toUtf8Bytes("2FARequired")),2); // 1 for enabled, 2 for disabled
 
     const liquidityManagerAddr = await getDeploymentAddress("LiquidityManagerUpgradeable");
