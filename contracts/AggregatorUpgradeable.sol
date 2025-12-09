@@ -175,11 +175,9 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         onlyUser
         notEmergency
     {
-        bool twoFARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
+        bool _2FARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
 
-        if (twoFARequired) {
-            s_userManager.check2FA(msg.sender, code, percentageToRemove);
-        }
+        if (_2FARequired) s_userManager.check2FA(msg.sender, code, percentageToRemove);
 
         if (percentageToRemove == 0) revert AGG_ZERO_PERCENTAGE();
 
@@ -205,11 +203,9 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         notEmergency
         returns (uint256 collectedToken0, uint256 collectedToken1)
     {
-        bool twoFARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
+        bool _2FARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
 
-        if (twoFARequired) {
-            s_userManager.check2FA(msg.sender, code, 0);
-        }
+        if (_2FARequired) s_userManager.check2FA(msg.sender, code, 0);
 
         IVaultManagerUpgradeable vault = _vaultManager();
 
