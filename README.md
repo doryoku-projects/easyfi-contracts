@@ -44,10 +44,10 @@ npx cross-env WHITELABEL="easyfi_test" hardhat test test/Integration/I_rolesetin
 
 ```bash
 # For localhost/testnet
-npx hardhat run ./launch/upgrade/upgradeAggregator.js --network localhost
+npx cross-env WHITELABEL="wadz_test2" hardhat run ./launch/upgrade/upgradeAggregator.js --network localhost
 
 # For mainnet
-npx hardhat run ./launch/upgrade/upgradeAggregator.js --network arbitrum
+npx cross-env WHITELABEL="wadz_test2" hardhat run ./launch/upgrade/upgradeAggregator.js --network arbitrumOne
 ```
 
 ## Available Upgrade Scripts
@@ -86,4 +86,23 @@ chmod +x run.sh
 ### To run setting 2fa key for Protocol Config Contract
 ``` bash
 npx cross-env WHITELABEL="wadz" hardhat run .\scripts\set2faKey.js --network localhost
+```
+
+# To run the Upgrade Script via MultiSig
+
+- Update the commands like WHITELABEL, CONTRACT name and FUNCTION_NAME name.
+- Function name should be the function name in the script.
+
+```bash
+npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=newImplementation hardhat run scripts/UpgradeWithMultisig.js --network arbitrumOne
+```
+
+# To run the Call the Function Script via MultiSig
+
+- Update the token address "tokens" and recipient address "To" in the script
+- Function name should be the function name in the script.
+- Update the commands like contract name and function name
+
+```bash
+npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeEmergencyWithdraw hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```

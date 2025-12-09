@@ -28,7 +28,7 @@ async function main() {
 
   const userManagerAddr = await getDeploymentAddress("UserManagerUpgradeable");
     const ProtocolConfigAddr = await getDeploymentAddress("ProtocolConfigUpgradeable");
-    const VaultAddr = await getDeploymentAddress("VaultUpgradeable");
+    const VaultAddr = await getDeploymentAddress("VaultManagerUpgradeable");
     const LiquidityManagerAddr = await getDeploymentAddress("LiquidityManagerUpgradeable");
     const LiquidityHelperAddr = await getDeploymentAddress("LiquidityHelperUpgradeable");
     const OracleSwapAddr = await getDeploymentAddress("OracleSwapUpgradeable");
@@ -37,7 +37,7 @@ async function main() {
   
     console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
     console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
-    console.log("🔗 Attaching to VaultUpgradeable at:", VaultAddr);
+    console.log("🔗 Attaching to VaultManagerUpgradeable at:", VaultAddr);
     console.log("🔗 Attaching to LiquidityManagerUpgradeable at:", LiquidityManagerAddr);
     console.log("🔗 Attaching to LiquidityHelperUpgradeable at:", LiquidityHelperAddr);
     console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);

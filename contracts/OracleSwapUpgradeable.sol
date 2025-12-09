@@ -35,6 +35,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant WETH_KEY = keccak256("Weth");
 
     mapping(address => address) private s_tokenOracles;
 
@@ -149,8 +150,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     /**
      * @dev Basic points(BP) instance from central config.
      */
-    function _BP() internal view returns (uint16) {
-        return uint16(s_config.getUint(BP_KEY));
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
     }
 
     /**
@@ -249,15 +250,15 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: fee,
-            recipient: recipient,
-            amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum,
-            sqrtPriceLimitX96: 0
-        });
+            IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: fee,
+                recipient: recipient,
+                amountIn: amountIn,
+                amountOutMinimum: computedAmountOutMinimum,
+                sqrtPriceLimitX96: 0
+            });
 
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
         _swapRouterInstance.exactInputSingle(params);
@@ -318,7 +319,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         int24 tickUpper,
         uint128 liquidityAmount
     ) external view onlyLiquidityManager returns (uint256 amount0Min, uint256 amount1Min) {
-        uint16 _bp = _BP();
+        uint256 _bp = _BP();
         address pool = _factory().getPool(token0, token1, fee);
         if (pool == address(0)) revert OS_POOL_NOT_EXIST();
 

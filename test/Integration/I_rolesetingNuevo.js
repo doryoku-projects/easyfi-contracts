@@ -11,7 +11,7 @@ describe("I_setRoles", async function () {
   let userManagerGeneralAdmin, userManagerUserManager;
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
-  let addressesPerChain, token0Address, token1Address, ethPriceFeed, usdcPriceFeed;
+  let addressesPerChain, token0Address, token1Address, token2Address, ethPriceFeed, usdcPriceFeed;
 
   async function fundWallet() {
 
@@ -43,11 +43,13 @@ describe("I_setRoles", async function () {
     addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
     token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
     token1Address = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    token2Address = addressesPerChain.DAI_ADDRESS; // DAI
     ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
     usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
+    daiPriceFeed = addressesPerChain.DAI_PRICE_FEED;
 
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     liquidityManagerAddress = await getDeploymentAddress("LiquidityManagerUpgradeable");
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
@@ -215,8 +217,8 @@ describe("I_setRoles", async function () {
       ownerWallet
     );
 
-    const tokens = [token0Address, token1Address];
-    const oracles = [ethPriceFeed, usdcPriceFeed];
+    const tokens = [token0Address, token1Address, token2Address];
+    const oracles = [ethPriceFeed, usdcPriceFeed, daiPriceFeed];
     const txOracle = await OracleSwap.setTokenOracles(tokens, oracles);
     await txOracle.wait();
     console.log("Oracles set successfully:");
@@ -228,6 +230,11 @@ describe("I_setRoles", async function () {
     console.log(
       `Token1: ${token1Address} -> ${await OracleSwap.getTokenOracle(
         token1Address
+      )}`
+    );
+    console.log(
+      `Token2: ${token2Address} -> ${await OracleSwap.getTokenOracle(
+        token2Address
       )}`
     );
   });
