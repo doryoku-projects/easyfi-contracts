@@ -51,6 +51,7 @@ async function main() {
       LiquidityHelperAddr,
       OracleSwapAddr,
       AggregatorAddr,
+      FundsManagerAddr
     ];
 
     const [new_addr, owner , marcWallet, ] = await ethers.getSigners();
