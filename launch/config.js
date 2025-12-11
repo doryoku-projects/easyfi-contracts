@@ -20,7 +20,8 @@ const CONFIG = {
     CLIENT_FEE_PCT: 5000,
     MAX_ROLES_SIZE: 10,
     MIGRATION_SIZE: 150,
-    MAX_WITHDRAWAL_SIZE: 150
+    MAX_WITHDRAWAL_SIZE: 150,
+    TWO_FA_REQUIRED: 1 // NOTE: 1 = true, 2 = false
   },
 
   // Salt prefixes for CREATE3
