@@ -21,14 +21,12 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     mapping(bytes32 => address) private s_addresses;
     mapping(bytes32 => uint256) private s_uints;
     mapping(uint256 => CapInfo) private s_packageCap;
-    mapping(uint8 => uint256) private decimalThresholds;
 
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
     event UserManagerSet();
     event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
     event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
-    event ThresholdUpdated(uint8 decimals, uint256 threshold);
 
 
     /**
@@ -161,20 +159,5 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
 
     function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {
         return s_packageCap[packageId];
-    }
-
-    function setDecimalThreshold(uint8 decimals, uint256 threshold) external onlyGeneralOrMasterAdmin {
-        require(decimals <= 18, "Invalid decimal count");
-        decimalThresholds[decimals] = threshold;
-        emit ThresholdUpdated(decimals, threshold);
-    }
-
-    function getTokenThreshold(address token, uint8 decimals) external onlyVaultOrLiquidityManager view returns (uint256) {
-        uint256 threshold = decimalThresholds[decimals];
-        if(threshold != 0) { 
-            return threshold;
-        } else {
-            return 10000;
-        }
     }
 }

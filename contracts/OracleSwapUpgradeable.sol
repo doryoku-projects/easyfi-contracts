@@ -13,6 +13,7 @@ import "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
 
 import "./UserAccessControl.sol";
 import "./errors/OracleSwapErrors.sol";
+import "./UniswapV3TWAPOracle.sol";
 
 import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
@@ -23,13 +24,15 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  */
 contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwapErrors {
     using SafeERC20 for IERC20;
+    using UniswapV3TWAPOracle for address;
 
     uint256 internal s_slippageNumerator;
 
     IProtocolConfigUpgradeable private s_config;
 
     uint256 private constant PRECISION_FACTOR = 1e18;
-    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
+    uint256 private constant MIN_TWAP_WINDOW = 60;
+    uint256 private constant MAX_TWAP_WINDOW = 86400;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
@@ -38,12 +41,14 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant WETH_KEY = keccak256("Weth");
 
     mapping(address => address) private s_tokenOracles;
+    uint32 private s_twapWindow;
 
     event SlippageParametersUpdated(uint256 newNumerator);
     event TokensSwapped(
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 computedAmountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
+    event TWAPWindowUpdated(uint32 newWindow);
     event ProtocolConfigSet();
     event UserManagerSet();
 
@@ -54,6 +59,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_slippageNumerator = 99_00; // 99.00%
+        s_twapWindow = 600;
 
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
     }
@@ -120,6 +126,18 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
+     * @notice Set the TWAP observation window.
+     * @param window Time window in seconds for TWAP calculation.
+     */
+     
+    function setTWAPWindow(uint32 window) external onlyGeneralOrMasterAdmin {
+        if (window < MIN_TWAP_WINDOW || window > MAX_TWAP_WINDOW) {
+            revert OS_INVALID_TWAP_WINDOW();
+        }
+        s_twapWindow = window;
+        emit TWAPWindowUpdated(window);
+    }
+    /**
      * @dev Fetch main token instance from central config.
      */
     function _mainToken() internal view returns (IERC20) {
@@ -154,6 +172,56 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         return s_config.getUint(BP_KEY);
     }
 
+    /**
+     * @notice Get the current TWAP window.
+     * @return uint32 TWAP window in seconds.
+     */
+    function getTWAPWindow()
+        external
+        view
+        onlyGeneralOrMasterAdmin
+        returns (uint32)
+    {
+        return s_twapWindow;
+    }
+
+    function _getPriceFromTWAP(
+        address token,
+        address baseToken,
+        uint24 fee
+    ) internal view returns (uint256 price) {
+        // Get pool from factory based on token pair and fee
+        address pool = _factory().getPool(token, baseToken, fee);
+        if (pool == address(0)) revert OS_POOL_NOT_SET();
+
+        try IUniswapV3Pool(pool).token0() returns (address token0) {
+            try IUniswapV3Pool(pool).token1() returns (address token1) {
+                // Verify pool contains the expected tokens
+                bool validPool = (token0 == token && token1 == baseToken) ||
+                    (token0 == baseToken && token1 == token);
+                if (!validPool) revert OS_INVALID_POOL();
+
+                // Get TWAP price
+                uint256 twapPrice = UniswapV3TWAPOracle.getTWAPPrice(
+                    pool,
+                    s_twapWindow
+                );
+
+                // Adjust price based on token order in pool
+                if (token0 == token) {
+                    // Price is already token/baseToken
+                    price = twapPrice;
+                } else {
+                    // Price is baseToken/token, need to invert
+                    price = twapPrice > 0 ? (1e18 * 1e18) / twapPrice : 0;
+                }
+            } catch {
+                revert OS_INVALID_POOL();
+            }
+        } catch {
+            revert OS_TWAP_OBSERVATION_FAILED();
+        }
+    }
     /**
      * @notice Update slippage tolerance parameters.
      * @param _numerator New slippage numerator in basis points.
@@ -195,35 +263,39 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             revert OS_SWAP_ROUTER_NOT_SET();
         }
 
-        address oracleIn = s_tokenOracles[tokenIn];
-        address oracleOut = s_tokenOracles[tokenOut];
+        // address oracleIn = s_tokenOracles[tokenIn];
+        // address oracleOut = s_tokenOracles[tokenOut];
 
-        if (oracleIn == address(0)) revert OS_ORACLE_NOT_SET_IN();
-        if (oracleOut == address(0)) revert OS_ORACLE_NOT_SET_OUT();
+        // if (oracleIn == address(0)) revert OS_ORACLE_NOT_SET_IN();
+        // if (oracleOut == address(0)) revert OS_ORACLE_NOT_SET_OUT();
 
-        AggregatorV3Interface priceFeedTokenIn = AggregatorV3Interface(oracleIn);
-        AggregatorV3Interface priceFeedTokenOut = AggregatorV3Interface(oracleOut);
+        // AggregatorV3Interface priceFeedTokenIn = AggregatorV3Interface(oracleIn);
+        // AggregatorV3Interface priceFeedTokenOut = AggregatorV3Interface(oracleOut);
 
-        (uint80 roundIDIn, int256 answerIn,, uint256 updatedAtIn, uint80 answeredInRoundIn) =
-            priceFeedTokenIn.latestRoundData();
+        // (uint80 roundIDIn, int256 answerIn,, uint256 updatedAtIn, uint80 answeredInRoundIn) =
+        //     priceFeedTokenIn.latestRoundData();
 
-        if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_IN();
-        }
-        if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
+        // if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
+        // if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
+        //     revert OS_STALE_PRICE_IN();
+        // }
+        // if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
 
-        (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
-            priceFeedTokenOut.latestRoundData();
+        // (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
+        //     priceFeedTokenOut.latestRoundData();
 
-        if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_OUT();
-        }
-        if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
+        // if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
+        // if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
+        //     revert OS_STALE_PRICE_OUT();
+        // }
+        // if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
 
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
+
+        // Get prices from TWAP oracle
+        uint256 parsedAnswerIn = _getPriceFromTWAP(tokenIn, tokenOut, fee);
+        uint256 parsedAnswerOut = _getPriceFromTWAP(tokenOut, tokenIn, fee);
 
         uint8 decimalsDifference;
         unchecked {
@@ -231,9 +303,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
                 ? tokenInDecimals - tokenOutDecimals
                 : tokenOutDecimals - tokenInDecimals;
         }
-
-        uint256 parsedAnswerIn = uint256(answerIn);
-        uint256 parsedAnswerOut = uint256(answerOut);
 
         uint256 computedAmountOut;
         if (tokenInDecimals >= tokenOutDecimals) {

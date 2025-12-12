@@ -49,4 +49,8 @@ interface IOracleSwapUpgradeable {
         returns (uint256 amountOut);
 
     function testFunction() external view returns (uint256 mainTokenBalance);
+
+    function setTWAPWindow(uint32 window) external;
+
+    function getTWAPWindow() external view returns (uint32);
 }
