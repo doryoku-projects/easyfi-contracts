@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -110,6 +111,10 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
         return s_config.getUint(BP_KEY);
     }
 
+    function _threshold(address token) internal view returns (uint256) {
+        uint8 decimals = IERC20Metadata(token).decimals();
+        return s_config.getTokenThreshold(decimals);
+    }
     /**
      * @dev Processes leftovers for one token by:
      *   - determining how much of the leftover to use directly
@@ -275,14 +280,15 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
-        uint256 threshold = 10000;
+        uint256 threshold0 = _threshold(token0Address);
+        uint256 threshold1 = _threshold(token1Address);
 
         addedUsed0 = 0;
         addedUsed1 = 0;
         returnToken0 = 0;
         returnToken1 = 0;
 
-        if (actualLeft0 > threshold) {
+        if (actualLeft0 > threshold0) {
             (uint256 used0, uint256 used1, uint256 ret0, uint256 ret1) = _processLeftover(
                 tokenId,
                 token0Address,
@@ -301,7 +307,7 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             returnToken0 += ret0;
             returnToken1 += ret1;
         }
-        if (actualLeft1 > threshold) {
+        if (actualLeft1 > threshold1) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
@@ -321,11 +327,11 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             returnToken1 += ret1;
         }
 
-        if (actualLeft0 <= threshold) {
+        if (actualLeft0 <= threshold0) {
             returnToken0 += actualLeft0;
         }
 
-        if (actualLeft1 <= threshold) {
+        if (actualLeft1 <= threshold1) {
             returnToken1 += actualLeft1;
         }
 
