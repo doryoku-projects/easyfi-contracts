@@ -245,13 +245,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             computedAmountOut = computedAmountOut / PRECISION_FACTOR;
         }
 
-        uint256 computedAmountOutMinimum;
-        address _mainTokenInstance = address(_mainToken());
-        uint256 threshold = 1 ** IERC20Metadata(_mainTokenInstance).decimals();
-
-        if(tokenIn == _mainTokenInstance && amountIn < threshold) computedAmountOutMinimum = 0;
-        else if (tokenOut == _mainTokenInstance && computedAmountOut < threshold) computedAmountOutMinimum = 0;
-        else computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
+        uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
@@ -261,7 +255,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
                 fee: fee,
                 recipient: recipient,
                 amountIn: amountIn,
-                amountOutMinimum: computedAmountOutMinimum,
+                amountOutMinimum: computedAmountOutMinimum < 1 * 10 ** 6 ? 0 : computedAmountOutMinimum,
                 sqrtPriceLimitX96: 0
             });
 
