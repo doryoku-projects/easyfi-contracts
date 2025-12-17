@@ -318,33 +318,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             revert OS_SWAP_ROUTER_NOT_SET();
         }
 
-        // address oracleIn = s_tokenOracles[tokenIn];
-        // address oracleOut = s_tokenOracles[tokenOut];
-
-        // if (oracleIn == address(0)) revert OS_ORACLE_NOT_SET_IN();
-        // if (oracleOut == address(0)) revert OS_ORACLE_NOT_SET_OUT();
-
-        // AggregatorV3Interface priceFeedTokenIn = AggregatorV3Interface(oracleIn);
-        // AggregatorV3Interface priceFeedTokenOut = AggregatorV3Interface(oracleOut);
-
-        // (uint80 roundIDIn, int256 answerIn,, uint256 updatedAtIn, uint80 answeredInRoundIn) =
-        //     priceFeedTokenIn.latestRoundData();
-
-        // if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        // if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-        //     revert OS_STALE_PRICE_IN();
-        // }
-        // if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
-
-        // (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
-        //     priceFeedTokenOut.latestRoundData();
-
-        // if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        // if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-        //     revert OS_STALE_PRICE_OUT();
-        // }
-        // if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
-
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
 
