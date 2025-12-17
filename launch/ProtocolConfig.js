@@ -18,7 +18,6 @@ async function deployProtocolConfig() {
     "Factory",
     "MainToken",
     "ClientAddress",
-    "Weth"
   ].map(createConfigKey);
 
   const network = await ethers.provider.getNetwork();
@@ -34,8 +33,7 @@ async function deployProtocolConfig() {
     ADDRESSES_PER_CHAIN[chainId].SWAP_ROUTER_ADDRESS,
     ADDRESSES_PER_CHAIN[chainId].FACTORY_ADDRESS,
     ADDRESSES_PER_CHAIN[chainId].MAIN_TOKEN_ADDRESS,
-    EXTERNAL.CLIENT,
-    ADDRESSES_PER_CHAIN[chainId].TOKEN0_ADDRESS
+    EXTERNAL.CLIENT
   ];
 
   const uintKeys = ["BP", "CompanyFeePct", "ClientFeePct", "2FARequired"].map(createConfigKey);

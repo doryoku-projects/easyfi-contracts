@@ -36,7 +36,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
-    bytes32 private constant WETH_KEY = keccak256("Weth");
 
     mapping(address => address) private s_tokenOracles;
     uint32 private s_twapWindow;

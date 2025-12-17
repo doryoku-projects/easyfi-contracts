@@ -12,7 +12,11 @@
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
       "AggregatorUpgradeable_impl_1763798483542": "0x2F72A0840Dd7030Cee9033A2f7164e163168c252",
       "OracleSwapUpgradeable_impl_1764664854152": "0xf842fDF2fE79631151Df1e6D5951888Fc048Caec",
-      "AggregatorUpgradeable_impl_1765285209999": "0xE85b1E42b3aC8BC67B76B01C78a75965bD94F85B"
+      "AggregatorUpgradeable_impl_1765285209999": "0xE85b1E42b3aC8BC67B76B01C78a75965bD94F85B",
+      "OracleSwapUpgradeable_impl_1765368885249": "0x309C588B2a2C48550E2Ea500e473ed42734B013E",
+      "OracleSwapUpgradeable_impl_1765793004649": "0x96Fd3893a2d1de79B83181DBBe1527fFAa31B481",
+      "LiquidityHelperUpgradeable_impl_1765793031028": "0x1Db2Ddf7A2cebD771b4f939290D9C1c28f57Ba74",
+      "OracleSwapUpgradeable_impl_1765819652268": "0x8c42778F10DD92aFA02033FF6bedbF6F12d5e545"
     },
     "42161": {
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
@@ -27,7 +31,15 @@
       "OracleSwapUpgradeable_impl_1765005971247": "0xA29788b091310869eAF050C0E4e53cee552e44Dd",
       "OracleSwapUpgradeable_impl_1765175937266": "0x36f645b0B22E0Ef5D837885140C0c589E0C87296",
       "OracleSwapUpgradeable_impl_1765178603775": "0x230659E874Fa9B3F729f43081782E60Cd30E569C",
-      "AggregatorUpgradeable_impl_1765284594301": "0xA5ae059658dA331E2B749E2f5fd18B2DaD526acC"
+      "AggregatorUpgradeable_impl_1765284594301": "0xA5ae059658dA331E2B749E2f5fd18B2DaD526acC",
+      "OracleSwapUpgradeable_impl_1765366325291": "0x953378F1052fFCC3576038380022CeB18FC68eFa",
+      "OracleSwapUpgradeable_impl_1765368211933": "0xB66857f6b919c230F4EE11a618B80B30a3de2667",
+      "OracleSwapUpgradeable_impl_1765368340458": "0x187f5894962fdc98CCC2E2a4D3D7F253ad7a34B8",
+      "OracleSwapUpgradeable_impl_1765368372201": "0x112330fc5242DEAD55EBB51cB03c484BC02E09df",
+      "OracleSwapUpgradeable_impl_1765368500811": "0xdAcFd79F7254FE628b52F677eB57Fc87b128b84D",
+      "OracleSwapUpgradeable_impl_1765792982232": "0x6F875155565122882e101A4972D82649074194A3",
+      "LiquidityHelperUpgradeable_impl_1765793045863": "0x2D48347eB31eA08Bc3f0cE528407c0a44D2114d7",
+      "OracleSwapUpgradeable_impl_1765819636924": "0xD34db664FBFe4E4c58314a836d05325F06C0aE3d"
     }
   },
   "wadz": {
