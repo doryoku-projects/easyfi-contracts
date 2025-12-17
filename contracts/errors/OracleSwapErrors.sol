@@ -78,16 +78,4 @@ abstract contract OracleSwapErrors {
      * @notice Pool address not configured for TWAP token
      */
     error OS_POOL_NOT_SET();
-    /**
-     * @notice Pool address is invalid or doesn't exist
-     */
-    error OS_INVALID_POOL();
-    /**
-     * @notice Pool observation call failed
-     */
-    error OS_TWAP_OBSERVATION_FAILED();
-    /**
-     * @notice Token configured with wrong oracle type
-     */
-    error OS_ORACLE_TYPE_MISMATCH();
 }

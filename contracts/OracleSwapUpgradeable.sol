@@ -232,34 +232,18 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         address token0 = IUniswapV3Pool(pool).token0();
         address token1 = IUniswapV3Pool(pool).token1();
 
-        uint160 sqrtPriceX96 = getTWAPPriceX96(
-            pool,
-            s_twapWindow
-        );
+        uint160 sqrtPriceX96 = getTWAPPriceX96(pool, s_twapWindow );
 
-        uint256 priceX96 = FullMath.mulDiv(
-            sqrtPriceX96,
-            sqrtPriceX96,
-            FixedPoint96.Q96
-        );
+        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
 
         uint8 d0 = IERC20Metadata(token0).decimals();
         uint8 d1 = IERC20Metadata(token1).decimals();
 
-
         if (token == token0) {
             if (d0 >= d1) {
-                price = FullMath.mulDiv(
-                    priceX96,
-                    1e8 * (10 ** (d0 - d1)),
-                    FixedPoint96.Q96
-                );
+                price = FullMath.mulDiv(priceX96, 1e8 * (10 ** (d0 - d1)), FixedPoint96.Q96);
             } else {
-                price = FullMath.mulDiv(
-                    priceX96,
-                    1e8,
-                    FixedPoint96.Q96 * (10 ** (d1 - d0))
-                );
+                price = FullMath.mulDiv(priceX96, 1e8, FixedPoint96.Q96 * (10 ** (d1 - d0)));
             }
         } else {
             if (priceX96 > 0) {
