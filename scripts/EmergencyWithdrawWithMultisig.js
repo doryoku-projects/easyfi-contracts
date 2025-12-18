@@ -220,30 +220,6 @@ async function encodeSetTokenOracles() {
   console.log("✅ Encoded calldata saved.");
 }
 
-async function encodeSetTWAPWindow() {
-
-
-  const contractName = "OracleSwapUpgradeable";
-  const contractAddress = await getDeploymentAddress(contractName);
-  const contract = await hre.ethers.getContractAt(contractName, contractAddress);
-
-  const window = process.env.TWAP_WINDOW;
-
-  console.log("TWAP Window:", window);
-  const calldata = contract.interface.encodeFunctionData(
-    "setTWAPWindow",
-    [window]
-  );
-
-  const dataToSave = { calldata };
-  fs.writeFileSync(
-    path.join(__dirname, `../SetTWAPWindow-rawData.json`),
-    JSON.stringify(dataToSave, null, 2)
-  );
-
-  console.log("✅ Encoded calldata saved.");
-}
-
 async function encodeSetSlippageParameters() {
 
 
@@ -620,7 +596,6 @@ const functions = {
   encodeSetMaxMigrationSize,
   encodeSetUserManagerAddress,
   encodeSetTokenOracles,
-  encodeSetTWAPWindow,
   encodeSetSlippageParameters,
   encodeSetAddress,
   encodeSetUint,

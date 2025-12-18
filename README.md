@@ -151,43 +151,38 @@ npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTIO
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetTokenOracles NEW_TOKEN_ORACLES="0x69531380bf6ffcc7aaa2d3e3e75b98a345bd4c10" hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```
 
-9. encodeSetTWAPWindow
-
-```bash
-npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetTWAPWindow TWAP_WINDOW=150 hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne  
-```
-
-10. encodeSetSlippageParameters
+9. encodeSetSlippageParameters
 
 ```bash
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetSlippageParameters SLIPPAGE_NUMERATOR=9900 hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne 
 ```
 
-11. encodeSetAddress
+10. encodeSetAddress
  
 ```bash
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetAddress CONFIG_KEY="0xa7338eeee46063bba99c5dc7b227c968f3910c343756d326e0ebb6f25a3270a4" CONFIG_VALUE_ADDRESS="0x82af49447d8a07e3bd95bd0d56f35241523fbab1"  hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```
 
-12. encodeSetUint
+11. encodeSetUint
 
 ```bash
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetUint CONFIG_KEY="0xa7338eeee46063bba99c5dc7b227c968f3910c343756d326e0ebb6f25a3270a4" CONFIG_VALUE_UINT="10"  hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne                   
 ```
 
-13. encodeSetUserPackage
+12. encodeSetUserPackage
 
 ```bash
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetUserPackage USER_PACKAGE_USER="0x8921b0563F9a7B186A0db5CeB0CbE8b0a118FBCA" USER_PACKAGE_ID="1"  hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne                               
 ```
 
-14. encodeSetPackageCap
+13. encodeSetPackageCap
 
 ```bash
 npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetPackageCap PACKAGE_CAP_LIQUIDITY="1000000" PACKAGE_CAP_FEE="10000" PACKAGE_CAP_USER_FEE="1000" hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne                                                            
 ```
-15. encodeMigratePositionBatches
+
+14. encodeMigratePositionBatches
 
 ```bash
 npx cross-env WHITELABEL="wadz" MIGRATE_USERS="user1,user2" MIGRATE_MANAGER="managerAddress" MIGRATE_POOL_ID="poolId" MIGRATE_PACKAGE_IDS="id1,id2" MIGRATE_TICK_LOWER=-100 MIGRATE_TICK_UPPER=100 FUNCTION_NAME=encodeMigratePositionBatches hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
-```
+```set

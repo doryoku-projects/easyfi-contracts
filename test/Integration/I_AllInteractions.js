@@ -130,8 +130,6 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Is user:", isUser);
     console.log("Minting position (10k) via Aggregator...");
     await MainToken.connect(userWallet).approve(aggregatorAddress, mintAmount);
-    await OracleSwap.connect(marcWallet).setTWAPWindow(600);
-    console.log("TWAP Price:", await OracleSwap.connect(userWallet).getTwapPrice(token0Address, mainTokenAddress, 500, "15000000000000000000"));
     const mintTx = await Aggregator.connect(
       userWallet
     ).mintPositionOrIncreaseLiquidity(
