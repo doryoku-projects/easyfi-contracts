@@ -48,7 +48,4 @@ interface IOracleSwapUpgradeable {
         external
         returns (uint256 amountOut);
 
-    function setTWAPWindow(uint32 window) external;
-
-    function getTWAPWindow() external view returns (uint32);
 }
