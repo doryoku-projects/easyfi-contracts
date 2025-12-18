@@ -48,9 +48,6 @@ async function encodeEmergencyWithdraw() {
 }
 
 async function encodeSetMaxWithdrawalSize() {
-
- console.log("Provider: ", provider);
- console.log("Wallet: ");
   const contractName = "VaultManagerUpgradeable";
   const contractAddress = await getDeploymentAddress(contractName);
   const contract = await hre.ethers.getContractAt(contractName, contractAddress);

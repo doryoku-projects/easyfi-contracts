@@ -37,9 +37,9 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant TWAP_WINDOW = keccak256("TWAPWindow");
 
     mapping(address => address) private s_tokenOracles;
-    uint32 private s_twapWindow;
 
     event SlippageParametersUpdated(uint256 newNumerator);
     event TokensSwapped(
@@ -57,7 +57,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_slippageNumerator = 99_00; // 99.00%
-        s_twapWindow = 600;
 
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
     }
@@ -124,18 +123,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
-     * @notice Set the TWAP observation window.
-     * @param window Time window in seconds for TWAP calculation.
-     */
-     
-    function setTWAPWindow(uint32 window) external onlyGeneralOrMasterAdmin {
-        if (window < MIN_TWAP_WINDOW || window > MAX_TWAP_WINDOW) {
-            revert OS_INVALID_TWAP_WINDOW();
-        }
-        s_twapWindow = window;
-        emit TWAPWindowUpdated(window);
-    }
-    /**
      * @dev Fetch main token instance from central config.
      */
     function _mainToken() internal view returns (IERC20) {
@@ -174,13 +161,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
      * @notice Get the current TWAP window.
      * @return uint32 TWAP window in seconds.
      */
-    function getTWAPWindow()
-        external
-        view
-        onlyGeneralOrMasterAdmin
-        returns (uint32)
-    {
-        return s_twapWindow;
+    function _twapWindow() internal view returns (uint32) {
+        return uint32(s_config.getUint(TWAP_WINDOW));
     }
 
     /**
@@ -207,7 +189,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
     function getTwapPrice(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn) external view returns (uint256, uint256) {
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
-        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, s_twapWindow);
+        uint256 price = pool._getTWAPPrice(tokenIn, tokenOut, _twapWindow());
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
         uint256 computedAmountOut;
@@ -247,7 +229,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
         if (pool == address(0)) revert OS_POOL_NOT_SET();
 
-        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, s_twapWindow);
+        uint256 price = pool._getTWAPPrice(tokenIn, tokenOut, _twapWindow());
 
         uint256 computedAmountOut;
 

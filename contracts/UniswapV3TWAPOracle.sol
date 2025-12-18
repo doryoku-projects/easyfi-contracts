@@ -19,10 +19,10 @@ library UniswapV3TWAPOracle {
      * @param secondsAgo Number of seconds in the past to calculate TWAP from
      * @return tick The time-weighted average tick
      */
-    function getTWAPTick(
+    function _getTWAPTick(
         address pool,
         uint32 secondsAgo
-    ) public view returns (int24 tick) {
+    ) internal view returns (int24 tick) {
         require(secondsAgo != 0, "secondsAgo cannot be 0");
         require(pool != address(0), "Invalid pool address");
 
@@ -45,11 +45,11 @@ library UniswapV3TWAPOracle {
      * @param secondsAgo Number of seconds in the past to calculate TWAP from
      * @return sqrtPriceX96 The square root of the price in Q96 format
      */
-    function getTWAPPriceX96(
+    function _getTWAPPriceX96(
         address pool,
         uint32 secondsAgo
-    ) public view returns (uint160 sqrtPriceX96) {
-        int24 twapTick = getTWAPTick(pool, secondsAgo);
+    ) internal view returns (uint160 sqrtPriceX96) {
+        int24 twapTick = _getTWAPTick(pool, secondsAgo);
         sqrtPriceX96 = TickMath.getSqrtPriceAtTick(twapTick);
     }
 
@@ -60,16 +60,16 @@ library UniswapV3TWAPOracle {
      * @param twapWindow Number of seconds in the past to calculate TWAP from
      * @return price The price with 8 decimal places
      */
-    function getTWAPPrice(
+    function _getTWAPPrice(
         address pool,
         address _token0,
         address /* _token1 */,
         uint32 twapWindow
-    ) public view returns (uint256 price) {
+    ) internal view returns (uint256 price) {
         address token0 = IUniswapV3Pool(pool).token0();
         address token1 = IUniswapV3Pool(pool).token1();
 
-        uint160 sqrtPriceX96 = getTWAPPriceX96(pool, twapWindow);
+        uint160 sqrtPriceX96 = _getTWAPPriceX96(pool, twapWindow);
 
         uint256 priceX96 = FullMath.mulDiv(
             sqrtPriceX96,
