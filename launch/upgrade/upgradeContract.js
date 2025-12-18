@@ -6,8 +6,7 @@ async function upgradeContract({
   proxyStorageKey,
   verifyContract = true,
   reinitializeFunctionName = null,
-  reinitializeArgs = [],
-  libraries = {}
+  reinitializeArgs = []
 }) {
   const [, , admin] = await ethers.getSigners();
   
@@ -16,15 +15,8 @@ async function upgradeContract({
   const proxyAddress = await getDeploymentAddress(proxyStorageKey);
   console.log(`Proxy: ${proxyAddress}`);
 
-  let NewImplementation;
-  if (contractName === "OracleSwapUpgradeable") {
-    NewImplementation = await ethers.getContractFactory(contractName, {
-      libraries,
-      signer: admin
-    });
-  } else {
-    NewImplementation = await ethers.getContractFactory(contractName, admin);
-  }
+  const NewImplementation = await ethers.getContractFactory(contractName, admin);
+  
   const newImplementation = await NewImplementation.deploy();
   await newImplementation.waitForDeployment();
   const newImplementationAddress = await newImplementation.getAddress();

@@ -14,10 +14,7 @@ async function deployOracleSwap() {
     displayName: "OracleSwap",
     initializeArgs,
     saltPrefix: CONFIG.SALTS.ORACLE_SWAP,
-    storageKey: "OracleSwapUpgradeable",
-    libraries: {
-      "contracts/UniswapV3TWAPOracle.sol:UniswapV3TWAPOracle": twapOracleAddress
-    }
+    storageKey: "OracleSwapUpgradeable"
   });
 }
 
