@@ -189,7 +189,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
     function getTwapPrice(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn) external view returns (uint256, uint256) {
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
-        uint256 price = pool._getTWAPPrice(tokenIn, tokenOut, _twapWindow());
+        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
         uint256 computedAmountOut;
@@ -229,7 +229,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
         if (pool == address(0)) revert OS_POOL_NOT_SET();
 
-        uint256 price = pool._getTWAPPrice(tokenIn, tokenOut, _twapWindow());
+        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
 
         uint256 computedAmountOut;
 
