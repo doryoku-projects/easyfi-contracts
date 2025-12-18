@@ -10,7 +10,7 @@ async function sleep(ms) {
 
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
-  let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
+  let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH, OracleSwap;
   let addressesPerChain;
 
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
@@ -94,6 +94,11 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       mainTokenAddress,
       userWallet
     );
+    OracleSwap = await ethers.getContractAt(
+      "OracleSwapUpgradeable",
+      oracleSwapAddress,
+      userWallet
+    );
     WETH = await ethers.getContractAt("IERC20", token0Address, userWallet);
 
     // ————— 1) Grant USER_ROLE to testWallet —————
@@ -125,6 +130,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Is user:", isUser);
     console.log("Minting position (10k) via Aggregator...");
     await MainToken.connect(userWallet).approve(aggregatorAddress, mintAmount);
+    await OracleSwap.connect(marcWallet).setTWAPWindow(600);
+    console.log("TWAP Price:", await OracleSwap.connect(userWallet).getTwapPrice(token0Address, mainTokenAddress, 500, "15000000000000000000"));
     const mintTx = await Aggregator.connect(
       userWallet
     ).mintPositionOrIncreaseLiquidity(

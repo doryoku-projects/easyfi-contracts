@@ -5,6 +5,7 @@ const CONFIG = require("./config");
 async function deployOracleSwap() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
+  const twapOracleAddress = await getDeploymentAddress("UniswapV3TWAPOracle");
   
   const initializeArgs = [protocolConfigAddress, userManagerAddress];
 
@@ -13,7 +14,10 @@ async function deployOracleSwap() {
     displayName: "OracleSwap",
     initializeArgs,
     saltPrefix: CONFIG.SALTS.ORACLE_SWAP,
-    storageKey: "OracleSwapUpgradeable"
+    storageKey: "OracleSwapUpgradeable",
+    libraries: {
+      "contracts/UniswapV3TWAPOracle.sol:UniswapV3TWAPOracle": twapOracleAddress
+    }
   });
 }
 

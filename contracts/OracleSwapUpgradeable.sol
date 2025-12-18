@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -16,6 +15,7 @@ import "./errors/OracleSwapErrors.sol";
 
 import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./UniswapV3TWAPOracle.sol";
 
 /**
  * @title OracleSwapUpgradeable
@@ -23,6 +23,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  */
 contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwapErrors {
     using SafeERC20 for IERC20;
+    using UniswapV3TWAPOracle for address;
 
     uint256 internal s_slippageNumerator;
 
@@ -182,84 +183,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         return s_twapWindow;
     }
 
-     /**
-     * @notice Calculate the time-weighted average tick over a specified period
-     * @param pool Address of the Uniswap V3 pool
-     * @param secondsAgo Number of seconds in the past to calculate TWAP from
-     * @return tick The time-weighted average tick
-     */
-    function getTWAPTick(
-        address pool,
-        uint32 secondsAgo
-    ) internal view returns (int24 tick) {
-        require(secondsAgo != 0, "secondsAgo cannot be 0");
-        require(pool != address(0), "Invalid pool address");
-
-        uint32[] memory secondsArray = new uint32[](2);
-        secondsArray[0] = secondsAgo;
-        secondsArray[1] = 0;
-
-        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-            secondsArray
-        );
-        int56 tickDifference = tickCumulatives[1] - tickCumulatives[0];
-        tick = int24(tickDifference / int56(int32(secondsAgo)));
-    }
-
-    /**
-     * @notice Calculate the TWAP price in sqrtPriceX96 format
-     * @param pool Address of the Uniswap V3 pool
-     * @param secondsAgo Number of seconds in the past to calculate TWAP from
-     * @return sqrtPriceX96 The square root of the price in Q96 format
-     */
-    function getTWAPPriceX96(
-        address pool,
-        uint32 secondsAgo
-    ) internal view returns (uint160 sqrtPriceX96) {
-        int24 twapTick = getTWAPTick(pool, secondsAgo);
-        sqrtPriceX96 = TickMath.getSqrtPriceAtTick(twapTick);
-    }
-
-    function _getPriceFromTWAP(
-        address _token0,
-        address _token1,
-        uint24 fee
-    ) internal view returns (uint256 price) {
-        address pool = _factory().getPool(_token0, _token1, fee);
-        if (pool == address(0)) revert OS_POOL_NOT_SET();
-
-        address token0 = IUniswapV3Pool(pool).token0();
-        address token1 = IUniswapV3Pool(pool).token1();
-
-        uint160 sqrtPriceX96 = getTWAPPriceX96(pool, s_twapWindow );
-
-        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
-
-        uint8 d0 = IERC20Metadata(token0).decimals();
-        uint8 d1 = IERC20Metadata(token1).decimals();
-
-        if (_token0 == token0) {
-            if (d0 >= d1) {
-                price = FullMath.mulDiv(priceX96, 1e8 * (10 ** (d0 - d1)), FixedPoint96.Q96);
-            } else {
-                price = FullMath.mulDiv(priceX96, 1e8, FixedPoint96.Q96 * (10 ** (d1 - d0)));
-            }
-        } else {
-            if (priceX96 > 0) {
-                uint256 invPriceX96 = FullMath.mulDiv(FixedPoint96.Q96, FixedPoint96.Q96, priceX96);
-                if (d1 >= d0) {
-                    price = FullMath.mulDiv(invPriceX96, 1e8 * (10 ** (d1 - d0)), FixedPoint96.Q96);
-                } else {
-                    price = FullMath.mulDiv(invPriceX96, 1e8, FixedPoint96.Q96 * (10 ** (d0 - d1))
-                    );
-                }
-            } else {
-                price = 0;
-            }
-        }
-
-        return price;
-    }
     /**
      * @notice Update slippage tolerance parameters.
      * @param _numerator New slippage numerator in basis points.
@@ -280,6 +203,23 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
      */
     function getTokenOracle(address token) external view onlyGeneralOrMasterAdmin returns (address) {
         return s_tokenOracles[token];
+    }
+
+    function getTwapPrice(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn) external view returns (uint256, uint256) {
+        address pool = _factory().getPool(tokenIn, tokenOut, fee);
+        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, s_twapWindow);
+        uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
+        uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
+        uint256 computedAmountOut;
+        if (tokenOutDecimals >= tokenInDecimals) {
+            uint256 decimalAdj = 10 ** (tokenOutDecimals - tokenInDecimals);
+            computedAmountOut = FullMath.mulDiv(price, amountIn * decimalAdj, 1e8);
+        } else {
+            uint256 decimalAdj = 10 ** (tokenInDecimals - tokenOutDecimals);
+            computedAmountOut = FullMath.mulDiv(price, amountIn, decimalAdj * 1e8);
+        }
+
+        return (price, computedAmountOut);
     }
 
     /**
@@ -304,16 +244,19 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
 
-        (uint256 price) = _getPriceFromTWAP(tokenIn, tokenOut, fee);
+        address pool = _factory().getPool(tokenIn, tokenOut, fee);
+        if (pool == address(0)) revert OS_POOL_NOT_SET();
+
+        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, s_twapWindow);
 
         uint256 computedAmountOut;
 
         if (tokenOutDecimals >= tokenInDecimals) {
             uint256 decimalAdj = 10 ** (tokenOutDecimals - tokenInDecimals);
-            computedAmountOut = FullMath.mulDiv( price * amountIn, decimalAdj, 1e8);
+            computedAmountOut = FullMath.mulDiv(price, amountIn * decimalAdj, 1e8);
         } else {
             uint256 decimalAdj = 10 ** (tokenInDecimals - tokenOutDecimals);
-            computedAmountOut = FullMath.mulDiv(price * amountIn, 1, decimalAdj * 1e8);
+            computedAmountOut = FullMath.mulDiv(price, amountIn, decimalAdj * 1e8);
         }
 
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();

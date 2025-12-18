@@ -9,7 +9,8 @@ async function deployUpgradeableContract({
   displayName,
   initializeArgs,
   saltPrefix,
-  storageKey
+  storageKey,
+  libraries = {}
 }) {
   const [deployer, MasterAdmin] = await ethers.getSigners();
 
@@ -19,8 +20,16 @@ async function deployUpgradeableContract({
   // Get current nonce from network to avoid cache issues
   const currentNonce = await ethers.provider.getTransactionCount(deployer.address, 'latest');
   console.log(`Current deployer nonce: ${currentNonce}`);
+  let ContractFactory;
+  if(contractName === "OracleSwapUpgradeable") {
+    ContractFactory = await ethers.getContractFactory(contractName, {
+      signer: deployer,
+      libraries
+    });  
+  } else {
+    ContractFactory = await ethers.getContractFactory(contractName, deployer);
+  }
 
-  const ContractFactory = await ethers.getContractFactory(contractName, deployer);
   const implementation = await ContractFactory.deploy({ nonce: currentNonce });
   await implementation.waitForDeployment();
   const implementationAddress = await implementation.getAddress();
