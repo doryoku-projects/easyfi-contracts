@@ -112,7 +112,7 @@ npx cross-env WHITELABEL="wadz_test2" CONTRACT="VaultManagerUpgradeable"  FUNCTI
 2. encodeSetMaxWithdrawalSize
 
 ```bash
-npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetMaxWithdrawalSize hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
+npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTION_NAME=encodeSetMaxWithdrawalSize MAX_WITHDRAWAL_SIZE="150" hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```
 
 3. encodeSetProtocolConfig
