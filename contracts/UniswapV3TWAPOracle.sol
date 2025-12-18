@@ -60,7 +60,7 @@ library UniswapV3TWAPOracle {
      * @param twapWindow Number of seconds in the past to calculate TWAP from
      * @return price The price with 8 decimal places
      */
-    function _getTWAPPrice(
+    function getTWAPPrice(
         address pool,
         address _token0,
         address /* _token1 */,
