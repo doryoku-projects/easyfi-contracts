@@ -8,7 +8,7 @@ async function upgradeContract({
   reinitializeFunctionName = null,
   reinitializeArgs = []
 }) {
-  const [, , admin] = await ethers.getSigners();
+  const [, admin] = await ethers.getSigners();
   
   console.log(`\n🔄 Upgrading ${contractName}...`);
   
