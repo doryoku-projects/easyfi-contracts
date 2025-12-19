@@ -29,6 +29,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     IProtocolConfigUpgradeable private s_config;
 
     uint256 private constant PRECISION_FACTOR = 1e18;
+    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
@@ -42,7 +43,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 computedAmountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
-    event TWAPWindowUpdated(uint32 newWindow);
     event ProtocolConfigSet();
     event UserManagerSet();
 
