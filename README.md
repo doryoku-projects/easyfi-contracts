@@ -44,10 +44,10 @@ npx cross-env WHITELABEL="easyfi_test" hardhat test test/Integration/I_rolesetin
 
 ```bash
 # For localhost/testnet
-npx hardhat run ./launch/upgrade/upgradeAggregator.js --network localhost
+npx cross-env WHITELABEL="easyfi_test" hardhat run ./launch/upgrade/upgradeAggregator.js --network localhost
 
 # For mainnet
-npx hardhat run ./launch/upgrade/upgradeAggregator.js --network arbitrum
+npx cross-env WHITELABEL="easyfi_test" hardhat run ./launch/upgrade/upgradeAggregator.js --network arbitrum
 ```
 
 ## Available Upgrade Scripts
