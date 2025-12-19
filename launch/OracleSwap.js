@@ -5,7 +5,6 @@ const CONFIG = require("./config");
 async function deployOracleSwap() {
   const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
   const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
-  const twapOracleAddress = await getDeploymentAddress("UniswapV3TWAPOracle");
   
   const initializeArgs = [protocolConfigAddress, userManagerAddress];
 

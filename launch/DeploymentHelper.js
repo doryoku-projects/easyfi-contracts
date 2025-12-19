@@ -9,7 +9,7 @@ async function deployUpgradeableContract({
   displayName,
   initializeArgs,
   saltPrefix,
-  storageKey,
+  storageKey
 }) {
   const [deployer, MasterAdmin] = await ethers.getSigners();
 
@@ -43,6 +43,7 @@ async function deployUpgradeableContract({
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
+
   const factoryAddress = await getFactoryDeploymentAddress();
   const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(deployer);
 
