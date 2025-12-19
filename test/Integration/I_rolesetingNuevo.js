@@ -11,7 +11,7 @@ describe("I_setRoles", async function () {
   let userManagerGeneralAdmin, userManagerUserManager;
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
-  let addressesPerChain, token0Address, token1Address, token2Address, ethPriceFeed, usdcPriceFeed;
+  let addressesPerChain, wethAddress, usdcAddress, daiAddress, btcAddress, zoroAddress, ethPriceFeed, usdcPriceFeed;
 
   async function fundWallet() {
 
@@ -24,8 +24,8 @@ describe("I_setRoles", async function () {
     const router = await ethers.getContractAt(routerABI, UNISWAP_V3_ROUTER);
     const amountIn = ethers.parseEther("1");
     const params = [
-      token0Address,
-      token1Address,
+      wethAddress,
+      usdcAddress,
       500,
       userWallet.address,
       amountIn,
@@ -41,9 +41,11 @@ describe("I_setRoles", async function () {
     const network = await ethers.provider.getNetwork();
     const chainId = Number(network.chainId);
     addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
-    token0Address = addressesPerChain.TOKEN0_ADDRESS; // WETH
-    token1Address = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
-    token2Address = addressesPerChain.DAI_ADDRESS; // DAI
+    wethAddress = addressesPerChain.TOKEN0_ADDRESS; // WETH
+    usdcAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
+    daiAddress = addressesPerChain.DAI_ADDRESS; // DAI
+    btcAddress = addressesPerChain.BTC_ADDRESS; // BTC
+    zoroAddress = addressesPerChain.ZORO_ADDRESS; // ZORO
     ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
     usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
     daiPriceFeed = addressesPerChain.DAI_PRICE_FEED;
@@ -217,24 +219,24 @@ describe("I_setRoles", async function () {
       ownerWallet
     );
 
-    const tokens = [token0Address, token1Address, token2Address];
+    const tokens = [wethAddress, usdcAddress, daiAddress];
     const oracles = [ethPriceFeed, usdcPriceFeed, daiPriceFeed];
     const txOracle = await OracleSwap.setTokenOracles(tokens, oracles);
     await txOracle.wait();
     console.log("Oracles set successfully:");
     console.log(
-      `Token0: ${token0Address} -> ${await OracleSwap.getTokenOracle(
-        token0Address
+      `Token0: ${wethAddress} -> ${await OracleSwap.getTokenOracle(
+        wethAddress
       )}`
     );
     console.log(
-      `Token1: ${token1Address} -> ${await OracleSwap.getTokenOracle(
-        token1Address
+      `Token1: ${usdcAddress} -> ${await OracleSwap.getTokenOracle(
+        usdcAddress
       )}`
     );
     console.log(
-      `Token2: ${token2Address} -> ${await OracleSwap.getTokenOracle(
-        token2Address
+      `Token2: ${daiAddress} -> ${await OracleSwap.getTokenOracle(
+        daiAddress
       )}`
     );
   });

@@ -29,7 +29,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     IProtocolConfigUpgradeable private s_config;
 
     uint256 private constant PRECISION_FACTOR = 1e18;
-    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
+    uint256 private constant MIN_TWAP_WINDOW = 60;
+    uint256 private constant MAX_TWAP_WINDOW = 86400;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
@@ -37,12 +38,14 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     bytes32 private constant BP_KEY = keccak256("BP");
 
     mapping(address => address) private s_tokenOracles;
+    uint32 private s_twapWindow;
 
     event SlippageParametersUpdated(uint256 newNumerator);
     event TokensSwapped(
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 computedAmountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
+    event TWAPWindowUpdated(uint32 newWindow);
     event ProtocolConfigSet();
     event UserManagerSet();
 
@@ -53,6 +56,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_slippageNumerator = 99_00; // 99.00%
+        s_twapWindow = 600;
 
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
     }
@@ -119,6 +123,18 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
+     * @notice Set the TWAP observation window.
+     * @param window Time window in seconds for TWAP calculation.
+     */
+     
+    function setTWAPWindow(uint32 window) external onlyGeneralOrMasterAdmin {
+        if (window < MIN_TWAP_WINDOW || window > MAX_TWAP_WINDOW) {
+            revert OS_INVALID_TWAP_WINDOW();
+        }
+        s_twapWindow = window;
+        emit TWAPWindowUpdated(window);
+    }
+    /**
      * @dev Fetch main token instance from central config.
      */
     function _mainToken() internal view returns (IERC20) {
@@ -153,6 +169,97 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         return s_config.getUint(BP_KEY);
     }
 
+    /**
+     * @notice Get the current TWAP window.
+     * @return uint32 TWAP window in seconds.
+     */
+    function getTWAPWindow()
+        external
+        view
+        onlyGeneralOrMasterAdmin
+        returns (uint32)
+    {
+        return s_twapWindow;
+    }
+
+     /**
+     * @notice Calculate the time-weighted average tick over a specified period
+     * @param pool Address of the Uniswap V3 pool
+     * @param secondsAgo Number of seconds in the past to calculate TWAP from
+     * @return tick The time-weighted average tick
+     */
+    function getTWAPTick(
+        address pool,
+        uint32 secondsAgo
+    ) internal view returns (int24 tick) {
+        require(secondsAgo != 0, "secondsAgo cannot be 0");
+        require(pool != address(0), "Invalid pool address");
+
+        uint32[] memory secondsArray = new uint32[](2);
+        secondsArray[0] = secondsAgo;
+        secondsArray[1] = 0;
+
+        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
+            secondsArray
+        );
+        int56 tickDifference = tickCumulatives[1] - tickCumulatives[0];
+        tick = int24(tickDifference / int56(int32(secondsAgo)));
+    }
+
+    /**
+     * @notice Calculate the TWAP price in sqrtPriceX96 format
+     * @param pool Address of the Uniswap V3 pool
+     * @param secondsAgo Number of seconds in the past to calculate TWAP from
+     * @return sqrtPriceX96 The square root of the price in Q96 format
+     */
+    function getTWAPPriceX96(
+        address pool,
+        uint32 secondsAgo
+    ) internal view returns (uint160 sqrtPriceX96) {
+        int24 twapTick = getTWAPTick(pool, secondsAgo);
+        sqrtPriceX96 = TickMath.getSqrtPriceAtTick(twapTick);
+    }
+
+    function _getPriceFromTWAP(
+        address _token0,
+        address _token1,
+        uint24 fee
+    ) internal view returns (uint256 price) {
+        address pool = _factory().getPool(_token0, _token1, fee);
+        if (pool == address(0)) revert OS_POOL_NOT_SET();
+
+        address token0 = IUniswapV3Pool(pool).token0();
+        address token1 = IUniswapV3Pool(pool).token1();
+
+        uint160 sqrtPriceX96 = getTWAPPriceX96(pool, s_twapWindow );
+
+        uint256 priceX96 = FullMath.mulDiv(sqrtPriceX96, sqrtPriceX96, FixedPoint96.Q96);
+
+        uint8 d0 = IERC20Metadata(token0).decimals();
+        uint8 d1 = IERC20Metadata(token1).decimals();
+
+        if (_token0 == token0) {
+            if (d0 >= d1) {
+                price = FullMath.mulDiv(priceX96, 1e8 * (10 ** (d0 - d1)), FixedPoint96.Q96);
+            } else {
+                price = FullMath.mulDiv(priceX96, 1e8, FixedPoint96.Q96 * (10 ** (d1 - d0)));
+            }
+        } else {
+            if (priceX96 > 0) {
+                uint256 invPriceX96 = FullMath.mulDiv(FixedPoint96.Q96, FixedPoint96.Q96, priceX96);
+                if (d1 >= d0) {
+                    price = FullMath.mulDiv(invPriceX96, 1e8 * (10 ** (d1 - d0)), FixedPoint96.Q96);
+                } else {
+                    price = FullMath.mulDiv(invPriceX96, 1e8, FixedPoint96.Q96 * (10 ** (d0 - d1))
+                    );
+                }
+            } else {
+                price = 0;
+            }
+        }
+
+        return price;
+    }
     /**
      * @notice Update slippage tolerance parameters.
      * @param _numerator New slippage numerator in basis points.
@@ -194,70 +301,34 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             revert OS_SWAP_ROUTER_NOT_SET();
         }
 
-        address oracleIn = s_tokenOracles[tokenIn];
-        address oracleOut = s_tokenOracles[tokenOut];
-
-        if (oracleIn == address(0)) revert OS_ORACLE_NOT_SET_IN();
-        if (oracleOut == address(0)) revert OS_ORACLE_NOT_SET_OUT();
-
-        AggregatorV3Interface priceFeedTokenIn = AggregatorV3Interface(oracleIn);
-        AggregatorV3Interface priceFeedTokenOut = AggregatorV3Interface(oracleOut);
-
-        (uint80 roundIDIn, int256 answerIn,, uint256 updatedAtIn, uint80 answeredInRoundIn) =
-            priceFeedTokenIn.latestRoundData();
-
-        if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_IN();
-        }
-        if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
-
-        (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
-            priceFeedTokenOut.latestRoundData();
-
-        if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_OUT();
-        }
-        if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
-
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
         uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
 
-        uint8 decimalsDifference;
-        unchecked {
-            decimalsDifference = tokenInDecimals >= tokenOutDecimals
-                ? tokenInDecimals - tokenOutDecimals
-                : tokenOutDecimals - tokenInDecimals;
-        }
-
-        uint256 parsedAnswerIn = uint256(answerIn);
-        uint256 parsedAnswerOut = uint256(answerOut);
+        (uint256 price) = _getPriceFromTWAP(tokenIn, tokenOut, fee);
 
         uint256 computedAmountOut;
-        if (tokenInDecimals >= tokenOutDecimals) {
-            computedAmountOut =
-                (parsedAnswerIn * amountIn * PRECISION_FACTOR) / (parsedAnswerOut * 10 ** decimalsDifference);
-            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
+
+        if (tokenOutDecimals >= tokenInDecimals) {
+            uint256 decimalAdj = 10 ** (tokenOutDecimals - tokenInDecimals);
+            computedAmountOut = FullMath.mulDiv( price * amountIn, decimalAdj, 1e8);
         } else {
-            computedAmountOut =
-                (parsedAnswerIn * amountIn * 10 ** decimalsDifference * PRECISION_FACTOR) / parsedAnswerOut;
-            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
+            uint256 decimalAdj = 10 ** (tokenInDecimals - tokenOutDecimals);
+            computedAmountOut = FullMath.mulDiv(price * amountIn, 1, decimalAdj * 1e8);
         }
 
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-            IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                fee: fee,
-                recipient: recipient,
-                amountIn: amountIn,
-                amountOutMinimum: computedAmountOutMinimum < 1 * 10 ** 6 ? 0 : computedAmountOutMinimum,
-                sqrtPriceLimitX96: 0
-            });
+        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            fee: fee,
+            recipient: recipient,
+            amountIn: amountIn,
+            amountOutMinimum: computedAmountOutMinimum,
+            sqrtPriceLimitX96: 0
+        });
 
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
         _swapRouterInstance.exactInputSingle(params);
