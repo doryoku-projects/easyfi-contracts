@@ -11,7 +11,7 @@ describe("I_setRoles", async function () {
   let userManagerGeneralAdmin, userManagerUserManager;
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
-  let addressesPerChain, wethAddress, usdcAddress, daiAddress, btcAddress, zoroAddress, ethPriceFeed, usdcPriceFeed;
+  let addressesPerChain, wethAddress, usdcAddress, daiAddress, btcAddress, ethPriceFeed, usdcPriceFeed, wbtcPriceFeed, daiPriceFeed;
 
   async function fundWallet() {
 
@@ -45,9 +45,9 @@ describe("I_setRoles", async function () {
     usdcAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
     daiAddress = addressesPerChain.DAI_ADDRESS; // DAI
     btcAddress = addressesPerChain.BTC_ADDRESS; // BTC
-    zoroAddress = addressesPerChain.ZORO_ADDRESS; // ZORO
     ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
     usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
+    wbtcPriceFeed = addressesPerChain.WBTC_PRICE_FEED;
     daiPriceFeed = addressesPerChain.DAI_PRICE_FEED;
 
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
@@ -220,7 +220,7 @@ describe("I_setRoles", async function () {
     );
 
     const tokens = [wethAddress, usdcAddress, daiAddress];
-    const oracles = [ethPriceFeed, usdcPriceFeed, daiPriceFeed];
+    const oracles = [ethPriceFeed, usdcPriceFeed, daiPriceFeed, wbtcPriceFeed];
     const txOracle = await OracleSwap.setTokenOracles(tokens, oracles);
     await txOracle.wait();
     console.log("Oracles set successfully:");
@@ -239,7 +239,12 @@ describe("I_setRoles", async function () {
         daiAddress
       )}`
     );
-  });
+    console.log(
+      `Token3: ${wbtcAddress} -> ${await OracleSwap.getTokenOracle(
+        wbtcAddress
+      )}`
+    );
+    });
 });
 
 
