@@ -119,4 +119,22 @@ library UniswapV3TWAPOracle {
             }
         }
     }
+    /**
+     * @notice Calculate the amount out with decimal adjustment
+     */
+    function _computeAmountOut(
+        address tokenIn,
+        address tokenOut,
+        uint256 price,
+        uint256 amountIn
+    ) internal view returns (uint256) {
+        uint8 dIn = IERC20Metadata(tokenIn).decimals();
+        uint8 dOut = IERC20Metadata(tokenOut).decimals();
+
+        if (dOut >= dIn) {
+            return FullMath.mulDiv(price, amountIn * (10 ** (dOut - dIn)), 1e8);
+        } else {
+            return FullMath.mulDiv(price, amountIn, (10 ** (dIn - dOut)) * 1e8);
+        }
+    }
 }
