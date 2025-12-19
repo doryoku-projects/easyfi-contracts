@@ -190,7 +190,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     function getTwapPrice(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn) external view returns (uint256, uint256) {
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
         uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
-        uint256 computedAmountOut = UniswapV3TWAPOracle._computeAmountOut(
+        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(
             tokenIn,
             tokenOut,
             price,
@@ -224,7 +224,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
 
-        uint256 computedAmountOut = UniswapV3TWAPOracle._computeAmountOut(
+        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(
             tokenIn,
             tokenOut,
             price,
@@ -352,24 +352,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         uint256 halfMain = actualReceived / 2;
 
-        amountToken0Desired = isToken0Main
-            ? halfMain
-            : swapTokens(
-                address(_mainTokenInstance),
-                address(token0),
-                fee,
-                halfMain,
-                address(this)
-            );
-        amountToken1Desired = isToken1Main
-            ? halfMain
-            : swapTokens(
-                address(_mainTokenInstance),
-                address(token1),
-                fee,
-                halfMain,
-                address(this)
-            );
+        amountToken0Desired = isToken0Main ? halfMain : swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
+        amountToken1Desired = isToken1Main ? halfMain : swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
 
         token0.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken0Desired);
         token1.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken1Desired);

@@ -122,7 +122,7 @@ library UniswapV3TWAPOracle {
     /**
      * @notice Calculate the amount out with decimal adjustment
      */
-    function _computeAmountOut(
+    function computeAmountOut(
         address tokenIn,
         address tokenOut,
         uint256 price,
