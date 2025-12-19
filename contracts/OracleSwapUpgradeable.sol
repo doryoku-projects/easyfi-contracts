@@ -166,6 +166,15 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
+     * @notice Get the oracle address assigned to a given token.
+     * @param token Address of the token.
+     * @return address of the corresponding price oracle.
+     */
+    function getTokenOracle(address token) external view onlyGeneralOrMasterAdmin returns (address) {
+        return s_tokenOracles[token];
+    }
+
+    /**
      * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
      * @param tokenIn Address of the token to sell.
      * @param tokenOut Address of the token to buy.
