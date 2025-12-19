@@ -10,7 +10,7 @@ async function sleep(ms) {
 
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
   let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
-  let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
+  let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH, OracleSwap;
   let addressesPerChain;
 
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
@@ -92,6 +92,11 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     MainToken = await ethers.getContractAt(
       "IERC20",
       mainTokenAddress,
+      userWallet
+    );
+    OracleSwap = await ethers.getContractAt(
+      "OracleSwapUpgradeable",
+      oracleSwapAddress,
       userWallet
     );
     WETH = await ethers.getContractAt("IERC20", token0Address, userWallet);

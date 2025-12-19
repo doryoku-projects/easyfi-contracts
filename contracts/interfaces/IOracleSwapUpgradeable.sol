@@ -47,8 +47,4 @@ interface IOracleSwapUpgradeable {
     function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
         external
         returns (uint256 amountOut);
-
-    function setTWAPWindow(uint32 window) external;
-
-    function getTWAPWindow() external view returns (uint32);
 }

@@ -16,6 +16,7 @@ async function upgradeContract({
   console.log(`Proxy: ${proxyAddress}`);
 
   const NewImplementation = await ethers.getContractFactory(contractName, admin);
+  
   const newImplementation = await NewImplementation.deploy();
   await newImplementation.waitForDeployment();
   const newImplementationAddress = await newImplementation.getAddress();

@@ -19,8 +19,8 @@ async function deployUpgradeableContract({
   // Get current nonce from network to avoid cache issues
   const currentNonce = await ethers.provider.getTransactionCount(deployer.address, 'latest');
   console.log(`Current deployer nonce: ${currentNonce}`);
-
   const ContractFactory = await ethers.getContractFactory(contractName, deployer);
+
   const implementation = await ContractFactory.deploy({ nonce: currentNonce });
   await implementation.waitForDeployment();
   const implementationAddress = await implementation.getAddress();
@@ -43,6 +43,7 @@ async function deployUpgradeableContract({
   );
 
   const ProxyFactory = await ethers.getContractFactory("ProxyFactory");
+
   const factoryAddress = await getFactoryDeploymentAddress();
   const proxyFactoryContract = ProxyFactory.attach(factoryAddress).connect(deployer);
 
