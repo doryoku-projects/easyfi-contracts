@@ -162,5 +162,5 @@ npx cross-env WHITELABEL="easyfi_test" CONTRACT="VaultManagerUpgradeable"  FUNCT
 11. encodeMigratePositionBatches
 
 ```bash
-npx cross-env WHITELABEL="wadz" MIGRATE_USERS="user1,user2" MIGRATE_MANAGER="managerAddress" MIGRATE_POOL_ID="poolId" MIGRATE_TICK_LOWER=-100 MIGRATE_TICK_UPPER=100 FUNCTION_NAME=encodeMigratePositionBatches hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
+npx cross-env WHITELABEL="easyfi_test" MIGRATE_USERS="user1,user2" MIGRATE_MANAGER="managerAddress" MIGRATE_POOL_ID="poolId" MIGRATE_TICK_LOWER=-100 MIGRATE_TICK_UPPER=100 FUNCTION_NAME=encodeMigratePositionBatches hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```set
