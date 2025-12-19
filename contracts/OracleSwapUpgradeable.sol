@@ -190,12 +190,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     function getTwapPrice(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn) external view returns (uint256, uint256) {
         address pool = _factory().getPool(tokenIn, tokenOut, fee);
         uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
-        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(
-            tokenIn,
-            tokenOut,
-            price,
-            amountIn
-        );
+        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(tokenIn, tokenOut, price, amountIn);
 
         return (price, computedAmountOut);
     }
@@ -224,12 +219,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
 
-        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(
-            tokenIn,
-            tokenOut,
-            price,
-            amountIn
-        );
+        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(tokenIn, tokenOut, price, amountIn);
 
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
