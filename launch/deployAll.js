@@ -9,7 +9,6 @@ const deployVault = require("./Vault");
 const deployLiquidityManager = require("./LiquidityManager");
 const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
-const deployTWAPOracle = require("./TWAPOracle");
 const deployFundsManager = require("./FundsManager");
 
 
@@ -22,7 +21,6 @@ async function main() {
   await deployVault();
   await deployLiquidityManager();
   await deployLiquidityHelper();
-  await deployTWAPOracle();
   await deployOracleSwap();
   await deployFundsManager();
 
