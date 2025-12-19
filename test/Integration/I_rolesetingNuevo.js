@@ -11,7 +11,7 @@ describe("I_setRoles", async function () {
   let userManagerGeneralAdmin, userManagerUserManager;
   let userManagerAddress, vaultManagerAddress, liquidityManagerAddress;
   let oracleSwapAddress, liquidityHelperAddress, aggregatorAddress;
-  let addressesPerChain, wethAddress, usdcAddress, daiAddress, btcAddress, ethPriceFeed, usdcPriceFeed, wbtcPriceFeed, daiPriceFeed;
+  let addressesPerChain, wethAddress, usdcAddress, daiAddress, wbtcAddress, ethPriceFeed, usdcPriceFeed, wbtcPriceFeed, daiPriceFeed;
 
   async function fundWallet() {
 
@@ -44,7 +44,7 @@ describe("I_setRoles", async function () {
     wethAddress = addressesPerChain.TOKEN0_ADDRESS; // WETH
     usdcAddress = addressesPerChain.MAIN_TOKEN_ADDRESS; // USDC
     daiAddress = addressesPerChain.DAI_ADDRESS; // DAI
-    btcAddress = addressesPerChain.BTC_ADDRESS; // BTC
+    wbtcAddress = addressesPerChain.BTC_ADDRESS; // BTC
     ethPriceFeed = addressesPerChain.ETH_PRICE_FEED;
     usdcPriceFeed = addressesPerChain.USDC_PRICE_FEED;
     wbtcPriceFeed = addressesPerChain.WBTC_PRICE_FEED;
@@ -219,7 +219,7 @@ describe("I_setRoles", async function () {
       ownerWallet
     );
 
-    const tokens = [wethAddress, usdcAddress, daiAddress];
+    const tokens = [wethAddress, usdcAddress, daiAddress, wbtcAddress];
     const oracles = [ethPriceFeed, usdcPriceFeed, daiPriceFeed, wbtcPriceFeed];
     const txOracle = await OracleSwap.setTokenOracles(tokens, oracles);
     await txOracle.wait();
