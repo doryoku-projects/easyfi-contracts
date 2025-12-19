@@ -70,12 +70,4 @@ abstract contract OracleSwapErrors {
      * @notice both mainAmount0 and mainAmount1 == 0
      */
     error OS_NOT_ENOUGH_TOKENS();
-    /**
-     * @notice TWAP window is invalid (0 or too large)
-     */
-    error OS_INVALID_TWAP_WINDOW();
-    /**
-     * @notice Pool address not configured for TWAP token
-     */
-    error OS_POOL_NOT_SET();
 }
