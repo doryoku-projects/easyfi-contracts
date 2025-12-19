@@ -251,7 +251,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             fee: fee,
             recipient: recipient,
             amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum,
+            amountOutMinimum: computedAmountOutMinimum < 1 * 10 ** 6 ? 0 : computedAmountOutMinimum,
             sqrtPriceLimitX96: 0
         });
 
