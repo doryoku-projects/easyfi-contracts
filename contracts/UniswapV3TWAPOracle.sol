@@ -131,10 +131,9 @@ library UniswapV3TWAPOracle {
         uint8 dIn = IERC20Metadata(tokenIn).decimals();
         uint8 dOut = IERC20Metadata(tokenOut).decimals();
 
-        if (dOut >= dIn) {
+        if (dOut >= dIn)
             return FullMath.mulDiv(price, amountIn * (10 ** (dOut - dIn)), 1e8);
-        } else {
+        else
             return FullMath.mulDiv(price, amountIn, (10 ** (dIn - dOut)) * 1e8);
-        }
     }
 }
