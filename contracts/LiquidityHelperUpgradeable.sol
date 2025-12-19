@@ -275,7 +275,7 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
-        uint256 threshold = 10000;
+        uint256 threshold = 1;
 
         addedUsed0 = 0;
         addedUsed1 = 0;
