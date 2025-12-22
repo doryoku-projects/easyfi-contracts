@@ -175,22 +175,19 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
-     * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
+     * @notice Estimates the output amount of a swap using oracles.
      * @param tokenIn Address of the token to sell.
      * @param tokenOut Address of the token to buy.
-     * @param fee Fee tier of the Uniswap V3 pool.
      * @param amountIn Amount of tokenIn to swap.
-     * @param recipient Address to receive the output tokens.
-     * @return actualReceived Actual amount of tokenOut received.
+     * @return computedAmountOut Estimated amount of tokenOut.
      */
-    function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
+    function estimateAmountOut(address tokenIn, address tokenOut, uint256 amountIn)
         public
+        view
         onlyLiquidityManager
         returns (uint256 actualReceived)
+        returns (uint256 computedAmountOut)
     {
-        IV3SwapRouter _swapRouterInstance = _swapRouter();
-        if (address(_swapRouterInstance) == address(0)) revert OS_SWAP_ROUTER_NOT_SET();
-
         address oracleIn = s_tokenOracles[tokenIn];
         address oracleOut = s_tokenOracles[tokenOut];
 
@@ -227,7 +224,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         uint256 parsedAnswerIn = uint256(answerIn);
         uint256 parsedAnswerOut = uint256(answerOut);
 
-        uint256 computedAmountOut;
         if (tokenInDecimals >= tokenOutDecimals) {
             computedAmountOut =
                 (parsedAnswerIn * amountIn * PRECISION_FACTOR) / (parsedAnswerOut * 10 ** decimalsDifference);
@@ -238,6 +234,26 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             computedAmountOut = computedAmountOut / PRECISION_FACTOR;
         }
 
+    }
+
+    /**
+     * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
+     * @param tokenIn Address of the token to sell.
+     * @param tokenOut Address of the token to buy.
+     * @param fee Fee tier of the Uniswap V3 pool.
+     * @param amountIn Amount of tokenIn to swap.
+     * @param recipient Address to receive the output tokens.
+     * @return actualReceived Actual amount of tokenOut received.
+     */
+    function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
+        public
+        onlyLiquidityManager
+        returns (uint256 actualReceived)
+    {
+        IV3SwapRouter _swapRouterInstance = _swapRouter();
+        if (address(_swapRouterInstance) == address(0)) revert OS_SWAP_ROUTER_NOT_SET();
+
+        uint256 computedAmountOut = estimateAmountOut(tokenIn, tokenOut, amountIn);
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
