@@ -53,7 +53,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_slippageNumerator = 99_00; // 99.00%
-
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
     }
 
@@ -149,8 +148,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     /**
      * @dev Basic points(BP) instance from central config.
      */
-    function _BP() internal view returns (uint16) {
-        return uint16(s_config.getUint(BP_KEY));
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
     }
 
     /**
@@ -190,9 +189,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         returns (uint256 actualReceived)
     {
         IV3SwapRouter _swapRouterInstance = _swapRouter();
-        if (address(_swapRouterInstance) == address(0)) {
-            revert OS_SWAP_ROUTER_NOT_SET();
-        }
+        if (address(_swapRouterInstance) == address(0)) revert OS_SWAP_ROUTER_NOT_SET();
 
         address oracleIn = s_tokenOracles[tokenIn];
         address oracleOut = s_tokenOracles[tokenOut];
@@ -207,18 +204,14 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             priceFeedTokenIn.latestRoundData();
 
         if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_IN();
-        }
+        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_IN();
         if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
 
         (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
             priceFeedTokenOut.latestRoundData();
 
         if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_OUT();
-        }
+        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_OUT();
         if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
 
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
@@ -255,7 +248,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             fee: fee,
             recipient: recipient,
             amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum,
+            amountOutMinimum: computedAmountOutMinimum < 1e6 ? 0 : computedAmountOutMinimum,
             sqrtPriceLimitX96: 0
         });
 
@@ -318,7 +311,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         int24 tickUpper,
         uint128 liquidityAmount
     ) external view onlyLiquidityManager returns (uint256 amount0Min, uint256 amount1Min) {
-        uint16 _bp = _BP();
+        uint256 _bp = _BP();
         address pool = _factory().getPool(token0, token1, fee);
         if (pool == address(0)) revert OS_POOL_NOT_EXIST();
 
