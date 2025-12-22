@@ -47,4 +47,10 @@ interface IOracleSwapUpgradeable {
     function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
         external
         returns (uint256 amountOut);
+
+    function estimateAmountOut(
+        address tokenIn,
+        address tokenOut,
+        uint256 amountIn
+    ) external view returns (uint256 computedAmountOut);
 }
