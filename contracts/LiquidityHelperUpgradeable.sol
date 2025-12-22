@@ -26,6 +26,7 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
     bytes32 private constant ORACLE_SWAP_KEY = keccak256("OracleSwap");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
 
     event LiquidityAdded(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
     event ProtocolConfigSet();
@@ -108,6 +109,13 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
      */
     function _BP() internal view returns (uint256) {
         return s_config.getUint(BP_KEY);
+    }
+
+    /**
+     * @dev Fetch main token instance from central config.
+     */
+    function _mainToken() internal view returns (IERC20) {
+        return IERC20(s_config.getAddress(MAIN_TOKEN_KEY));
     }
 
     /**
@@ -275,14 +283,34 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
-        uint256 threshold = 1;
+        uint256 threshold = 10000;
+        address mainToken = address(_mainToken());
+        IOracleSwapUpgradeable oracleSwapInstance = _oracleSwap();
 
         addedUsed0 = 0;
         addedUsed1 = 0;
         returnToken0 = 0;
         returnToken1 = 0;
 
-        if (actualLeft0 > threshold) {
+        bool process0;
+        if (actualLeft0 > 0) {
+            if (token0Address == mainToken) {
+                process0 = actualLeft0 > threshold;
+            } else {
+                uint256 computedAmountOut = oracleSwapInstance.estimateAmountOut(token0Address, mainToken, actualLeft0);
+                process0 = computedAmountOut > threshold;
+            }
+        }
+        bool process1;
+        if (actualLeft1 > 0) {
+            if (token1Address == mainToken) {
+                process1 = actualLeft1 > threshold;
+            } else {
+                uint256 computedAmountOut = oracleSwapInstance.estimateAmountOut(token1Address, mainToken, actualLeft1);
+                process1 = computedAmountOut > threshold;
+            }
+        }
+        if (process0) {
             (uint256 used0, uint256 used1, uint256 ret0, uint256 ret1) = _processLeftover(
                 tokenId,
                 token0Address,
@@ -300,8 +328,10 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             addedUsed1 += used1;
             returnToken0 += ret0;
             returnToken1 += ret1;
+        } else {
+            returnToken0 += actualLeft0;
         }
-        if (actualLeft1 > threshold) {
+        if (process1) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
@@ -319,12 +349,7 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             addedUsed1 += used1;
             returnToken0 += ret0;
             returnToken1 += ret1;
-        }
-        if (actualLeft0 <= threshold) {
-            returnToken0 += actualLeft0;
-        }
-
-        if (actualLeft1 <= threshold) {
+        } else {
             returnToken1 += actualLeft1;
         }
 
