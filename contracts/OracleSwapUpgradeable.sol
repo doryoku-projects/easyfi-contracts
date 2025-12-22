@@ -185,7 +185,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         public
         view
         onlyLiquidityManager
-        returns (uint256 actualReceived)
         returns (uint256 computedAmountOut)
     {
         address oracleIn = s_tokenOracles[tokenIn];

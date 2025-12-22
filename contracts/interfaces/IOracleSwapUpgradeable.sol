@@ -52,5 +52,5 @@ interface IOracleSwapUpgradeable {
         address tokenIn,
         address tokenOut,
         uint256 amountIn
-    ) external view returns (uint256 estimatedAmountOut);
+    ) external view returns (uint256 computedAmountOut);
 }
