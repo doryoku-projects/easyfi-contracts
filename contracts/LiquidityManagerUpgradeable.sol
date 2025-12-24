@@ -271,9 +271,11 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         }
 
         if (actualReturnToken0 > 0 || actualReturnToken1 > 0) {
-            _oracleSwapInstance.convertToMainTokenAndSend(
-                user, actualReturnToken0, actualReturnToken1, token0Address, token1Address, fee
-            );
+            if (user != _vaultManager()) {
+                _oracleSwapInstance.convertToMainTokenAndSend(
+                    user, actualReturnToken0, actualReturnToken1, token0Address, token1Address, fee
+                );
+            }
         }
         _leftover.extraUsed0 = extraUsed0Local;
         _leftover.extraUsed1 = extraUsed1Local;
@@ -702,14 +704,31 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         (cumulatedFee0, cumulatedFee1, ,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
 
+        IERC20 token0 = IERC20(token0Address);
+        IERC20 token1 = IERC20(token1Address);
+
+        if (cumulatedFee0 > 0)
+            token0.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee0);
+        if (cumulatedFee1 > 0)
+            token1.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee1);
         uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
 
         MintResult memory _mintResult =
             mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, _vaultManagerInstance, false);
 
+        uint256 _returnToken0 = _mintResult.actualReturnToken0;
+        uint256 _returnToken1 = _mintResult.actualReturnToken1;
+
+        if (_returnToken0 > 0) {
+            token0.safeIncreaseAllowance(_vaultManagerInstance, _returnToken0);
+        }
+        if (_returnToken1 > 0) {
+            token1.safeIncreaseAllowance(_vaultManagerInstance, _returnToken1);
+        }
+
         newTokenId = _mintResult.tokenId;
-        returnToken0 = _mintResult.actualReturnToken0;
-        returnToken1 = _mintResult.actualReturnToken1;
+        returnToken0 = _returnToken0;
+        returnToken1 = _returnToken1;
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
     }
 }
