@@ -707,10 +707,6 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
 
-        if (cumulatedFee0 > 0)
-            token0.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee0);
-        if (cumulatedFee1 > 0)
-            token1.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee1);
         uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
 
         MintResult memory _mintResult =
