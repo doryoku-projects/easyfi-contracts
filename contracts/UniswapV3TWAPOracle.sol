@@ -26,17 +26,27 @@ library UniswapV3TWAPOracle {
         require(secondsAgo != 0, "secondsAgo cannot be 0");
         require(pool != address(0), "Invalid pool address");
 
-        uint32[] memory secondsArray = new uint32[](2);
-        secondsArray[0] = secondsAgo;
-        secondsArray[1] = 0;
+        (,, uint16 observationIndex, uint16 observationCardinality,,,) = IUniswapV3Pool(pool).slot0();
 
-        (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(
-            secondsArray
-        );
+        uint16 oldestIndex = (observationIndex + 1) % observationCardinality;
+        (uint32 oldestTimestamp,,, bool initialized) = IUniswapV3Pool(pool).observations(oldestIndex);
 
-        int56 tickDifference = tickCumulatives[1] - tickCumulatives[0];
+        if (!initialized) {
+            (oldestTimestamp,,,) = IUniswapV3Pool(pool).observations(0);
+        }
 
-        tick = int24(tickDifference / int56(int32(secondsAgo)));
+        if (block.timestamp - oldestTimestamp >= secondsAgo) {
+            uint32[] memory secondsArray = new uint32[](2);
+            secondsArray[0] = secondsAgo;
+            secondsArray[1] = 0;
+
+            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(pool).observe(secondsArray);
+
+            int56 tickDifference = tickCumulatives[1] - tickCumulatives[0];
+            tick = int24(tickDifference / int56(int32(secondsAgo)));
+        } else {
+            (, tick,,,,,) = IUniswapV3Pool(pool).slot0();
+        }
     }
 
     /**
