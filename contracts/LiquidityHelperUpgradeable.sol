@@ -12,6 +12,8 @@ import "./interfaces/IOracleSwapUpgradeable.sol";
 import "./interfaces/INonfungiblePositionManager.sol";
 import "./interfaces/ILiquidityManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./UniswapV3TWAPOracle.sol";
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 
 /**
  * @title LiquidityHelperUpgradeable
@@ -19,6 +21,7 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  */
 contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, LiquidityHelperErrors {
     using SafeERC20 for IERC20;
+    using UniswapV3TWAPOracle for address;
 
     IProtocolConfigUpgradeable private s_config;
 
@@ -26,6 +29,9 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
     bytes32 private constant ORACLE_SWAP_KEY = keccak256("OracleSwap");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
+    bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
+    bytes32 private constant TWAP_WINDOW = keccak256("TWAPWindow");
 
     event LiquidityAdded(uint256 indexed tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
     event ProtocolConfigSet();
@@ -108,6 +114,21 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
      */
     function _BP() internal view returns (uint256) {
         return s_config.getUint(BP_KEY);
+    }
+
+    /**
+     * @dev Fetch Uniswap V3 Factory instance from central config.
+     */
+    function _factory() internal view returns (IUniswapV3Factory) {
+        return IUniswapV3Factory(s_config.getAddress(UNISWAP_FACTORY_KEY));
+    }
+
+    /**
+     * @notice Get the current TWAP window.
+     * @return uint32 TWAP window in seconds.
+     */
+    function _twapWindow() internal view returns (uint32) {
+        return uint32(s_config.getUint(TWAP_WINDOW));
     }
 
     /**
@@ -275,14 +296,40 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             actualLeft1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
-        uint256 threshold = 1;
+        uint256 threshold = 10000;
+        address mainToken = s_config.getAddress(MAIN_TOKEN_KEY);
 
         addedUsed0 = 0;
         addedUsed1 = 0;
         returnToken0 = 0;
         returnToken1 = 0;
 
-        if (actualLeft0 > threshold) {
+
+        bool process0;
+        if (actualLeft0 > 0) {
+            if (token0Address == mainToken) {
+                process0 = actualLeft0 > threshold;
+            } else {
+                address pool = _factory().getPool(token0Address, mainToken, fee);
+                uint256 price = pool.getTWAPPrice(token0Address, mainToken, _twapWindow());
+                uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(token0Address, mainToken, price, actualLeft0);
+                process0 = computedAmountOut > threshold;
+            }
+        }
+
+        bool process1;
+        if (actualLeft1 > 0) {
+            if (token1Address == mainToken) {
+                process1 = actualLeft1 > threshold;
+            } else {
+                address pool = _factory().getPool(token1Address, mainToken, fee);
+                uint256 price = pool.getTWAPPrice(token1Address, mainToken, _twapWindow());
+                uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(token1Address, mainToken, price, actualLeft1);
+                process1 = computedAmountOut > threshold;
+            }
+        }
+
+        if (process0) {
             (uint256 used0, uint256 used1, uint256 ret0, uint256 ret1) = _processLeftover(
                 tokenId,
                 token0Address,
@@ -300,8 +347,10 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             addedUsed1 += used1;
             returnToken0 += ret0;
             returnToken1 += ret1;
+        } else {
+            returnToken0 += actualLeft0;
         }
-        if (actualLeft1 > threshold) {
+        if (process1) {
             (uint256 used1, uint256 used0, uint256 ret1, uint256 ret0) = _processLeftover(
                 tokenId,
                 token1Address,
@@ -319,13 +368,7 @@ contract LiquidityHelperUpgradeable is UUPSUpgradeable, UserAccessControl, Liqui
             addedUsed1 += used1;
             returnToken0 += ret0;
             returnToken1 += ret1;
-        }
-
-        if (actualLeft0 <= threshold) {
-            returnToken0 += actualLeft0;
-        }
-
-        if (actualLeft1 <= threshold) {
+        } else {
             returnToken1 += actualLeft1;
         }
 
