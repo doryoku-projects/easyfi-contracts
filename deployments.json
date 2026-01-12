@@ -41,7 +41,7 @@
       "LiquidityManagerUpgradeable": "0x624169A08ec507BF1aE0f9d26664F3f0A4d5cB7c",
       "LiquidityHelperUpgradeable": "0x46F64dEc0CC882dA348578E4c023B16B70e108aD",
       "OracleSwapUpgradeable": "0xbcd6cca902866f1929d5ec6E136fcFc8B5C18c08",
-      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461",
+      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461"
     }
   }
 }
