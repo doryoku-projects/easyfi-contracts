@@ -53,7 +53,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         }
         s_config = IProtocolConfigUpgradeable(_protocolConfig);
         s_slippageNumerator = 99_00; // 99.00%
-
         s_userManager = IUserManagerUpgradeable(_userManagerAddress);
     }
 
@@ -149,8 +148,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     /**
      * @dev Basic points(BP) instance from central config.
      */
-    function _BP() internal view returns (uint16) {
-        return uint16(s_config.getUint(BP_KEY));
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
     }
 
     /**
@@ -176,24 +175,18 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
-     * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
+     * @notice Estimates the output amount of a swap using oracles.
      * @param tokenIn Address of the token to sell.
      * @param tokenOut Address of the token to buy.
-     * @param fee Fee tier of the Uniswap V3 pool.
      * @param amountIn Amount of tokenIn to swap.
-     * @param recipient Address to receive the output tokens.
-     * @return actualReceived Actual amount of tokenOut received.
+     * @return computedAmountOut Estimated amount of tokenOut.
      */
-    function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
+    function estimateAmountOut(address tokenIn, address tokenOut, uint256 amountIn)
         public
+        view
         onlyLiquidityManager
-        returns (uint256 actualReceived)
+        returns (uint256 computedAmountOut)
     {
-        IV3SwapRouter _swapRouterInstance = _swapRouter();
-        if (address(_swapRouterInstance) == address(0)) {
-            revert OS_SWAP_ROUTER_NOT_SET();
-        }
-
         address oracleIn = s_tokenOracles[tokenIn];
         address oracleOut = s_tokenOracles[tokenOut];
 
@@ -207,18 +200,14 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             priceFeedTokenIn.latestRoundData();
 
         if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_IN();
-        }
+        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_IN();
         if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
 
         (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
             priceFeedTokenOut.latestRoundData();
 
         if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) {
-            revert OS_STALE_PRICE_OUT();
-        }
+        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_OUT();
         if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
 
         uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
@@ -234,7 +223,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         uint256 parsedAnswerIn = uint256(answerIn);
         uint256 parsedAnswerOut = uint256(answerOut);
 
-        uint256 computedAmountOut;
         if (tokenInDecimals >= tokenOutDecimals) {
             computedAmountOut =
                 (parsedAnswerIn * amountIn * PRECISION_FACTOR) / (parsedAnswerOut * 10 ** decimalsDifference);
@@ -245,6 +233,26 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             computedAmountOut = computedAmountOut / PRECISION_FACTOR;
         }
 
+    }
+
+    /**
+     * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
+     * @param tokenIn Address of the token to sell.
+     * @param tokenOut Address of the token to buy.
+     * @param fee Fee tier of the Uniswap V3 pool.
+     * @param amountIn Amount of tokenIn to swap.
+     * @param recipient Address to receive the output tokens.
+     * @return actualReceived Actual amount of tokenOut received.
+     */
+    function swapTokens(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, address recipient)
+        public
+        onlyLiquidityManager
+        returns (uint256 actualReceived)
+    {
+        IV3SwapRouter _swapRouterInstance = _swapRouter();
+        if (address(_swapRouterInstance) == address(0)) revert OS_SWAP_ROUTER_NOT_SET();
+
+        uint256 computedAmountOut = estimateAmountOut(tokenIn, tokenOut, amountIn);
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
@@ -255,7 +263,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
             fee: fee,
             recipient: recipient,
             amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum,
+            amountOutMinimum: computedAmountOutMinimum < 1e6 ? 0 : computedAmountOutMinimum,
             sqrtPriceLimitX96: 0
         });
 
@@ -318,7 +326,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         int24 tickUpper,
         uint128 liquidityAmount
     ) external view onlyLiquidityManager returns (uint256 amount0Min, uint256 amount1Min) {
-        uint16 _bp = _BP();
+        uint256 _bp = _BP();
         address pool = _factory().getPool(token0, token1, fee);
         if (pool == address(0)) revert OS_POOL_NOT_EXIST();
 

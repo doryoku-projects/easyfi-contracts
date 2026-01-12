@@ -5,7 +5,7 @@ async function main() {
   
   await upgradeContract({
     contractName: "VaultManagerUpgradeable",
-    proxyStorageKey: "VaultUpgradeable"
+    proxyStorageKey: "VaultManagerUpgradeable"
   });
 }
 

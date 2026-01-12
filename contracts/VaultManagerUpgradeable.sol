@@ -663,11 +663,25 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             actualCumulatedFee1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
+        uint256 actualReturnToken0 = 0;
+        if (returnToken0 > 0) {
+            uint256 balance0Before = token0.balanceOf(address(this));
+            token0.safeTransferFrom(address(_liquidityManagerInstance), address(this), returnToken0);
+            actualReturnToken0 = token0.balanceOf(address(this)) - balance0Before;
+        }
+
+        uint256 actualReturnToken1 = 0;
+        if (returnToken1 > 0) {
+            uint256 balance1Before = token1.balanceOf(address(this));
+            token1.safeTransferFrom(address(_liquidityManagerInstance), address(this), returnToken1);
+            actualReturnToken1 = token1.balanceOf(address(this)) - balance1Before;
+        }
+
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
         userInfo[user][packageId][poolIdHash].tickLower = tickLower;
         userInfo[user][packageId][poolIdHash].tickUpper = tickUpper;
-        userInfo[user][packageId][poolIdHash].feeToken0 += actualCumulatedFee0 + returnToken0;
-        userInfo[user][packageId][poolIdHash].feeToken1 += actualCumulatedFee1 + returnToken1;
+        userInfo[user][packageId][poolIdHash].feeToken0 += actualCumulatedFee0 + actualReturnToken0;
+        userInfo[user][packageId][poolIdHash].feeToken1 += actualCumulatedFee1 + actualReturnToken1;
 
         _nfpmInstance.approve(address(0), _newTokenId);
 

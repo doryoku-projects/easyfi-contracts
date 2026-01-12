@@ -30,7 +30,7 @@ async function storeDeployment(contractName, address) {
 async function deployFactory() {
     const { WALLETS } = CONFIG;
 
-    const initialAdmins = [WALLETS.MASTER_ADMIN];
+    const initialAdmins = [WALLETS.MASTER_ADMIN, WALLETS.NEW_DEPLOYER_ADDRESS];
 
     // Deploy the ProxyFactory
     const proxyFactory = await ethers.getContractFactory("ProxyFactory");

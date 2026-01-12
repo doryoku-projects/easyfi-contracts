@@ -5,7 +5,7 @@
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
       "ProtocolConfigUpgradeable": "0x9366E6BE677858047d2AC2C0c173C076134aca2A",
       "AggregatorUpgradeable": "0x01ED41BDE3BfA4548688FdA5D7940275b42188c2",
-      "VaultUpgradeable": "0x650fC7307F87A42F52EEAC743b177aa062af8d28",
+      "VaultManagerUpgradeable": "0x650fC7307F87A42F52EEAC743b177aa062af8d28",
       "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
@@ -15,7 +15,7 @@
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
       "ProtocolConfigUpgradeable": "0x9366E6BE677858047d2AC2C0c173C076134aca2A",
       "AggregatorUpgradeable": "0x01ED41BDE3BfA4548688FdA5D7940275b42188c2",
-      "VaultUpgradeable": "0x650fC7307F87A42F52EEAC743b177aa062af8d28",
+      "VaultManagerUpgradeable": "0x650fC7307F87A42F52EEAC743b177aa062af8d28",
       "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
@@ -27,7 +27,7 @@
       "UserManagerUpgradeable": "0xA247eF949031ea74d8eb5ca2117EF03ac9CF7D7D",
       "ProtocolConfigUpgradeable": "0x18ed821decD92A964F9b34f5f42504f5F8E535A8",
       "AggregatorUpgradeable": "0x50406b9400cA85cA3062dCc259EF885B1070656e",
-      "VaultUpgradeable": "0x70A9cB05DA84f155Ef64d1B1878e6D519Ad24f9A",
+      "VaultManagerUpgradeable": "0x70A9cB05DA84f155Ef64d1B1878e6D519Ad24f9A",
       "LiquidityManagerUpgradeable": "0xEb7c8a166d23518F906B5Bf376965749C6a3BFc7",
       "LiquidityHelperUpgradeable": "0x425C9e0fA47eE505C1b8257E9BeFA65DA484dAf8",
       "OracleSwapUpgradeable": "0xfc78e4332092C4B9A3AA4EDc44500cb3bB8bDebf",
@@ -37,27 +37,11 @@
       "UserManagerUpgradeable": "0x5d0Ef9C43F9E1E4e43DBbfCf89b5Da5CDe75B91B",
       "ProtocolConfigUpgradeable": "0x8Eb68f28dB50f67fd96bB4Dd9AdFd7e38c6dbAc5",
       "AggregatorUpgradeable": "0xF8e7d6EDB83da0370646f2cf00685F5583889b45",
-      "VaultUpgradeable": "0x712770425cC0B66479faBc3b95707BA2D421bc5C",
+      "VaultManagerUpgradeable": "0x712770425cC0B66479faBc3b95707BA2D421bc5C",
       "LiquidityManagerUpgradeable": "0x624169A08ec507BF1aE0f9d26664F3f0A4d5cB7c",
       "LiquidityHelperUpgradeable": "0x46F64dEc0CC882dA348578E4c023B16B70e108aD",
       "OracleSwapUpgradeable": "0xbcd6cca902866f1929d5ec6E136fcFc8B5C18c08",
-      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461",
-      "VaultUpgradeable_impl_1762498295409": "0xf893fc70136877F1E24304995e4dB884B1F2CD97",
-      "OracleSwapUpgradeable_impl_1762498386153": "0x765fc5D02D5CC6CDc72D385bA8196903D302eEFb",
-      "UserManagerUpgradeable_impl_1762498418057": "0x4b3E2Ec134bA503bb0311920d162f48A0DB75f8c",
-      "LiquidityManagerUpgradeable_impl_1762862217024": "0xC120D1Eb3D2826094E3f9d0984bd7325c84B976d"
-    }
-  },
-  "w": {
-    "42161": {
-      "UserManagerUpgradeable": "0x43C47B3d108b7E85692c4f353592d5429631030b",
-      "ProtocolConfigUpgradeable": "0x48E4cFC797290cDba54b7af3E8D42974D3F669b1",
-      "AggregatorUpgradeable": "0x4808288d463aEcCA4FFab8Ea00F8b3D098202FDa",
-      "VaultUpgradeable": "0x3AfE9Aa73d75E5604a3D0b2E7f7E742372183b36",
-      "LiquidityManagerUpgradeable": "0x4403E29f17d9A137278cedD5E3438Cc6abe777A3",
-      "LiquidityHelperUpgradeable": "0x324eF9Ce6707451A83A25356059CEfe3abdfD1Fb",
-      "OracleSwapUpgradeable": "0xb44E822b82ACAe35678fdb16c1d63344672376F5",
-      "FundsManagerUpgradeable": "0x99098Ed730B272471dac8aaeBBE52E4f7936a4D4"
+      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461"
     }
   }
 }

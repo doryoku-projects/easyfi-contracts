@@ -14,7 +14,7 @@ describe("I_Decrease", function () {
   before(async function () {
 
     userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
-    vaultManagerAddress = await getDeploymentAddress("VaultUpgradeable");
+    vaultManagerAddress = await getDeploymentAddress("VaultManagerUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
 
     ownerWallet = new ethers.Wallet(
