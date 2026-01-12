@@ -350,6 +350,18 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
             _mint(token0, token1, fee, tickLower, tickUpper, actualAmount0Desired, actualAmount1Desired, user);
     }
 
+    /**
+     * @notice Internal helper to mint a new position.
+     * @param token0 Address of token0.
+     * @param token1 Address of token1.
+     * @param fee Fee of the position.
+     * @param tickLower Lower tick of the position.
+     * @param tickUpper Upper tick of the position.
+     * @param amount0Desired Amount of token0 desired.
+     * @param amount1Desired Amount of token1 desired.
+     * @param user Address to which any converted main token should be sent.
+     * @return _mintResult Mint result.
+     */
     function _mint(address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint256 amount0Desired, uint256 amount1Desired, address user)
         internal
         returns (MintResult memory _mintResult)
@@ -512,14 +524,14 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
     /**
      * @notice Remove or withdraw a percentage of liquidity from a position.
+     * @dev Internal helper to decrease liquidity and collect raw tokens from Uniswap V3.
      * @param tokenId ID of the position NFT.
      * @param percentageToRemove Percentage of liquidity to remove (basis points, e.g. 5000 = 50%).
-     * @param user Address to which any converted main token should be sent.
-     * @param migrate Whether to migrate remaining position into a new one (true) or simply withdraw (false).
-     * @return collectedMainToken Amount of main token received after conversion.
-     */
-    /**
-     * @dev Internal helper to decrease liquidity and collect raw tokens from Uniswap V3.
+     * @return collected0 Amount of token0 collected.
+     * @return collected1 Amount of token1 collected.
+     * @return token0Address Address of token0.
+     * @return token1Address Address of token1.
+     * @return fee Fee of the position.
      */
     function _decreaseAndCollect(uint256 tokenId, uint128 percentageToRemove)
         internal
