@@ -319,6 +319,7 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         IERC20 _mainTokenInstance = _mainToken();
         address _vaultManagerInstance = _vaultManager();
         IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
 
         uint256 actualAmountReceived = amountDesired;
 
@@ -346,39 +347,15 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         emit AmountsDesired(actualAmount0Desired, actualAmount1Desired);
 
-        return
-            _mint(token0, token1, fee, tickLower, tickUpper, actualAmount0Desired, actualAmount1Desired, user);
-    }
-
-    /**
-     * @notice Internal helper to mint a new position.
-     * @param token0 Address of token0.
-     * @param token1 Address of token1.
-     * @param fee Fee of the position.
-     * @param tickLower Lower tick of the position.
-     * @param tickUpper Upper tick of the position.
-     * @param amount0Desired Amount of token0 desired.
-     * @param amount1Desired Amount of token1 desired.
-     * @param user Address to which any converted main token should be sent.
-     * @return _mintResult Mint result.
-     */
-    function _mint(address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint256 amount0Desired, uint256 amount1Desired, address user)
-        internal
-        returns (MintResult memory _mintResult)
-    {
-        IOracleSwapUpgradeable _oracleSwapInstance = IOracleSwapUpgradeable(_oracleSwap());
-        INonfungiblePositionManager _nfpmInstance = INonfungiblePositionManager(_nfpm());
-        address _vaultManagerInstance = _vaultManager();
-        IERC20 token0ERC = IERC20(token0);
-        IERC20 token1ERC = IERC20(token1);
-
-        uint128 liquidityAmount = _oracleSwapInstance.getLiquidityFromAmounts(token0, token1, fee, tickLower, tickUpper, amount0Desired, amount1Desired);
+        uint128 liquidityAmount = _oracleSwapInstance.getLiquidityFromAmounts(
+            token0, token1, fee, tickLower, tickUpper, actualAmount0Desired, actualAmount1Desired
+        );
 
         (uint256 amount0Min, uint256 amount1Min) =
             _oracleSwapInstance.getAmountsFromLiquidity(token0, token1, fee, tickLower, tickUpper, liquidityAmount);
 
-        token0ERC.safeIncreaseAllowance(address(_nfpmInstance), amount0Desired);
-        token1ERC.safeIncreaseAllowance(address(_nfpmInstance), amount1Desired);
+        token0ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount0Desired);
+        token1ERC.safeIncreaseAllowance(address(_nfpmInstance), actualAmount1Desired);
 
         INonfungiblePositionManager.MintParams memory params = INonfungiblePositionManager.MintParams({
             token0: token0,
@@ -386,8 +363,8 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
             fee: fee,
             tickLower: tickLower,
             tickUpper: tickUpper,
-            amount0Desired: amount0Desired,
-            amount1Desired: amount1Desired,
+            amount0Desired: actualAmount0Desired,
+            amount1Desired: actualAmount1Desired,
             amount0Min: amount0Min,
             amount1Min: amount1Min,
             recipient: address(this),
@@ -399,15 +376,15 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         _nfpmInstance.approve(address(_liquidityHelper()), tokenId);
 
         LeftoverResult memory _leftover;
-        if (amount0Desired > usedAmount0 || amount1Desired > usedAmount1) {
+        if (actualAmount0Desired > usedAmount0 || actualAmount1Desired > usedAmount1) {
             _leftover = _handleLeftoverLogic(
                 tokenId,
                 token0,
                 token1,
                 token0ERC,
                 token1ERC,
-                amount0Desired,
-                amount1Desired,
+                actualAmount0Desired,
+                actualAmount1Desired,
                 usedAmount0,
                 usedAmount1,
                 user,
@@ -524,35 +501,31 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
     /**
      * @notice Remove or withdraw a percentage of liquidity from a position.
-     * @dev Internal helper to decrease liquidity and collect raw tokens from Uniswap V3.
      * @param tokenId ID of the position NFT.
      * @param percentageToRemove Percentage of liquidity to remove (basis points, e.g. 5000 = 50%).
-     * @return collected0 Amount of token0 collected.
-     * @return collected1 Amount of token1 collected.
-     * @return token0Address Address of token0.
-     * @return token1Address Address of token1.
-     * @return fee Fee of the position.
+     * @param user Address to which any converted main token should be sent.
+     * @param migrate Whether to migrate remaining position into a new one (true) or simply withdraw (false).
+     * @return collectedMainToken Amount of main token received after conversion.
      */
-    function _decreaseAndCollect(uint256 tokenId, uint128 percentageToRemove)
-        internal
-        returns (uint256 collected0, uint256 collected1, address token0Address, address token1Address, uint24 fee)
+    function decreaseLiquidityPosition(uint256 tokenId, uint128 percentageToRemove, address user, bool migrate)
+        public
+        onlyLiquidityManager
+        notEmergency
+        returns (uint256 collectedMainToken)
     {
+        // Cache storage variables to reduce SLOADs
         IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
         INonfungiblePositionManager _nfpmInstance = _nfpm();
-
-        int24 tickLower;
-        int24 tickUpper;
-        uint128 liquidity;
 
         (
             ,
             ,
-            token0Address,
-            token1Address,
-            fee,
-            tickLower,
-            tickUpper,
-            liquidity,
+            address token0Address,
+            address token1Address,
+            uint24 fee,
+            int24 tickLower,
+            int24 tickUpper,
+            uint128 liquidity,
             ,
             ,
             ,
@@ -576,7 +549,7 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
             deadline: block.timestamp
         });
 
-        _nfpmInstance.decreaseLiquidity(params);
+        (uint256 amount0, uint256 amount1) = _nfpmInstance.decreaseLiquidity(params);
 
         INonfungiblePositionManager.CollectParams memory collectParams = INonfungiblePositionManager.CollectParams({
             tokenId: tokenId,
@@ -590,32 +563,9 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         _nfpmInstance.collect(collectParams);
 
-        collected0 = IERC20(token0Address).balanceOf(address(this)) - balanceFee0Before;
-        collected1 = IERC20(token1Address).balanceOf(address(this)) - balanceFee1Before;
+        uint256 collected0 = IERC20(token0Address).balanceOf(address(this)) - balanceFee0Before;
+        uint256 collected1 = IERC20(token1Address).balanceOf(address(this)) - balanceFee1Before;
 
-        if (percentageToRemove == _BP()) {
-            _nfpmInstance.burn(tokenId);
-            emit PositionBurned(tokenId);
-        }
-    }
-
-    /**
-     * @notice Decrease liquidity of an existing position and convert it to the main token.
-     * @param tokenId ID of the position NFT.
-     * @param percentageToRemove Percentage of liquidity to remove (basis points, e.g. 5000 = 50%).
-     * @param user Address to which any converted main token should be sent.
-     * @param migrate Whether to migrate remaining position into a new one (true) or simply withdraw (false).
-     * @return collectedMainToken Amount of main token received after conversion.
-     */
-    function decreaseLiquidityPosition(uint256 tokenId, uint128 percentageToRemove, address user, bool migrate)
-        public
-        onlyLiquidityManager
-        notEmergency
-        returns (uint256 collectedMainToken)
-    {
-        (uint256 collected0, uint256 collected1, address token0Address, address token1Address, uint24 fee) = _decreaseAndCollect(tokenId, percentageToRemove);
-
-        IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
         if (IERC20(token0Address).balanceOf(address(this)) < collected0) {
             revert LM_INSUFFICIENT_TOKEN0_BALANCE();
         }
@@ -630,7 +580,12 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
             migrate ? address(this) : user, collected0, collected1, token0Address, token1Address, fee
         );
 
-        emit LiquidityRemoved(tokenId, collectedMainToken, collected0, collected1);
+        emit LiquidityRemoved(tokenId, collectedMainToken, amount0, amount1);
+
+        if (percentageToRemove == _BP()) {
+            _nfpmInstance.burn(tokenId);
+            emit PositionBurned(tokenId);
+        }
     }
 
     /**
@@ -745,15 +700,17 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1)
     {
         address _vaultManagerInstance = _vaultManager();
+        (,, address token0Address, address token1Address, uint24 fee,,,,,,,) = _nfpm().positions(tokenId);
 
         (cumulatedFee0, cumulatedFee1, ,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
-        (uint256 collected0, uint256 collected1, address token0Address, address token1Address, uint24 fee) = _decreaseAndCollect(tokenId, uint128(_BP()));
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
 
+        uint256 amountToMint = decreaseLiquidityPosition(tokenId, uint128(_BP()), manager, true);
+
         MintResult memory _mintResult =
-            _mint(token0Address, token1Address, fee, tickLower, tickUpper, collected0, collected1, _vaultManagerInstance);
+            mintPosition(token0Address, token1Address, fee, tickLower, tickUpper, amountToMint, _vaultManagerInstance, false);
 
         uint256 _returnToken0 = _mintResult.actualReturnToken0;
         uint256 _returnToken1 = _mintResult.actualReturnToken1;
