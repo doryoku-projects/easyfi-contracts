@@ -812,14 +812,4 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         }
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
     }
-
-    function emergencyERC20BatchWithdrawal(address[] calldata tokens, address to) external onlyMasterAdmin {
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            uint256 balance = IERC20(tokens[i]).balanceOf(address(this));
-            if (balance > 0) {
-                IERC20(tokens[i]).safeTransfer(to, balance);
-            }
-        }
-    }
 }
