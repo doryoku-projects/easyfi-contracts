@@ -671,7 +671,7 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         uint256 balance0BeforeCollect = token0.balanceOf(address(this));
         uint256 balance1BeforeCollect = token1.balanceOf(address(this));
-        
+
         _nfpmInstance.collect(collectParams);
 
         collected0 = token0.balanceOf(address(this)) - balance0BeforeCollect;
@@ -745,6 +745,8 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1)
     {
         address _vaultManagerInstance = _vaultManager();
+        IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
+        address mainToken = address(_mainToken());
 
         (cumulatedFee0, cumulatedFee1,) = collectFeesFromPosition(tokenId, manager, 0, 0, 0, false);
         (uint256 collected0, uint256 collected1, address token0Address, address token1Address, uint24 fee) = _decreaseAndCollect(tokenId, uint128(_BP()));
@@ -752,22 +754,62 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
 
-        MintResult memory _mintResult =
-            _mint(token0Address, token1Address, fee, tickLower, tickUpper, collected0, collected1, _vaultManagerInstance);
+        (uint256 target0, uint256 target1) = _oracleSwapInstance.getAmountsFromLiquidity(
+            token0Address, token1Address, fee, tickLower, tickUpper, 1e12
+        );
 
-        uint256 _returnToken0 = _mintResult.actualReturnToken0;
-        uint256 _returnToken1 = _mintResult.actualReturnToken1;
+        if (target0 > 0 || target1 > 0) {
+            uint256 valT0 = target0 > 0 ? _oracleSwapInstance.estimateAmountOut(token0Address, mainToken, target0) : 0;
+            uint256 valT1 = target1 > 0 ? _oracleSwapInstance.estimateAmountOut(token1Address, mainToken, target1) : 0;
+            uint256 totalTargetVal = valT0 + valT1;
 
-        if (_returnToken0 > 0) {
-            token0.safeIncreaseAllowance(_vaultManagerInstance, _returnToken0);
+            if (totalTargetVal > 0) {
+                uint256 val0 = collected0 > 0 ? _oracleSwapInstance.estimateAmountOut(token0Address, mainToken, collected0) : 0;
+                uint256 val1 = collected1 > 0 ? _oracleSwapInstance.estimateAmountOut(token1Address, mainToken, collected1) : 0;
+                uint256 totalVal = val0 + val1;
+
+                uint256 idealVal0 = (totalVal * valT0) / totalTargetVal;
+
+                if (val0 > idealVal0) {
+                    uint256 surplusVal = val0 - idealVal0;
+                    uint256 amount0ToSwap = _oracleSwapInstance.estimateAmountOut(mainToken, token0Address, surplusVal);
+                    if (amount0ToSwap > 0 && amount0ToSwap <= collected0) {
+                        token0.safeTransfer(address(_oracleSwapInstance), amount0ToSwap);
+                        _oracleSwapInstance.swapTokens(token0Address, token1Address, fee, amount0ToSwap, address(this));
+                    }
+                } else if (val0 < idealVal0) {
+                    uint256 scarcityVal = idealVal0 - val0;
+                    uint256 amount1ToSwap = _oracleSwapInstance.estimateAmountOut(mainToken, token1Address, scarcityVal);
+                    if (amount1ToSwap > 0 && amount1ToSwap <= collected1) {
+                        token1.safeTransfer(address(_oracleSwapInstance), amount1ToSwap);
+                        _oracleSwapInstance.swapTokens(token1Address, token0Address, fee, amount1ToSwap, address(this));
+                    }
+                }
+            }
         }
-        if (_returnToken1 > 0) {
-            token1.safeIncreaseAllowance(_vaultManagerInstance, _returnToken1);
-        }
+
+        uint256 balanced0 = token0.balanceOf(address(this)) - cumulatedFee0;
+        uint256 balanced1 = token1.balanceOf(address(this)) - cumulatedFee1;
+
+        MintResult memory _mintResult = _mint(token0Address, token1Address, fee, tickLower, tickUpper, balanced0, balanced1, _vaultManagerInstance);
 
         newTokenId = _mintResult.tokenId;
-        returnToken0 = _returnToken0;
-        returnToken1 = _returnToken1;
+        returnToken0 = _mintResult.actualReturnToken0;
+        returnToken1 = _mintResult.actualReturnToken1;
+
+        if (cumulatedFee0 > 0) {
+            token0.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee0);
+        }
+        if (cumulatedFee1 > 0) {
+            token1.safeIncreaseAllowance(_vaultManagerInstance, cumulatedFee1);
+        }
+
+        if (returnToken0 > 0) {
+            token0.safeIncreaseAllowance(_vaultManagerInstance, returnToken0);
+        }
+        if (returnToken1 > 0) {
+            token1.safeIncreaseAllowance(_vaultManagerInstance, returnToken1);
+        }
         emit PositionMigrated(tokenId, newTokenId, cumulatedFee0, cumulatedFee1);
     }
 }
