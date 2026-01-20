@@ -11,6 +11,7 @@ const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
 const deployFundsManager = require("./FundsManager");
 
+const deployTokenVault = require("./TokenVault");
 
 async function main() {
     console.log("🚀 Starting full deployment...", process.env.WHITELABEL);
@@ -23,6 +24,7 @@ async function main() {
   await deployLiquidityHelper();
   await deployOracleSwap();
   await deployFundsManager();
+  await deployTokenVault();
 
   console.log("\n✅ All contracts deployed\n");
 
@@ -34,6 +36,7 @@ async function main() {
     const OracleSwapAddr = await getDeploymentAddress("OracleSwapUpgradeable");
     const AggregatorAddr = await getDeploymentAddress("AggregatorUpgradeable");
     const FundsManagerAddr = await getDeploymentAddress("FundsManagerUpgradeable");
+    const TokenVaultAddr = await getDeploymentAddress("TokenVaultUpgradeable");
   
     console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
     console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
@@ -43,6 +46,7 @@ async function main() {
     console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);
     console.log("🔗 Attaching to AggregatorUpgradeable at:", AggregatorAddr);
     console.log("🔗 Attaching to FundsManagerUpgradeable at:", FundsManagerAddr);
+    console.log("🔗 Attaching to TokenVaultUpgradeable at:", TokenVaultAddr);
   
     const initialContracts = [
       ProtocolConfigAddr,
@@ -51,7 +55,8 @@ async function main() {
       LiquidityHelperAddr,
       OracleSwapAddr,
       AggregatorAddr,
-      FundsManagerAddr
+      FundsManagerAddr,
+      TokenVaultAddr
     ];
 
     const [new_addr, owner , marcWallet, ] = await ethers.getSigners();
@@ -72,7 +77,8 @@ async function main() {
       LiquidityHelper: LiquidityHelperAddr,
       OracleSwap: OracleSwapAddr,
       Aggregator: AggregatorAddr,
-      FundsManager: FundsManagerAddr
+      FundsManager: FundsManagerAddr,
+      TokenVault: TokenVaultAddr
     }
   });
   console.log("✅ Added Contracts in ProtocolConfig");
