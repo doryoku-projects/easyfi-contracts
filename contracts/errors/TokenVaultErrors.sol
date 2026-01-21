@@ -20,7 +20,7 @@ abstract contract TokenVaultErrors {
     /**
      * @notice Reverted when the pool ID does not exist or the pool is not active.
      */
-    error TV_INVALID_POOL();
+    error TV_INVALID_YIELD();
 
     /**
      * @notice Reverted when attempting to deposit a zero amount.

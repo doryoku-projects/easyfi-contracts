@@ -28,19 +28,18 @@ contract TokenVaultUpgradeable is
     IProtocolConfigUpgradeable private s_config;
 
     bytes32 private constant BP_KEY = keccak256("BP");
-    bytes32 private constant TWO_FA_REQUIRED_KEY = keccak256("2FARequired");
 
-    struct Pool {
+    struct YieldPlan {
         uint256 lockDuration;
         uint256 aprBps;
         uint256 totalPrincipal;
         bool isActive;
     }
 
-    struct Position {
+    struct LockedDeposit {
         address user;
         address token;
-        uint256 poolId;
+        uint256 yieldId;
         uint256 principal;
         uint256 aprBps;
         uint256 depositTimestamp;
@@ -49,9 +48,10 @@ contract TokenVaultUpgradeable is
     }
 
     mapping(address => bool) private s_supportedTokens;
-    mapping(address => mapping(uint256 => Pool)) private s_pools;
-    mapping(uint256 => Position) private s_positions;
-    uint256 private s_nextPositionId;
+    mapping(address => mapping(uint256 => YieldPlan)) private s_yields;
+    mapping(uint256 => LockedDeposit) private s_deposits;
+    uint256 private s_nextDepositId;
+    mapping(address => uint256[]) private s_userDeposit;
 
     uint256 private s_entryFeeBps;
     uint256 private s_exitFeeBps;
@@ -59,25 +59,25 @@ contract TokenVaultUpgradeable is
     address private s_feeCollector;
 
     event VaultDeposit(
-        uint256 indexed positionId,
+        uint256 indexed depositId,
         address indexed user,
         address indexed token,
-        uint256 poolId,
+        uint256 yieldId,
         uint256 amount,
         uint256 entryFee,
         uint256 unlockTimestamp
     );
 
     event VaultWithdrawal(
-        uint256 indexed positionId,
+        uint256 indexed depositId,
         address indexed user,
         uint256 totalPayout,
         uint256 exitFee
     );
 
-    event PoolSet(
+    event YieldSet(
         address indexed token,
-        uint256 poolId,
+        uint256 yieldId,
         uint256 lockDuration,
         uint256 aprBps,
         bool isActive
@@ -126,7 +126,7 @@ contract TokenVaultUpgradeable is
         s_feeCollector = _feeCollector;
         s_entryFeeBps = _entryFeeBps;
         s_exitFeeBps = _exitFeeBps;
-        s_nextPositionId = 1;
+        s_nextDepositId = 1;
     }
 
     function _authorizeUpgrade(address) internal override onlyMasterAdmin {}
@@ -139,16 +139,16 @@ contract TokenVaultUpgradeable is
     }
 
     /**
-     * @notice Configure a pool for a specific token and lock period.
+     * @notice Configure a yield for a specific token and lock period.
      * @param token Address of the token (BTC/ETH equivalent).
-     * @param poolId Identifier for the pool (e.g., 1, 3, 6, 12).
+     * @param yieldId Identifier for the yield (e.g., 1, 3, 6, 12).
      * @param lockDuration Seconds the funds will be locked.
      * @param aprBps Annual Percentage Rate in basis points.
-     * @param isActive Whether the pool is active for new deposits.
+     * @param isActive Whether the yield is active for new deposits.
      */
-    function setPool(
+    function setYieldPlan(
         address token,
-        uint256 poolId,
+        uint256 yieldId,
         uint256 lockDuration,
         uint256 aprBps,
         bool isActive
@@ -156,14 +156,14 @@ contract TokenVaultUpgradeable is
         if (token == address(0)) revert TV_ZERO_ADDRESS();
         if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
-        s_pools[token][poolId] = Pool({
+        s_yields[token][yieldId] = YieldPlan({
             lockDuration: lockDuration,
             aprBps: aprBps,
-            totalPrincipal: s_pools[token][poolId].totalPrincipal,
+            totalPrincipal: s_yields[token][yieldId].totalPrincipal,
             isActive: isActive
         });
 
-        emit PoolSet(token, poolId, lockDuration, aprBps, isActive);
+        emit YieldSet(token, yieldId, lockDuration, aprBps, isActive);
     }
 
     /**
@@ -228,19 +228,19 @@ contract TokenVaultUpgradeable is
     }
 
     /**
-     * @notice Deposit tokens into a pool.
+     * @notice Deposit tokens into a yield.
      * @param token Address of the token to deposit.
-     * @param poolId Identifier of the lock pool.
+     * @param yieldId Identifier of the lock yield.
      * @param amount Amount of tokens to deposit.
      */
     function deposit(
         address token,
-        uint256 poolId,
+        uint256 yieldId,
         uint256 amount
     ) external nonReentrant whenNotPaused onlyUser {
         if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
-        Pool storage pool = s_pools[token][poolId];
-        if (!pool.isActive) revert TV_INVALID_POOL();
+        YieldPlan storage yield = s_yields[token][yieldId];
+        if (!yield.isActive) revert TV_INVALID_YIELD();
         if (amount == 0) revert TV_ZERO_AMOUNT();
 
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
@@ -254,27 +254,29 @@ contract TokenVaultUpgradeable is
 
         IERC20(token).safeTransfer(s_managerWallet, netAmount);
 
-        uint256 positionId = s_nextPositionId++;
-        uint256 unlockTimestamp = block.timestamp + pool.lockDuration;
+        uint256 depositId = s_nextDepositId++;
+        uint256 unlockTimestamp = block.timestamp + yield.lockDuration;
 
-        s_positions[positionId] = Position({
+        s_deposits[depositId] = LockedDeposit({
             user: msg.sender,
             token: token,
-            poolId: poolId,
+            yieldId: yieldId,
             principal: netAmount,
-            aprBps: pool.aprBps,
+            aprBps: yield.aprBps,
             depositTimestamp: block.timestamp,
             unlockTimestamp: unlockTimestamp,
             withdrawn: false
         });
 
-        pool.totalPrincipal += netAmount;
+        s_userDeposit[msg.sender].push(depositId);
+
+        yield.totalPrincipal += netAmount;
 
         emit VaultDeposit(
-            positionId,
+            depositId,
             msg.sender,
             token,
-            poolId,
+            yieldId,
             netAmount,
             entryFee,
             unlockTimestamp
@@ -284,22 +286,19 @@ contract TokenVaultUpgradeable is
     /**
      * @notice Withdraw funds after the lock period has expired.
      * @dev Payout includes principal and deterministic growth. Manager wallet must have approved the contract.
-     * @param positionId Identifier of the position to withdraw.
-     * @param code Two-factor authentication code.
+     * @param depositId Identifier of the deposit to withdraw.
      */
     function withdraw(
-        uint256 positionId,
-        string calldata code
+        uint256 depositId
     ) external nonReentrant whenNotPaused {
-        bool _2FARequired = s_config.getUint(TWO_FA_REQUIRED_KEY) == 1;
-        if (_2FARequired) s_userManager.check2FA(msg.sender, code, 0);
 
-        Position storage pos = s_positions[positionId];
+        LockedDeposit storage pos = s_deposits[depositId];
         if (pos.withdrawn) revert TV_ALREADY_WITHDRAWN();
         if (pos.user != msg.sender) revert TV_UNAUTHORIZED();
         if (block.timestamp < pos.unlockTimestamp) revert TV_STILL_LOCKED();
 
         pos.withdrawn = true;
+        _removeUserDeposit(msg.sender, depositId);
 
         uint256 duration = pos.unlockTimestamp - pos.depositTimestamp;
         uint256 growth = (pos.principal * pos.aprBps * duration) /
@@ -308,7 +307,7 @@ contract TokenVaultUpgradeable is
         uint256 exitFee = (totalPayout * s_exitFeeBps) / _BP();
         uint256 finalAmount = totalPayout - exitFee;
 
-        s_pools[pos.token][pos.poolId].totalPrincipal -= pos.principal;
+        s_yields[pos.token][pos.yieldId].totalPrincipal -= pos.principal;
 
         if (exitFee > 0) {
             IERC20(pos.token).safeTransfer(
@@ -322,20 +321,48 @@ contract TokenVaultUpgradeable is
             finalAmount
         );
 
-        emit VaultWithdrawal(positionId, msg.sender, totalPayout, exitFee);
+        emit VaultWithdrawal(depositId, msg.sender, totalPayout, exitFee);
     }
 
-    function getPool(
+    function getYieldPlan(
         address token,
-        uint256 poolId
-    ) external view returns (Pool memory) {
-        return s_pools[token][poolId];
+        uint256 yieldId
+    ) external view returns (YieldPlan memory) {
+        return s_yields[token][yieldId];
     }
 
-    function getPosition(
-        uint256 positionId
-    ) external view returns (Position memory) {
-        return s_positions[positionId];
+    function getDeposit(
+        uint256 depositId
+    ) external view returns (LockedDeposit memory) {
+        return s_deposits[depositId];
+    }
+
+    /**
+     * @notice Get all active deposit IDs for a user.
+     * @param user Address of the user.
+     * @return Array of active deposit IDs.
+     */
+    function getUserActiveDeposits(
+        address user
+    ) external view returns (uint256[] memory) {
+        return s_userDeposit[user];
+    }
+
+    /**
+     * @dev Internal function to remove a deposit ID from user's active list.
+     * @param user Address of the user.
+     * @param depositId Identifier of the deposit to remove.
+     */
+    function _removeUserDeposit(address user, uint256 depositId) internal {
+        uint256[] storage deposits = s_userDeposit[user];
+        uint256 length = deposits.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (deposits[i] == depositId) {
+                deposits[i] = deposits[length - 1];
+                deposits.pop();
+                break;
+            }
+        }
     }
 
     function isSupportedToken(address token) external view returns (bool) {

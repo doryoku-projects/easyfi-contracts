@@ -104,19 +104,19 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
     });
 
     describe("Admin Functions", function () {
-        it("Should allow admin to set pool", async function () {
-            const poolId = 1;
+        it("Should allow admin to set yield", async function () {
+            const yieldId = 1;
             const lockDuration = 30 * 24 * 60 * 60;
             const aprBps = 1000;
             const isActive = true;
 
-            await tokenVault.connect(generalAdminWallet).setPool(WETH_ADDRESS, poolId, lockDuration, aprBps, isActive);
+            await tokenVault.connect(generalAdminWallet).setYield(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
 
-            const pool = await tokenVault.getPool(WETH_ADDRESS, poolId);
-            expect(pool.lockDuration).to.equal(lockDuration);
-            expect(pool.aprBps).to.equal(aprBps);
-            expect(pool.isActive).to.equal(true);
-            console.log("Pool set successfully");
+            const yield = await tokenVault.getYield(WETH_ADDRESS, yieldId);
+            expect(yield.lockDuration).to.equal(lockDuration);
+            expect(yield.aprBps).to.equal(aprBps);
+            expect(yield.isActive).to.equal(true);
+            console.log("yield set successfully");
         });
 
         it("Should allow admin to set token status", async function () {
@@ -127,7 +127,7 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
     });
 
     describe("User Functions - Deposit", function () {
-        const poolId = 1;
+        const yieldId = 1;
         const amount = ethers.parseUnits("1", 18);
 
         before(async function () {
@@ -139,20 +139,21 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             const netAmount = amount - entryFee;
 
             console.log(await token.balanceOf(userWallet.address));
-            const tx = await tokenVault.connect(userWallet).deposit(WETH_ADDRESS, poolId, amount);
+            const tx = await tokenVault.connect(userWallet).deposit(WETH_ADDRESS, yieldId, amount);
             await expect(tx).to.emit(tokenVault, "VaultDeposit");
 
             expect(await token.balanceOf(managerWallet.address)).to.be.at.least(netAmount);
 
-            const position = await tokenVault.getPosition(1);
-            expect(position.user).to.equal(userWallet.address);
-            expect(position.principal).to.equal(netAmount);
+            console.log(await tokenVault.getUserActiveDeposits(userWallet.address));
+            const deposit = await tokenVault.getDeposit(1);
+            expect(deposit.user).to.equal(userWallet.address);
+            expect(deposit.principal).to.equal(netAmount);
             console.log("Deposit successful");
         });
     });
 
     describe("User Functions - Withdraw", function () {
-        const positionId = 1;
+        const depositId = 1;
 
         before(async function () {
             await token.connect(managerWallet).approve(await tokenVault.getAddress(), ethers.MaxUint256);
@@ -162,26 +163,26 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             await ethers.provider.send("evm_increaseTime", [30 * 24 * 60 * 60 + 1]);
             await ethers.provider.send("evm_mine");
 
-            const position = await tokenVault.getPosition(positionId);
-            const duration = position.unlockTimestamp - position.depositTimestamp;
-            const growth = (position.principal * position.aprBps * duration) / (BigInt(365 * 24 * 3600) * 10000n);
-            const totalPayout = position.principal + growth;
+            const deposit = await tokenVault.getDeposit(depositId);
+            const duration = deposit.unlockTimestamp - deposit.depositTimestamp;
+            const growth = (deposit.principal * deposit.aprBps * duration) / (BigInt(365 * 24 * 3600) * 10000n);
+            const totalPayout = deposit.principal + growth;
             const exitFee = (totalPayout * BigInt(exitFeeBps)) / 10000n;
             const finalAmount = totalPayout - exitFee;
 
             const userBalanceBefore = await token.balanceOf(userWallet.address);
             await token.connect(ownerWallet).transfer(await tokenVault.getAddress(), ethers.parseEther("20"));
-            console.log("position",position)
-            await expect(tokenVault.connect(userWallet).withdraw(positionId, "fzvdsvsd"))
+            console.log("deposit",deposit)
+            await expect(tokenVault.connect(userWallet).withdraw(depositId))
                 .to.emit(tokenVault, "VaultWithdrawal");
 
-            await expect(tokenVault.connect(userWallet).withdraw(positionId, "fzvdsvsd"))
-                .to.emit(tokenVault, "VaultWithdrawal");
+            console.log(await tokenVault.getUserActiveDeposits(userWallet.address));
 
+            console.log("userBalanceBefore", userBalanceBefore, "userBalanceAfter" , await token.balanceOf(userWallet.address));
             expect(await token.balanceOf(userWallet.address)).to.equal(userBalanceBefore + finalAmount);
 
-            const positionAfter = await tokenVault.getPosition(positionId);
-            expect(positionAfter.withdrawn).to.equal(true);
+            const depositAfter = await tokenVault.getDeposit(depositId);
+            expect(depositAfter.withdrawn).to.equal(true);
             console.log("Withdrawal successful");
         });
     });
