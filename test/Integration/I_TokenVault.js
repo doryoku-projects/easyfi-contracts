@@ -110,9 +110,9 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             const aprBps = 1000;
             const isActive = true;
 
-            await tokenVault.connect(generalAdminWallet).setYield(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
+            await tokenVault.connect(generalAdminWallet).setYieldPlan(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
 
-            const yield = await tokenVault.getYield(WETH_ADDRESS, yieldId);
+            const yield = await tokenVault.getYieldPlan(WETH_ADDRESS, yieldId);
             expect(yield.lockDuration).to.equal(lockDuration);
             expect(yield.aprBps).to.equal(aprBps);
             expect(yield.isActive).to.equal(true);
@@ -173,10 +173,12 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             const userBalanceBefore = await token.balanceOf(userWallet.address);
             await token.connect(ownerWallet).transfer(await tokenVault.getAddress(), ethers.parseEther("20"));
             console.log("deposit",deposit)
+            console.log(await tokenVault.getUserActiveDepositsInfo(userWallet.address));
             await expect(tokenVault.connect(userWallet).withdraw(depositId))
                 .to.emit(tokenVault, "VaultWithdrawal");
 
             console.log(await tokenVault.getUserActiveDeposits(userWallet.address));
+            console.log(await tokenVault.getUserActiveDepositsInfo(userWallet.address));
 
             console.log("userBalanceBefore", userBalanceBefore, "userBalanceAfter" , await token.balanceOf(userWallet.address));
             expect(await token.balanceOf(userWallet.address)).to.equal(userBalanceBefore + finalAmount);

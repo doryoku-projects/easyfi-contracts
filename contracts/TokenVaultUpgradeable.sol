@@ -37,6 +37,7 @@ contract TokenVaultUpgradeable is
     }
 
     struct LockedDeposit {
+        uint256 depositId; 
         address user;
         address token;
         uint256 yieldId;
@@ -45,6 +46,7 @@ contract TokenVaultUpgradeable is
         uint256 depositTimestamp;
         uint256 unlockTimestamp;
         bool withdrawn;
+        uint256 dailyWinning;
     }
 
     mapping(address => bool) private s_supportedTokens;
@@ -258,6 +260,7 @@ contract TokenVaultUpgradeable is
         uint256 unlockTimestamp = block.timestamp + yield.lockDuration;
 
         s_deposits[depositId] = LockedDeposit({
+            depositId: depositId,
             user: msg.sender,
             token: token,
             yieldId: yieldId,
@@ -265,7 +268,8 @@ contract TokenVaultUpgradeable is
             aprBps: yield.aprBps,
             depositTimestamp: block.timestamp,
             unlockTimestamp: unlockTimestamp,
-            withdrawn: false
+            withdrawn: false,
+            dailyWinning: 0
         });
 
         s_userDeposit[msg.sender].push(depositId);
@@ -346,6 +350,39 @@ contract TokenVaultUpgradeable is
         address user
     ) external view returns (uint256[] memory) {
         return s_userDeposit[user];
+    }
+
+    /**
+     * @notice Get detailed info for all active deposits of a user.
+     * @param user Address of the user.
+     * @return Array of DepositsInfo structs including daily winnings.
+     */
+    function getUserActiveDepositsInfo(
+        address user
+    ) external view returns (LockedDeposit[] memory) {
+        uint256[] storage depositIds = s_userDeposit[user];
+        uint256 length = depositIds.length;
+        LockedDeposit[] memory infos = new LockedDeposit[](length);
+
+        for (uint256 i = 0; i < length; i++) {
+            uint256 dId = depositIds[i];
+            LockedDeposit storage pos = s_deposits[dId];
+            uint256 dailyWinning = (pos.principal * pos.aprBps) / (365 * _BP());
+
+            infos[i] = LockedDeposit({
+                depositId: dId,
+                user: pos.user,
+                token: pos.token,
+                yieldId: pos.yieldId,
+                principal: pos.principal,
+                aprBps: pos.aprBps,
+                depositTimestamp: pos.depositTimestamp,
+                unlockTimestamp: pos.unlockTimestamp,
+                withdrawn: pos.withdrawn,
+                dailyWinning: dailyWinning
+            });
+        }
+        return infos;
     }
 
     /**
