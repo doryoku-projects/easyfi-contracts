@@ -10,7 +10,7 @@ async function deployTokenVault() {
         protocolConfigAddress,
         userManagerAddress,
         process.env.MASTER_ADMIN_WALLET,
-        process.env.MASTER_ADMIN_WALLET,
+        process.env.CLIENT_ADDRESS,
         100,
         200
     ];
