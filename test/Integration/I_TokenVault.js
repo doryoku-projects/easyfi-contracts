@@ -121,19 +121,36 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
 
     describe("Admin Functions", function () {
         it("Should allow admin to set yield", async function () {
-            const yieldId = 1;
             const lockDuration = 30 * 24 * 60 * 60;
             const aprBps = 1000;
             const isActive = true;
 
-            await tokenVault.connect(generalAdminWallet).setYieldPlan(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
+            const tx = await tokenVault.connect(generalAdminWallet).setYieldPlan(WETH_ADDRESS, lockDuration, aprBps, isActive);
+            const receipt = await tx.wait();
+            const event = receipt.logs.find(x => x.fragment?.name === 'YieldSet');
+            const yieldId = event.args.yieldId;
 
             const yield = await tokenVault.getYieldPlan(WETH_ADDRESS, yieldId);
             expect(yield.lockDuration).to.equal(lockDuration);
             expect(yield.aprBps).to.equal(aprBps);
             expect(yield.isActive).to.equal(true);
-            console.log("yield set successfully");
+            this.yieldId = yieldId;
+            console.log("yield set successfully, yieldId:", yieldId.toString());
         });
+
+        it("Should allow admin to update yield", async function () {
+            const yieldId = this.yieldId;
+            const lockDuration = 60 * 24 * 60 * 60;
+            const aprBps = 1500;
+            const isActive = true;
+
+            await tokenVault.connect(generalAdminWallet).updateYieldPlan(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
+
+            const yield = await tokenVault.getYieldPlan(WETH_ADDRESS, yieldId);
+            expect(yield.lockDuration).to.equal(lockDuration);
+            expect(yield.aprBps).to.equal(aprBps);
+        });
+
 
         it("Should allow admin to set oracles", async function () {
             const tokens = [WETH_ADDRESS, NATIVE_TOKEN];
@@ -187,7 +204,7 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             const yieldId = 1;
 
             // Set yield for native token if not set
-            await tokenVault.connect(generalAdminWallet).setYieldPlan(NATIVE_TOKEN, yieldId, 30 * 24 * 60 * 60, 1000, true);
+            await tokenVault.connect(generalAdminWallet).setYieldPlan(NATIVE_TOKEN, 30 * 24 * 60 * 60, 1000, true);
 
             // Fund user with ETH
             await owner.sendTransaction({ to: userWallet.address, value: ethers.parseEther("1") });

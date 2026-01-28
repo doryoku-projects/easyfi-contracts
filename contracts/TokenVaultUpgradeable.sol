@@ -40,7 +40,7 @@ contract TokenVaultUpgradeable is
     }
 
     struct LockedDeposit {
-        uint256 depositId; 
+        uint256 depositId;
         address user;
         address token;
         uint256 yieldId;
@@ -65,6 +65,7 @@ contract TokenVaultUpgradeable is
     uint256 private s_exitFeeBps;
     address private s_managerWallet;
     address private s_feeCollector;
+    mapping(address => uint256) private s_tokenYieldId;
 
     event VaultDeposit(
         uint256 indexed depositId,
@@ -152,12 +153,42 @@ contract TokenVaultUpgradeable is
     /**
      * @notice Configure a yield for a specific token and lock period.
      * @param token Address of the token (BTC/ETH equivalent).
-     * @param yieldId Identifier for the yield (e.g., 1, 3, 6, 12).
      * @param lockDuration Seconds the funds will be locked.
      * @param aprBps Annual Percentage Rate in basis points.
      * @param isActive Whether the yield is active for new deposits.
+     * @return yieldId Identifier for the new yield.
      */
     function setYieldPlan(
+        address token,
+        uint256 lockDuration,
+        uint256 aprBps,
+        bool isActive
+    ) external onlyGeneralOrMasterAdmin returns (uint256 yieldId) {
+        if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
+
+        if (s_tokenYieldId[token] == 0) {
+            s_tokenYieldId[token] = 1;
+        }
+        yieldId = s_tokenYieldId[token]++;
+        s_yields[token][yieldId] = YieldPlan({
+            lockDuration: lockDuration,
+            aprBps: aprBps,
+            totalPrincipal: 0,
+            isActive: isActive
+        });
+
+        emit YieldSet(token, yieldId, lockDuration, aprBps, isActive);
+    }
+
+    /**
+     * @notice Update an existing yield plan.
+     * @param token Address of the token.
+     * @param yieldId Identifier for the yield to update.
+     * @param lockDuration New lock duration.
+     * @param aprBps New APR in basis points.
+     * @param isActive Whether the yield is active.
+     */
+    function updateYieldPlan(
         address token,
         uint256 yieldId,
         uint256 lockDuration,
@@ -165,6 +196,8 @@ contract TokenVaultUpgradeable is
         bool isActive
     ) external onlyGeneralOrMasterAdmin {
         if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
+        if (s_yields[token][yieldId].lockDuration == 0)
+            revert TV_INVALID_YIELD();
 
         s_yields[token][yieldId] = YieldPlan({
             lockDuration: lockDuration,
@@ -174,6 +207,15 @@ contract TokenVaultUpgradeable is
         });
 
         emit YieldSet(token, yieldId, lockDuration, aprBps, isActive);
+    }
+
+    /**
+     * @notice Get the latest yield identifier for a specific token.
+     * @param token Address of the token.
+     * @return The latest yield ID that will be assigned.
+     */
+    function getTokenYieldCount(address token) external view returns (uint256) {
+        return s_tokenYieldId[token];
     }
 
     /**
