@@ -7,6 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 import "./UserAccessControl.sol";
 import "./errors/TokenVaultErrors.sol";
@@ -28,6 +29,8 @@ contract TokenVaultUpgradeable is
     IProtocolConfigUpgradeable private s_config;
 
     bytes32 private constant BP_KEY = keccak256("BP");
+    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
+    address private constant NATIVE_TOKEN = address(0);
 
     struct YieldPlan {
         uint256 lockDuration;
@@ -47,9 +50,12 @@ contract TokenVaultUpgradeable is
         uint256 unlockTimestamp;
         bool withdrawn;
         uint256 dailyWinning;
+        uint256 depositPrice;
+        uint256 withdrawPrice;
     }
 
     mapping(address => bool) private s_supportedTokens;
+    mapping(address => address) private s_tokenOracles;
     mapping(address => mapping(uint256 => YieldPlan)) private s_yields;
     mapping(uint256 => LockedDeposit) private s_deposits;
     uint256 private s_nextDepositId;
@@ -67,14 +73,16 @@ contract TokenVaultUpgradeable is
         uint256 yieldId,
         uint256 amount,
         uint256 entryFee,
-        uint256 unlockTimestamp
+        uint256 unlockTimestamp,
+        uint256 depositPrice
     );
 
     event VaultWithdrawal(
         uint256 indexed depositId,
         address indexed user,
         uint256 totalPayout,
-        uint256 exitFee
+        uint256 exitFee,
+        uint256 withdrawPrice
     );
 
     event YieldSet(
@@ -88,6 +96,7 @@ contract TokenVaultUpgradeable is
     event ManagerWalletSet(address indexed manager);
     event FeeCollectorSet(address indexed collector);
     event TokenStatusSet(address indexed token, bool status);
+    event TokenOracleUpdated(address indexed token, address indexed oracle);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -155,7 +164,6 @@ contract TokenVaultUpgradeable is
         uint256 aprBps,
         bool isActive
     ) external onlyGeneralOrMasterAdmin {
-        if (token == address(0)) revert TV_ZERO_ADDRESS();
         if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
         s_yields[token][yieldId] = YieldPlan({
@@ -216,9 +224,30 @@ contract TokenVaultUpgradeable is
         address token,
         bool status
     ) external onlyGeneralOrMasterAdmin {
-        if (token == address(0)) revert TV_ZERO_ADDRESS();
         s_supportedTokens[token] = status;
         emit TokenStatusSet(token, status);
+    }
+
+    /**
+     * @notice Batch-assign multiple oracles to multiple tokens.
+     * @param tokens Array of token addresses.
+     * @param oracles Array of corresponding oracle addresses.
+     */
+    function setTokenOracles(
+        address[] calldata tokens,
+        address[] calldata oracles
+    ) external onlyGeneralOrMasterAdmin {
+        if (tokens.length != oracles.length) revert TV_ARRAY_LENGTH_MISMATCH();
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            address token = tokens[i];
+            address oracle = oracles[i];
+
+            if (oracle == address(0)) revert TV_INVALID_ORACLE_ADDRESS();
+
+            s_tokenOracles[token] = oracle;
+            emit TokenOracleUpdated(token, oracle);
+        }
     }
 
     function pause() external onlyGeneralOrMasterAdmin {
@@ -230,6 +259,11 @@ contract TokenVaultUpgradeable is
     }
 
     /**
+     * @notice Allows the contract to receive native tokens (e.g., from manager wallet).
+     */
+    receive() external payable {}
+
+    /**
      * @notice Deposit tokens into a yield.
      * @param token Address of the token to deposit.
      * @param yieldId Identifier of the lock yield.
@@ -239,22 +273,42 @@ contract TokenVaultUpgradeable is
         address token,
         uint256 yieldId,
         uint256 amount
-    ) external nonReentrant whenNotPaused onlyUser {
+    ) external payable nonReentrant whenNotPaused onlyUser {
         if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
         YieldPlan storage yield = s_yields[token][yieldId];
         if (!yield.isActive) revert TV_INVALID_YIELD();
-        if (amount == 0) revert TV_ZERO_AMOUNT();
 
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        if (token == NATIVE_TOKEN) {
+            if (msg.value == 0) revert TV_ZERO_AMOUNT();
+            amount = msg.value;
+        } else {
+            if (msg.value != 0) revert TV_INVALID_NATIVE_AMOUNT();
+            if (amount == 0) revert TV_ZERO_AMOUNT();
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        }
 
         uint256 entryFee = (amount * s_entryFeeBps) / _BP();
         uint256 netAmount = amount - entryFee;
 
         if (entryFee > 0) {
-            IERC20(token).safeTransfer(s_feeCollector, entryFee);
+            if (token == NATIVE_TOKEN) {
+                (bool success, ) = s_feeCollector.call{value: entryFee}("");
+                if (!success) {
+                    revert TV_NATIVE_TRANSFER_FAILED();
+                }
+            } else {
+                IERC20(token).safeTransfer(s_feeCollector, entryFee);
+            }
         }
 
-        IERC20(token).safeTransfer(s_managerWallet, netAmount);
+        if (token == NATIVE_TOKEN) {
+            (bool success, ) = s_managerWallet.call{value: netAmount}("");
+            if (!success) {
+                revert TV_NATIVE_TRANSFER_FAILED();
+            }
+        } else {
+            IERC20(token).safeTransfer(s_managerWallet, netAmount);
+        }
 
         uint256 depositId = s_nextDepositId++;
         uint256 unlockTimestamp = block.timestamp + yield.lockDuration;
@@ -269,7 +323,9 @@ contract TokenVaultUpgradeable is
             depositTimestamp: block.timestamp,
             unlockTimestamp: unlockTimestamp,
             withdrawn: false,
-            dailyWinning: 0
+            dailyWinning: 0,
+            depositPrice: _getPrice(token),
+            withdrawPrice: 0
         });
 
         s_userDeposit[msg.sender].push(depositId);
@@ -283,7 +339,8 @@ contract TokenVaultUpgradeable is
             yieldId,
             netAmount,
             entryFee,
-            unlockTimestamp
+            unlockTimestamp,
+            s_deposits[depositId].depositPrice
         );
     }
 
@@ -292,16 +349,16 @@ contract TokenVaultUpgradeable is
      * @dev Payout includes principal and deterministic growth. Manager wallet must have approved the contract.
      * @param depositId Identifier of the deposit to withdraw.
      */
-    function withdraw(
-        uint256 depositId
-    ) external nonReentrant whenNotPaused {
-
+    function withdraw(uint256 depositId) external nonReentrant whenNotPaused {
         LockedDeposit storage pos = s_deposits[depositId];
         if (pos.withdrawn) revert TV_ALREADY_WITHDRAWN();
         if (pos.user != msg.sender) revert TV_UNAUTHORIZED();
         if (block.timestamp < pos.unlockTimestamp) revert TV_STILL_LOCKED();
 
+        uint256 currentPrice = _getPrice(pos.token);
         pos.withdrawn = true;
+        pos.withdrawPrice = currentPrice;
+
         _removeUserDeposit(msg.sender, depositId);
 
         uint256 duration = pos.unlockTimestamp - pos.depositTimestamp;
@@ -314,18 +371,28 @@ contract TokenVaultUpgradeable is
         s_yields[pos.token][pos.yieldId].totalPrincipal -= pos.principal;
 
         if (exitFee > 0) {
-            IERC20(pos.token).safeTransfer(
-                s_feeCollector,
-                exitFee
-            );
+            if (pos.token == NATIVE_TOKEN) {
+                (bool success, ) = s_feeCollector.call{value: exitFee}("");
+                if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+            } else {
+                IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
+            }
         }
 
-        IERC20(pos.token).safeTransfer(
-            msg.sender,
-            finalAmount
-        );
+        if (pos.token == NATIVE_TOKEN) {
+            (bool success, ) = msg.sender.call{value: finalAmount}("");
+            if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+        } else {
+            IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
+        }
 
-        emit VaultWithdrawal(depositId, msg.sender, totalPayout, exitFee);
+        emit VaultWithdrawal(
+            depositId,
+            msg.sender,
+            totalPayout,
+            exitFee,
+            currentPrice
+        );
     }
 
     function getYieldPlan(
@@ -379,7 +446,9 @@ contract TokenVaultUpgradeable is
                 depositTimestamp: pos.depositTimestamp,
                 unlockTimestamp: pos.unlockTimestamp,
                 withdrawn: pos.withdrawn,
-                dailyWinning: dailyWinning
+                dailyWinning: dailyWinning,
+                depositPrice: pos.depositPrice,
+                withdrawPrice: pos.withdrawPrice
             });
         }
         return infos;
@@ -420,5 +489,33 @@ contract TokenVaultUpgradeable is
 
     function getFeeCollector() external view returns (address) {
         return s_feeCollector;
+    }
+
+    /**
+     * @notice Get the price of a token from its oracle.
+     * @param token Address of the token.
+     * @return price Current price of the token.
+     */
+    function _getPrice(address token) internal view returns (uint256) {
+        address oracle = s_tokenOracles[token];
+        if (oracle == address(0)) revert TV_ORACLE_NOT_SET();
+
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(oracle);
+        (
+            uint80 roundID,
+            int256 answer,
+            ,
+            uint256 updatedAt,
+            uint80 answeredInRound
+        ) = priceFeed.latestRoundData();
+
+        if (answer <= 0) revert TV_INVALID_PRICE();
+        if (
+            updatedAt == 0 ||
+            updatedAt < block.timestamp - PRICE_STALENESS_THRESHOLD
+        ) revert TV_STALE_PRICE();
+        if (answeredInRound < roundID) revert TV_STALE_ROUND();
+
+        return uint256(answer);
     }
 }
