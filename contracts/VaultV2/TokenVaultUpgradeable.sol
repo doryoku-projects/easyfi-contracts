@@ -8,9 +8,10 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./UserAccessControl.sol";
-import "./errors/TokenVaultErrors.sol";
-import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./VaultDepositNFTUpgradeable.sol";
+import "../UserAccessControl.sol";
+import "../errors/TokenVaultErrors.sol";
+import "../interfaces/IProtocolConfigUpgradeable.sol";
 
 /**
  * @title TokenVaultUpgradeable
@@ -26,34 +27,32 @@ contract TokenVaultUpgradeable is
 {
     using SafeERC20 for IERC20;
     IProtocolConfigUpgradeable private s_config;
+    VaultDepositNFTUpgradeable private s_depositNFT;
 
     bytes32 private constant BP_KEY = keccak256("BP");
 
     struct YieldPlan {
         uint256 lockDuration;
-        uint256 aprBps;
-        uint256 totalPrincipal;
+        uint256 aprBps;  // Used for display only
         bool isActive;
     }
 
     struct LockedDeposit {
-        uint256 depositId; 
+        uint256 depositId;
         address user;
         address token;
         uint256 yieldId;
-        uint256 principal;
-        uint256 aprBps;
+        uint256 netPrincipal;  // Amount after entry fee
         uint256 depositTimestamp;
         uint256 unlockTimestamp;
         bool withdrawn;
-        uint256 dailyWinning;
     }
 
     mapping(address => bool) private s_supportedTokens;
     mapping(address => mapping(uint256 => YieldPlan)) private s_yields;
     mapping(uint256 => LockedDeposit) private s_deposits;
     uint256 private s_nextDepositId;
-    mapping(address => uint256[]) private s_userDeposit;
+    mapping(address => uint256[]) private s_userDeposits;
 
     uint256 private s_entryFeeBps;
     uint256 private s_exitFeeBps;
@@ -65,7 +64,7 @@ contract TokenVaultUpgradeable is
         address indexed user,
         address indexed token,
         uint256 yieldId,
-        uint256 amount,
+        uint256 netAmount,
         uint256 entryFee,
         uint256 unlockTimestamp
     );
@@ -73,7 +72,7 @@ contract TokenVaultUpgradeable is
     event VaultWithdrawal(
         uint256 indexed depositId,
         address indexed user,
-        uint256 totalPayout,
+        uint256 approvedAmount,
         uint256 exitFee
     );
 
@@ -84,10 +83,25 @@ contract TokenVaultUpgradeable is
         uint256 aprBps,
         bool isActive
     );
+
     event FeesSet(uint256 entryFeeBps, uint256 exitFeeBps);
     event ManagerWalletSet(address indexed manager);
     event FeeCollectorSet(address indexed collector);
+
     event TokenStatusSet(address indexed token, bool status);
+    event DepositNFTSet(address indexed nftAddress);
+
+    event WithdrawalsFunded(
+        address indexed token,
+        uint256 amount,
+        uint256 timestamp
+    );
+
+    event FundsReturned(
+        address indexed token,
+        uint256 amount,
+        uint256 timestamp
+    );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -141,6 +155,16 @@ contract TokenVaultUpgradeable is
     }
 
     /**
+     * @notice Set the NFT contract address (one-time setup or upgrade)
+     * @param nftAddress Address of the VaultDepositNFTUpgradeable contract
+     */
+    function setDepositNFT(address nftAddress) external onlyMasterAdmin {
+        if (nftAddress == address(0)) revert TV_ZERO_ADDRESS();
+        s_depositNFT = VaultDepositNFTUpgradeable(nftAddress);
+        emit DepositNFTSet(nftAddress);
+    }
+
+    /**
      * @notice Configure a yield for a specific token and lock period.
      * @param token Address of the token (BTC/ETH equivalent).
      * @param yieldId Identifier for the yield (e.g., 1, 3, 6, 12).
@@ -161,7 +185,6 @@ contract TokenVaultUpgradeable is
         s_yields[token][yieldId] = YieldPlan({
             lockDuration: lockDuration,
             aprBps: aprBps,
-            totalPrincipal: s_yields[token][yieldId].totalPrincipal,
             isActive: isActive
         });
 
@@ -241,40 +264,55 @@ contract TokenVaultUpgradeable is
         uint256 amount
     ) external nonReentrant whenNotPaused onlyUser {
         if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
-        YieldPlan storage yield = s_yields[token][yieldId];
-        if (!yield.isActive) revert TV_INVALID_YIELD();
+        
+        YieldPlan storage yieldPlan = s_yields[token][yieldId];
+        if (!yieldPlan.isActive) revert TV_INVALID_YIELD();
         if (amount == 0) revert TV_ZERO_AMOUNT();
 
+        // Transfer tokens from user
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
+        // Calculate fees
         uint256 entryFee = (amount * s_entryFeeBps) / _BP();
         uint256 netAmount = amount - entryFee;
 
+        // Send entry fee to collector
         if (entryFee > 0) {
             IERC20(token).safeTransfer(s_feeCollector, entryFee);
         }
 
+        // Send principal to manager wallet (for yield generation)
         IERC20(token).safeTransfer(s_managerWallet, netAmount);
 
+        // Create deposit record
         uint256 depositId = s_nextDepositId++;
-        uint256 unlockTimestamp = block.timestamp + yield.lockDuration;
+        uint256 unlockTimestamp = block.timestamp + yieldPlan.lockDuration;
 
         s_deposits[depositId] = LockedDeposit({
             depositId: depositId,
             user: msg.sender,
             token: token,
             yieldId: yieldId,
-            principal: netAmount,
-            aprBps: yield.aprBps,
+            netPrincipal: netAmount,
             depositTimestamp: block.timestamp,
             unlockTimestamp: unlockTimestamp,
-            withdrawn: false,
-            dailyWinning: 0
+            withdrawn: false
         });
 
-        s_userDeposit[msg.sender].push(depositId);
+        s_userDeposits[msg.sender].push(depositId);
 
-        yield.totalPrincipal += netAmount;
+        // Mint NFT to user
+        if (address(s_depositNFT) != address(0)) {
+            s_depositNFT.mint(
+                msg.sender,
+                depositId,
+                token,
+                yieldId,
+                netAmount,
+                block.timestamp,
+                unlockTimestamp
+            );
+        }
 
         emit VaultDeposit(
             depositId,
@@ -288,15 +326,16 @@ contract TokenVaultUpgradeable is
     }
 
     /**
-     * @notice Withdraw funds after the lock period has expired.
-     * @dev Payout includes principal and deterministic growth. Manager wallet must have approved the contract.
-     * @param depositId Identifier of the deposit to withdraw.
+     * @notice Withdraw with backend approval
+     * @param depositId ID of the deposit
+     * @param approvedAmount Total amount approved by backend (principal + rewards)
      */
     function withdraw(
-        uint256 depositId
+        uint256 depositId,
+        uint256 approvedAmount
     ) external nonReentrant whenNotPaused {
-
         LockedDeposit storage pos = s_deposits[depositId];
+
         if (pos.withdrawn) revert TV_ALREADY_WITHDRAWN();
         if (pos.user != msg.sender) revert TV_UNAUTHORIZED();
         if (block.timestamp < pos.unlockTimestamp) revert TV_STILL_LOCKED();
@@ -304,28 +343,46 @@ contract TokenVaultUpgradeable is
         pos.withdrawn = true;
         _removeUserDeposit(msg.sender, depositId);
 
-        uint256 duration = pos.unlockTimestamp - pos.depositTimestamp;
-        uint256 growth = (pos.principal * pos.aprBps * duration) /
-            (365 days * _BP());
-        uint256 totalPayout = pos.principal + growth;
-        uint256 exitFee = (totalPayout * s_exitFeeBps) / _BP();
-        uint256 finalAmount = totalPayout - exitFee;
+        // Calculate exit fee
+        uint256 exitFee = (approvedAmount * s_exitFeeBps) / _BP();
+        uint256 finalAmount = approvedAmount - exitFee;
 
-        s_yields[pos.token][pos.yieldId].totalPrincipal -= pos.principal;
-
+        // Send fee to collector
         if (exitFee > 0) {
-            IERC20(pos.token).safeTransfer(
-                s_feeCollector,
-                exitFee
-            );
+            IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
         }
 
-        IERC20(pos.token).safeTransfer(
-            msg.sender,
-            finalAmount
-        );
+        // Send funds to user
+        IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
 
-        emit VaultWithdrawal(depositId, msg.sender, totalPayout, exitFee);
+        // Burn NFT
+        if (address(s_depositNFT) != address(0)) {
+            s_depositNFT.burn(depositId);
+        }
+
+        emit VaultWithdrawal(depositId, msg.sender, approvedAmount, exitFee);
+    }
+
+    /**
+     * @notice Admin pre-funds contract for upcoming withdrawals
+     */
+    function fundUpcomingWithdrawals(
+        address token,
+        uint256 amount
+    ) external onlyGeneralOrMasterAdmin {
+        IERC20(token).safeTransferFrom(s_managerWallet, address(this), amount);
+        emit WithdrawalsFunded(token, amount, block.timestamp);
+    }
+
+    /**
+     * @notice Return excess funds to manager wallet
+     */
+    function returnExcessFunds(
+        address token,
+        uint256 amount
+    ) external onlyGeneralOrMasterAdmin {
+        IERC20(token).safeTransfer(s_managerWallet, amount);
+        emit FundsReturned(token, amount, block.timestamp);
     }
 
     function getYieldPlan(
@@ -349,40 +406,11 @@ contract TokenVaultUpgradeable is
     function getUserActiveDeposits(
         address user
     ) external view returns (uint256[] memory) {
-        return s_userDeposit[user];
+        return s_userDeposits[user];
     }
 
-    /**
-     * @notice Get detailed info for all active deposits of a user.
-     * @param user Address of the user.
-     * @return Array of DepositsInfo structs including daily winnings.
-     */
-    function getUserActiveDepositsInfo(
-        address user
-    ) external view returns (LockedDeposit[] memory) {
-        uint256[] storage depositIds = s_userDeposit[user];
-        uint256 length = depositIds.length;
-        LockedDeposit[] memory infos = new LockedDeposit[](length);
-
-        for (uint256 i = 0; i < length; i++) {
-            uint256 dId = depositIds[i];
-            LockedDeposit storage pos = s_deposits[dId];
-            uint256 dailyWinning = (pos.principal * pos.aprBps) / (365 * _BP());
-
-            infos[i] = LockedDeposit({
-                depositId: dId,
-                user: pos.user,
-                token: pos.token,
-                yieldId: pos.yieldId,
-                principal: pos.principal,
-                aprBps: pos.aprBps,
-                depositTimestamp: pos.depositTimestamp,
-                unlockTimestamp: pos.unlockTimestamp,
-                withdrawn: pos.withdrawn,
-                dailyWinning: dailyWinning
-            });
-        }
-        return infos;
+    function getAvailableBalance(address token) external view returns (uint256) {
+        return IERC20(token).balanceOf(address(this));
     }
 
     /**
@@ -391,7 +419,7 @@ contract TokenVaultUpgradeable is
      * @param depositId Identifier of the deposit to remove.
      */
     function _removeUserDeposit(address user, uint256 depositId) internal {
-        uint256[] storage deposits = s_userDeposit[user];
+        uint256[] storage deposits = s_userDeposits[user];
         uint256 length = deposits.length;
         for (uint256 i = 0; i < length; i++) {
             if (deposits[i] == depositId) {
@@ -420,5 +448,9 @@ contract TokenVaultUpgradeable is
 
     function getFeeCollector() external view returns (address) {
         return s_feeCollector;
+    }
+
+    function getDepositNFTAddress() external view returns (address) {
+        return address(s_depositNFT);
     }
 }

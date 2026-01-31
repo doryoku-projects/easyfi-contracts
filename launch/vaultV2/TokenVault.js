@@ -1,6 +1,6 @@
-const { deployUpgradeableContract } = require("./DeploymentHelper");
-const { getDeploymentAddress } = require("./DeploymentStore");
-const CONFIG = require("./config");
+const { deployUpgradeableContract } = require("../DeploymentHelper");
+const { getDeploymentAddress } = require("../DeploymentStore");
+const CONFIG = require("../config");
 
 async function deployTokenVault() {
     const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
