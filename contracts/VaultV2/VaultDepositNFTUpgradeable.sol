@@ -97,7 +97,7 @@ contract VaultDepositNFTUpgradeable is
         uint256 depositTimestamp,
         uint256 unlockTimestamp
     ) external onlyVault {
-        _safeMint(to, tokenId);
+        _mint(to, tokenId);
         
         s_depositMetadata[tokenId] = DepositMetadata({
             token: token,

@@ -3,9 +3,11 @@ const { ethers, upgrades } = require("hardhat");
 require("dotenv").config();
 const { getDeploymentAddress } = require("../../launch/DeploymentStore");
 const CONFIG = require("../../launch/config");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 
 describe("TokenVaultUpgradeable (Real Contracts)", function () {
     let tokenVault;
+    let VaultDepositNFT;
     let userManager;
     let token;
     let owner, user, managerWallet, feeCollector, other, userWallet;
@@ -14,6 +16,7 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
 
     let USER_MANAGER_ADDRESS;
     let TOKEN_VAULT_ADDRESS;
+    let VAULT_DEPOSIT_NFT_ADDRESS;
     let WETH_ADDRESS;
     let addressesPerChain;
 
@@ -26,11 +29,13 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
 
         USER_MANAGER_ADDRESS = await getDeploymentAddress("UserManagerUpgradeable");
         TOKEN_VAULT_ADDRESS = await getDeploymentAddress("TokenVaultUpgradeable");
+        VAULT_DEPOSIT_NFT_ADDRESS = await getDeploymentAddress("VaultDepositNFTUpgradeable");
         WETH_ADDRESS = addressesPerChain.TOKEN0_ADDRESS;
 
         console.log(TOKEN_VAULT_ADDRESS, "TOKEN_VAULT_ADDRESS");
+        console.log(VAULT_DEPOSIT_NFT_ADDRESS, "VAULT_DEPOSIT_NFT_ADDRESS");
 
-        [owner, user, managerWallet, feeCollector, other] = await ethers.getSigners();
+        [,, , managerWallet, , ] = await ethers.getSigners();
 
         ownerWallet = new ethers.Wallet(
             process.env.MASTER_ADMIN_PRIVATE_KEY,
@@ -49,6 +54,9 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             process.env.USER_PRIVATE_KEY,
             ethers.provider
         );
+
+        console.log("userWallet = ", userWallet.address);
+        
 
         userManager = await ethers.getContractAt(
             "UserManagerUpgradeable",
@@ -90,16 +98,30 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             TOKEN_VAULT_ADDRESS,
             generalAdminWallet
         );
+
+        VaultDepositNFT = await ethers.getContractAt(
+            "VaultDepositNFTUpgradeable",
+            VAULT_DEPOSIT_NFT_ADDRESS,
+            generalAdminWallet
+        );
     });
 
     describe("Initialization", function () {
         it("Should set the correct initial values", async function () {
-            expect(await tokenVault.getManagerWallet()).to.equal(ownerWallet.address);
-            expect(await tokenVault.getFeeCollector()).to.equal(ownerWallet.address);
+            expect((await tokenVault.getManagerWallet()).toLowerCase()).to.equal(process.env.MASTER_ADMIN_WALLET.toLowerCase());
+            expect((await tokenVault.getFeeCollector()).toLowerCase()).to.equal(process.env.CLIENT_ADDRESS.toLowerCase());
             expect(await tokenVault.getEntryFeeBps()).to.equal(entryFeeBps);
             expect(await tokenVault.getExitFeeBps()).to.equal(exitFeeBps);
-
+            expect((await tokenVault.getDepositNFTAddress()).toLowerCase()).to.equal(VAULT_DEPOSIT_NFT_ADDRESS.toLowerCase());
             console.log("TokenVault initialized successfully");
+        });
+    });
+
+    describe("check contract updates", function () {
+        it("should have the new functions after upgrade", async function () {
+            expect(tokenVault.fundUpcomingWithdrawals).to.be.a("function");
+            expect(tokenVault.returnExcessFunds).to.be.a("function");
+            console.log("Upgrade verified successfully");
         });
     });
 
@@ -131,32 +153,89 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
         const amount = ethers.parseUnits("1", 18);
 
         before(async function () {
+            // Enable the token for deposits
+            await tokenVault.connect(ownerWallet).setTokenStatus(WETH_ADDRESS, true);
+            
+            // Set yield plan for the token
+            const lockDuration = 30 * 24 * 60 * 60; // 30 days
+            const aprBps = 1000; // 10%
+            await tokenVault.connect(generalAdminWallet).setYieldPlan(
+                WETH_ADDRESS,
+                yieldId,
+                lockDuration,
+                aprBps,
+                true
+            );
+            
             await token.connect(userWallet).approve(await tokenVault.getAddress(), amount);
+
+            console.log("#### token.balanceOf Vault = ", await token.balanceOf(await tokenVault.getAddress()));
+            
         });
 
         it("Should allow user to deposit real WETH", async function () {
             const entryFee = (amount * BigInt(entryFeeBps)) / 10000n;
             const netAmount = amount - entryFee;
-
-            console.log(await token.balanceOf(userWallet.address));
+            
             const tx = await tokenVault.connect(userWallet).deposit(WETH_ADDRESS, yieldId, amount);
-            await expect(tx).to.emit(tokenVault, "VaultDeposit");
+            const receipt = await tx.wait();
+
+            // Parse the VaultDeposit event from the receipt
+            const event = receipt.logs
+                .map(log => {
+                    try {
+                        return tokenVault.interface.parseLog(log);
+                    } catch (e) {
+                        return null;
+                    }
+                })
+                .find(log => log && log.name === 'VaultDeposit');
+
+            const depositId = event.args.depositId;
+            console.log("Deposit ID:", depositId.toString());
 
             expect(await token.balanceOf(managerWallet.address)).to.be.at.least(netAmount);
 
-            console.log(await tokenVault.getUserActiveDeposits(userWallet.address));
-            const deposit = await tokenVault.getDeposit(1);
+            const deposit = await tokenVault.getDeposit(depositId);
             expect(deposit.user).to.equal(userWallet.address);
-            expect(deposit.principal).to.equal(netAmount);
+            expect(deposit.netPrincipal).to.equal(netAmount);
+
+            expect(await VaultDepositNFT.ownerOf(depositId)).to.equal(userWallet.address);
             console.log("Deposit successful");
+            console.log("getUserActiveDeposits = ", await tokenVault.getUserActiveDeposits(userWallet.address));
+            console.log("#### after deposit - token.balanceOf Vault = ", await token.balanceOf(await tokenVault.getAddress()));
+        });
+    });
+
+    describe("Admin Functions - Fund Withdrawals", function () {
+        it("Should allow admin to fund upcoming withdrawals", async function () {
+            const fundAmount = ethers.parseUnits("5", 18);
+            await token.connect(ownerWallet).approve(await tokenVault.getAddress(), fundAmount);
+
+            const vaultBalanceBefore = await token.balanceOf(await tokenVault.getAddress());
+
+            await expect(tokenVault.connect(ownerWallet).fundUpcomingWithdrawals(await token.getAddress(), fundAmount))
+                .to.emit(tokenVault, "WithdrawalsFunded")
+                .withArgs(token, fundAmount, anyValue);
+
+            const vaultBalanceAfter = await token.balanceOf(await tokenVault.getAddress());
+            expect(vaultBalanceAfter).to.equal(vaultBalanceBefore + fundAmount);
+            console.log("Funded upcoming withdrawals successfully");
         });
     });
 
     describe("User Functions - Withdraw", function () {
-        const depositId = 1;
+        let depositId;
 
         before(async function () {
             await token.connect(managerWallet).approve(await tokenVault.getAddress(), ethers.MaxUint256);
+            const deposits = await tokenVault.getUserActiveDeposits(userWallet.address);
+            console.log("deposits = ", deposits);
+            
+            depositId = deposits[0]; // Use first active deposit
+            console.log("Using Deposit ID:", depositId.toString());
+
+            console.log("#### Befor withdraw - token.balanceOf Vault = ", await token.balanceOf(await tokenVault.getAddress()));
         });
 
         it("Should allow user to withdraw after lock period", async function () {
@@ -164,28 +243,66 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             await ethers.provider.send("evm_mine");
 
             const deposit = await tokenVault.getDeposit(depositId);
+            const yieldPlan = await tokenVault.getYieldPlan(deposit.token, deposit.yieldId);
             const duration = deposit.unlockTimestamp - deposit.depositTimestamp;
-            const growth = (deposit.principal * deposit.aprBps * duration) / (BigInt(365 * 24 * 3600) * 10000n);
-            const totalPayout = deposit.principal + growth;
+            const growth = (deposit.netPrincipal * yieldPlan.aprBps * duration) / (BigInt(365 * 24 * 3600) * 10000n);
+            const totalPayout = deposit.netPrincipal + growth;
             const exitFee = (totalPayout * BigInt(exitFeeBps)) / 10000n;
             const finalAmount = totalPayout - exitFee;
 
             const userBalanceBefore = await token.balanceOf(userWallet.address);
-            await token.connect(ownerWallet).transfer(await tokenVault.getAddress(), ethers.parseEther("20"));
-            console.log("deposit",deposit)
-            console.log(await tokenVault.getUserActiveDepositsInfo(userWallet.address));
-            await expect(tokenVault.connect(userWallet).withdraw(depositId))
+            // await token.connect(ownerWallet).transfer(await tokenVault.getAddress(), ethers.parseEther("20"));
+            
+            await expect(tokenVault.connect(userWallet).withdraw(depositId, totalPayout))
                 .to.emit(tokenVault, "VaultWithdrawal");
-
-            console.log(await tokenVault.getUserActiveDeposits(userWallet.address));
-            console.log(await tokenVault.getUserActiveDepositsInfo(userWallet.address));
 
             console.log("userBalanceBefore", userBalanceBefore, "userBalanceAfter" , await token.balanceOf(userWallet.address));
             expect(await token.balanceOf(userWallet.address)).to.equal(userBalanceBefore + finalAmount);
 
             const depositAfter = await tokenVault.getDeposit(depositId);
             expect(depositAfter.withdrawn).to.equal(true);
+
+            await expect(VaultDepositNFT.ownerOf(depositId))
+                .to.be.revertedWithCustomError(VaultDepositNFT, "ERC721NonexistentToken")
+                .withArgs(depositId);
             console.log("Withdrawal successful");
+
+            console.log("#### After withdraw - token.balanceOf Vault = ", await token.balanceOf(await tokenVault.getAddress()));
+        });
+    });
+
+    describe("Admin Functions - Return Excess Funds", function () {
+        it("Should allow admin to return excess funds", async function () {
+            const returnAmount = ethers.parseUnits("2", 18);
+            const vaultBalanceBefore = await token.balanceOf(await tokenVault.getAddress());
+            const OwnerBalanceBefore = await token.balanceOf(ownerWallet.address);
+
+            await expect(tokenVault.connect(ownerWallet).returnExcessFunds(await token.getAddress(), returnAmount))
+                .to.emit(tokenVault, "FundsReturned")
+                .withArgs(token, returnAmount, anyValue);
+
+            const vaultBalanceAfter = await token.balanceOf(await tokenVault.getAddress());
+            const OwnerBalanceAfter = await token.balanceOf(ownerWallet.address);
+
+            expect(vaultBalanceAfter).to.equal(vaultBalanceBefore - returnAmount);
+            expect(OwnerBalanceAfter).to.equal(OwnerBalanceBefore + returnAmount);
+            console.log("Returned excess funds successfully");
+        });
+
+        it("Should allow admin to return all funds", async function () {
+            const vaultBalanceBefore = await token.balanceOf(await tokenVault.getAddress());
+            const OwnerBalanceBefore = await token.balanceOf(ownerWallet.address);
+
+            await expect(tokenVault.connect(ownerWallet).returnExcessFunds(await token.getAddress(), vaultBalanceBefore))
+                .to.emit(tokenVault, "FundsReturned")
+                .withArgs(token, vaultBalanceBefore, anyValue);
+
+            const vaultBalanceAfter = await token.balanceOf(await tokenVault.getAddress());
+            const OwnerBalanceAfter = await token.balanceOf(ownerWallet.address);
+
+            expect(vaultBalanceAfter).to.equal(0n);
+            expect(OwnerBalanceAfter).to.equal(OwnerBalanceBefore + vaultBalanceBefore);
+            console.log("Returned full funds successfully");
         });
     });
 });
