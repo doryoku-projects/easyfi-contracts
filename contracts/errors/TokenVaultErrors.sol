@@ -41,4 +41,9 @@ abstract contract TokenVaultErrors {
      * @notice Reverted when trying to withdraw funds before the lock period has expired.
      */
     error TV_STILL_LOCKED();
+
+    /**
+     * @notice Reverted when there is an input array length mismatch.
+     */
+    error TV_INPUT_MISMATCH();
 }

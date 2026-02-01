@@ -192,6 +192,41 @@ contract TokenVaultUpgradeable is
     }
 
     /**
+     * @notice Batch configure yield plans for multiple tokens and durations.
+     */
+    function setYieldPlansBatch(
+        address[] calldata tokens,
+        uint256[] calldata yieldIds,
+        uint256[] calldata lockDurations,
+        uint256[] calldata aprBpsList,
+        bool[] calldata isActives
+    ) external onlyGeneralOrMasterAdmin {
+        uint256 length = tokens.length;
+        if (
+            length != yieldIds.length ||
+            length != lockDurations.length ||
+            length != aprBpsList.length ||
+            length != isActives.length
+        ) revert TV_INPUT_MISMATCH();
+
+        for (uint256 i = 0; i < length; i++) {
+            address token = tokens[i];
+            uint256 aprBps = aprBpsList[i];
+            
+            if (token == address(0)) revert TV_ZERO_ADDRESS();
+            if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
+
+            s_yields[token][yieldIds[i]] = YieldPlan({
+                lockDuration: lockDurations[i],
+                aprBps: aprBps,
+                isActive: isActives[i]
+            });
+
+            emit YieldSet(token, yieldIds[i], lockDurations[i], aprBps, isActives[i]);
+        }
+    }
+
+    /**
      * @notice Update entry and exit fees.
      * @param entryFeeBps Entry fee in basis points.
      * @param exitFeeBps Exit fee in basis points.

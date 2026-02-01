@@ -68,6 +68,29 @@ const CONFIG = {
       DAI_PRICE_FEED: "0x591e79239a7d679378eC8c847e5038150364C78F",
       SAFE_ADDRESS: "0x549BB741bDAE87872d0bb7082Ee6223D02644963"
     }
+  },
+
+  YIELD_CONFIG_PER_CHAIN: {
+    42161: {
+      "WETH": "0x...", 
+      "WBTC": "0x...",
+      plans: [
+          { id: 1, months: 1, apr: 500 },  // 5%
+          { id: 3, months: 3, apr: 700 },  // 7%
+          { id: 6, months: 6, apr: 1000 }, // 10%
+          { id: 12, months: 12, apr: 1500 } // 15%
+      ]
+    },
+    8453: {
+      "WETH": "0x4200000000000000000000000000000000000006",
+      "WBTC": "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c",
+      plans: [
+          { id: 1, months: 1, apr: 500 },  // 5%
+          { id: 3, months: 3, apr: 700 },  // 7%
+          { id: 6, months: 6, apr: 1000 }, // 10%
+          { id: 12, months: 12, apr: 1500 } // 15%
+      ]
+    }
   }
 };
 
