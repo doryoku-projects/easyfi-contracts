@@ -186,3 +186,14 @@ npx cross-env WHITELABEL="wadz_test" CONTRACT="VaultManagerUpgradeable"  FUNCTIO
 ```bash
 npx cross-env WHITELABEL="wadz" MIGRATE_USERS="user1,user2" MIGRATE_MANAGER="managerAddress" MIGRATE_POOL_ID="poolId" MIGRATE_PACKAGE_IDS="id1,id2" MIGRATE_TICK_LOWER=-100 MIGRATE_TICK_UPPER=100 FUNCTION_NAME=encodeMigratePositionBatches hardhat run scripts/EmergencyWithdrawWithMultisig.js --network arbitrumOne
 ```set
+
+
+## VAULT V2 - Deploy and update role setting in a single script
+
+```bash
+# Makes the file executable so it can be run directly.
+chmod +x vaultV2_run.sh
+
+# Run the script
+./vaultV2_run.sh
+```

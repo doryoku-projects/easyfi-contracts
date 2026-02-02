@@ -34,7 +34,7 @@ const CONFIG = {
     ORACLE_SWAP: "ORACLE_SWAP_V1_MAIN_PROXY",
     AGGREGATOR: "AGGREGATOR_V1_MAIN_PROXY",
     FUNDS_MANAGER: "FUNDS_MANAGER_V1_MAIN_PROXY",
-    TOKEN_VAULT: "TOKEN_VAULT_V1_MAIN_PROXY",
+    TOKEN_VAULT: "TOKEN_VAULT_V2_MAIN_PROXY",
     VAULT_DEPOSIT_NFT: "VAULT_DEPOSIT_NFT_V1_MAIN_PROXY"
   },
 
@@ -72,8 +72,8 @@ const CONFIG = {
 
   YIELD_CONFIG_PER_CHAIN: {
     42161: {
-      "WETH": "0x...", 
-      "WBTC": "0x...",
+      "WETH": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", 
+      "WBTC": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
       plans: [
           { id: 1, months: 1, apr: 500 },  // 5%
           { id: 3, months: 3, apr: 700 },  // 7%

@@ -158,7 +158,7 @@ contract TokenVaultUpgradeable is
      * @notice Set the NFT contract address (one-time setup or upgrade)
      * @param nftAddress Address of the VaultDepositNFTUpgradeable contract
      */
-    function setDepositNFT(address nftAddress) external onlyMasterAdmin {
+    function setDepositNFT(address nftAddress) external onlyGeneralOrMasterAdmin {
         if (nftAddress == address(0)) revert TV_ZERO_ADDRESS();
         s_depositNFT = VaultDepositNFTUpgradeable(nftAddress);
         emit DepositNFTSet(nftAddress);

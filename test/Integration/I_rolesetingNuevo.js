@@ -56,8 +56,6 @@ describe("I_setRoles", async function () {
     oracleSwapAddress = await getDeploymentAddress("OracleSwapUpgradeable");
     liquidityHelperAddress = await getDeploymentAddress("LiquidityHelperUpgradeable");
     aggregatorAddress = await getDeploymentAddress("AggregatorUpgradeable");
-    tokenVaultAddress = await getDeploymentAddress("TokenVaultUpgradeable");
-    vaultDepositNFTAddress = await getDeploymentAddress("VaultDepositNFTUpgradeable");
 
     ownerWallet = new ethers.Wallet(       // MASTER_ADMIN
       process.env.MASTER_ADMIN_PRIVATE_KEY,
@@ -153,8 +151,6 @@ describe("I_setRoles", async function () {
       liquidityHelperAddress,
       liquidityManagerAddress,
       oracleSwapAddress,
-      tokenVaultAddress,
-      vaultDepositNFTAddress
     ]);
 
     const receiptLM = await txLM.wait(1);

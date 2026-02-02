@@ -135,28 +135,11 @@ async function updateProtocolConfigAddresses({
   }
 }
 
-async function setDepositNFTAddress(tokenVaultAddress, nftAddress) {
-  const [deployer, owner, marcWallet, pepOwnerWallet] = await ethers.getSigners();
 
-  const TokenVaultContract = await ethers.getContractAt(
-    "TokenVaultUpgradeable",
-    tokenVaultAddress,
-    owner
-  );
-
-  try {
-    const tx = await TokenVaultContract.setDepositNFT(nftAddress);
-    await tx.wait();
-    console.log(`✅ Set Deposit NFT address to ${nftAddress}`);
-  } catch (error) {
-    console.log(`❌ Failed to set Deposit NFT address: ${error.message}`);
-  }
-}
 
 
 module.exports = {
   deployUpgradeableContract,
   createConfigKey,
-  updateProtocolConfigAddresses,
-  setDepositNFTAddress
+  updateProtocolConfigAddresses
 };

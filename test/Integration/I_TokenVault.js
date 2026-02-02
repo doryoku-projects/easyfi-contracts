@@ -17,20 +17,21 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
     let USER_MANAGER_ADDRESS;
     let TOKEN_VAULT_ADDRESS;
     let VAULT_DEPOSIT_NFT_ADDRESS;
-    let WETH_ADDRESS;
-    let addressesPerChain;
+    let WETH_ADDRESS, WBTC_ADDRESS;
+    let yieldConfigPerChain;
 
     let ownerWallet, generalAdminWallet, userManagerWallet;
 
     before(async function () {
         const network = await ethers.provider.getNetwork();
         const chainId = Number(network.chainId);
-        addressesPerChain = CONFIG.ADDRESSES_PER_CHAIN[chainId];
+        yieldConfigPerChain = CONFIG.YIELD_CONFIG_PER_CHAIN[chainId];
 
         USER_MANAGER_ADDRESS = await getDeploymentAddress("UserManagerUpgradeable");
         TOKEN_VAULT_ADDRESS = await getDeploymentAddress("TokenVaultUpgradeable");
         VAULT_DEPOSIT_NFT_ADDRESS = await getDeploymentAddress("VaultDepositNFTUpgradeable");
-        WETH_ADDRESS = addressesPerChain.TOKEN0_ADDRESS;
+        WETH_ADDRESS = yieldConfigPerChain.WETH;
+        WBTC_ADDRESS = yieldConfigPerChain.WBTC;
 
         console.log(TOKEN_VAULT_ADDRESS, "TOKEN_VAULT_ADDRESS");
         console.log(VAULT_DEPOSIT_NFT_ADDRESS, "VAULT_DEPOSIT_NFT_ADDRESS");
@@ -125,51 +126,16 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
         });
     });
 
-    describe("Admin Functions", function () {
-        it("Should allow admin to set yield", async function () {
-            const yieldId = 1;
-            const lockDuration = 30 * 24 * 60 * 60;
-            const aprBps = 1000;
-            const isActive = true;
-
-            await tokenVault.connect(generalAdminWallet).setYieldPlan(WETH_ADDRESS, yieldId, lockDuration, aprBps, isActive);
-
-            const yield = await tokenVault.getYieldPlan(WETH_ADDRESS, yieldId);
-            expect(yield.lockDuration).to.equal(lockDuration);
-            expect(yield.aprBps).to.equal(aprBps);
-            expect(yield.isActive).to.equal(true);
-            console.log("yield set successfully");
-        });
-
-        it("Should allow admin to set token status", async function () {
-            await tokenVault.connect(ownerWallet).setTokenStatus(WETH_ADDRESS, true);
-            expect(await tokenVault.isSupportedToken(WETH_ADDRESS)).to.equal(true);
-            console.log("Token status set successfully");
-        });
-    });
+    
 
     describe("User Functions - Deposit", function () {
         const yieldId = 1;
         const amount = ethers.parseUnits("1", 18);
 
         before(async function () {
-            // Enable the token for deposits
-            await tokenVault.connect(ownerWallet).setTokenStatus(WETH_ADDRESS, true);
-            
-            // Set yield plan for the token
-            const lockDuration = 30 * 24 * 60 * 60; // 30 days
-            const aprBps = 1000; // 10%
-            await tokenVault.connect(generalAdminWallet).setYieldPlan(
-                WETH_ADDRESS,
-                yieldId,
-                lockDuration,
-                aprBps,
-                true
-            );
             
             await token.connect(userWallet).approve(await tokenVault.getAddress(), amount);
-
-            console.log("#### token.balanceOf Vault = ", await token.balanceOf(await tokenVault.getAddress()));
+            
             
         });
 
@@ -303,6 +269,47 @@ describe("TokenVaultUpgradeable (Real Contracts)", function () {
             expect(vaultBalanceAfter).to.equal(0n);
             expect(OwnerBalanceAfter).to.equal(OwnerBalanceBefore + vaultBalanceBefore);
             console.log("Returned full funds successfully");
+        });
+    });
+
+    describe("get Yield Plans", function () {
+        it("Should return correct WETH yield plans", async function () {
+            const yieldPlan = await tokenVault.getYieldPlan(WETH_ADDRESS, 1);
+            expect(yieldPlan.lockDuration).to.equal(30 * 24 * 60 * 60);
+            expect(yieldPlan.aprBps).to.equal(500);
+            expect(yieldPlan.isActive).to.equal(true);
+            console.log("Retrieved yield plans successfully");
+
+            const yieldPlans = await tokenVault.getYieldPlan(WETH_ADDRESS, 3);
+            expect(yieldPlans.lockDuration).to.equal(90 * 24 * 60 * 60);
+            expect(yieldPlans.aprBps).to.equal(700);
+            expect(yieldPlans.isActive).to.equal(true);
+        });
+    });
+
+    describe("Admin Functions", function () {
+        it("Should allow admin to set yield", async function () {
+            const yieldId = 1;
+            const lockDuration = 30 * 24 * 60 * 60;
+            const aprBps = 1000;
+            const isActive = true;
+
+           await tokenVault.connect(generalAdminWallet).setYieldPlan(WBTC_ADDRESS, yieldId, lockDuration, aprBps, isActive);
+
+            const yield = await tokenVault.getYieldPlan(WBTC_ADDRESS, yieldId);
+            expect(yield.lockDuration).to.equal(lockDuration);
+            expect(yield.aprBps).to.equal(aprBps);
+            expect(yield.isActive).to.equal(true);
+            console.log("yield set successfully");
+        });
+
+        it("Should allow admin to set token status", async function () {
+           await tokenVault.connect(ownerWallet).setTokenStatus(WBTC_ADDRESS, false);
+            expect(await tokenVault.isSupportedToken(WBTC_ADDRESS)).to.equal(false);
+
+            await tokenVault.connect(ownerWallet).setTokenStatus(WBTC_ADDRESS, true);
+            expect(await tokenVault.isSupportedToken(WBTC_ADDRESS)).to.equal(true);
+            console.log("Token status set successfully");
         });
     });
 });
