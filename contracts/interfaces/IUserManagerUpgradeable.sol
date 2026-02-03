@@ -14,7 +14,7 @@ interface IUserManagerUpgradeable {
 
     function oracleAddress2FA() external view returns (address);
 
-    function addUsers(address[] calldata users) external returns (bool);
+    function addUsers(address[] calldata users, address[] calldata referrals) external returns (bool);
 
     function removeUsers(address[] calldata users) external returns (bool);
 
@@ -61,4 +61,8 @@ interface IUserManagerUpgradeable {
     function check2FA(address user, string calldata code, uint256 value) external;
 
     function isEmergency() external view returns (bool);
+
+    function setReferral(address user, address parent) external;
+
+    function getReferrals(address user, uint256 levels) external view returns (address[] memory);
 }

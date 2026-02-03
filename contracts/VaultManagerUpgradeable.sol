@@ -34,6 +34,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
+    mapping(address => uint256) private s_referralFees;
 
     struct UserInfo {
         uint256 tokenId;
@@ -62,6 +63,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
+    bytes32 private constant CFG_REFERRAL_LEVELS = keccak256("ReferralLevels");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
@@ -73,6 +75,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     event UserPackageUpdated(address indexed user, uint256 packageId);
     event Withdrawn(address indexed user, uint256 amount);
     event LiquidityEvent(address indexed user, uint256 indexed packageId, uint256 amount);
+    event ReferralFeesWithdrawn(address indexed referral, uint256 amount);
+    event ReferralFeesDistributed(address indexed user, uint256 totalReferralFees);
 
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
@@ -506,9 +510,9 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             (, , uint256 companyTax, uint256 collectedMainToken) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
             .collectFeesFromPosition(tokenId, isAdmin ? _fundsManager() : user, storedFee0, storedFee1, _companyFeePctInstance, send);
             _updateFees(user, poolIdHash, packageId, collectedMainToken);
-            s_companyFees += companyTax;
+            _distributeReferralFees(user, companyTax, packageId);
         } else {
-            (uint256 collected0, uint256 collected1, ,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
+            (uint256 collected0, uint256 collected1, uint256 companyTaxValue,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
 
             uint256 actualCollected0 = 0;
@@ -527,6 +531,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
             userInfo[user][packageId][poolIdHash].feeToken0 += actualCollected0;
             userInfo[user][packageId][poolIdHash].feeToken1 += actualCollected1;
+
+            _distributeReferralFees(user, companyTaxValue, packageId);
         }
 
         uint256 currentDeposit = userInfo[user][packageId][poolIdHash].depositLiquidity;
@@ -582,7 +588,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax,) =
             _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user, packageId), true);
 
-        s_companyFees += companyTax;
+        _distributeReferralFees(user, companyTax, packageId);
 
         _nfpmInstance.approve(address(0), tokenId);
 
@@ -807,6 +813,45 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
+     * @notice Distribute referral fees across 3 levels.
+     * @param user The user who generated the fees.
+     * @param totalCompanyTax The total fee collected from the user.
+     * @param packageId The package ID of the user.
+     */
+    function _distributeReferralFees(address user, uint256 totalCompanyTax, uint256 packageId)
+        internal
+    {
+        if (totalCompanyTax == 0) return;
+
+        uint256 levels = s_config.getPackageReferralLevels(packageId);
+        if (levels == 0) {
+            s_companyFees += totalCompanyTax;
+            return;
+        }
+
+        address[] memory referrals = s_userManager.getReferrals(user, levels);
+        uint256 totalDistributed = 0;
+        uint256 bp = _BP();
+
+        for (uint256 i = 0; i < referrals.length; i++) {
+            if (referrals[i] != address(0)) {
+                uint256 pct = s_config.getPackageReferralPct(packageId, i + 1);
+                uint256 share = (totalCompanyTax * pct) / bp;
+                if (share > 0) {
+                    s_referralFees[referrals[i]] += share;
+                    totalDistributed += share;
+                }
+            }
+        }
+
+        if (totalCompanyTax > totalDistributed) {
+            s_companyFees += (totalCompanyTax - totalDistributed);
+        }
+        
+        emit ReferralFeesDistributed(user, totalDistributed);
+    }
+
+    /**
      * @notice withdrawFunds
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
@@ -830,6 +875,56 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
+    }
+
+    function setPackageReferralPercentages(uint256 packageId, uint256[] calldata percentages) external onlyGeneralOrMasterAdmin {
+        s_config.setPackageReferralPercentages(packageId, percentages);
+    }
+
+    function getPackageReferralPctList(uint256 packageId) external view returns (uint256[] memory) {
+        return s_config.getPackageReferralPctList(packageId);
+    }
+
+    /**
+     * @notice Withdraw earned referral fees.
+     */
+    function withdrawReferralFees() external notEmergency {
+        uint256 amount = s_referralFees[msg.sender];
+        if (amount == 0) revert VM_COMPANY_FEES_ZERO(); // Reusing error for zero fees
+
+        s_referralFees[msg.sender] = 0;
+        _mainToken().safeTransfer(msg.sender, amount);
+
+        emit ReferralFeesWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Get earned referral fees for an address.
+     * @param referral The address of the referral.
+     * @return uint256 The earned referral fees.
+     */
+    function getReferralFees(address referral) external view returns (uint256) {
+        return s_referralFees[referral];
+    }
+
+    function _uintToString(uint256 v) internal pure returns (string memory) {
+        if (v == 0) return "0";
+        uint256 j = v;
+        uint256 len;
+        while (j != 0) {
+            len++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(len);
+        uint256 k = len;
+        while (v != 0) {
+            k = k - 1;
+            uint8 temp = (48 + uint8(v - (v / 10) * 10));
+            bytes1 b1 = bytes1(temp);
+            bstr[k] = b1;
+            v /= 10;
+        }
+        return string(bstr);
     }
 
 

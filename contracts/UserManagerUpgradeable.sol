@@ -122,6 +122,8 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
     mapping(address => User2FA) private s_user2FA;
 
+    mapping(address => address) private s_referrals;
+
     event UserAdded(address indexed user);
     event UserRemoved(address indexed user);
     event UserManagerAdded(address indexed user);
@@ -142,6 +144,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     event EmergencyModeDeactivated(bool indexed emergency);
     event MaxRolesSizeUpdated(uint256 indexed newMaxRolesSize);
     event Code2FAUpdated(address indexed user);
+    event ReferralSet(address indexed user, address indexed parent);
 
     /**
      * @notice Initialize the UserManager contract, granting initial roles.
@@ -282,11 +285,16 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @param users Array of user addresses to add.
      * @return True if operation succeeded.
      */
-    function addUsers(address[] calldata users) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
+    function addUsers(address[] calldata users, address[] calldata referrals) external onlyRole(USER_MANAGER_ROLE) returns (bool) {
         _checkArraySizeLimit("users", users.length);
+        if (users.length != referrals.length)
+            revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("referrals", referrals.length);
         for (uint256 i = 0; i < users.length; i++) {
             _checkRole(USER_ROLE, users[i], true);
             _grantRole(USER_ROLE, users[i]);
+            if (referrals[i] != address(0)) {
+                _setReferral(users[i], referrals[i]);
+            }
             emit UserAdded(users[i]);
         }
         return true;
@@ -666,5 +674,54 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
             revert UM_INVALID_2FA_VALUE();
         }
         s_user2FA[user].timestamp = 0;
+    }
+
+    /**
+     * @notice Set the referral parent for a user.
+     * @dev Only callable by CONTRACT_ROLE. Referral can only be set once.
+     * @param user The address of the user.
+     * @param parent The address of the referral parent.
+     */
+    function setReferral(
+        address user,
+        address parent
+    ) external onlyRole(CONTRACT_ROLE) {
+        _setReferral(user, parent);
+    }
+
+    function _setReferral(address user, address parent) internal {
+        if (user == address(0) || parent == address(0))
+            revert UM_USER_MANAGER_OR_CONTRACT();
+        if (user == parent) revert UM_INVALID_2FA_VALUE();
+        if (s_referrals[user] != address(0)) return;
+
+        s_referrals[user] = parent;
+        emit ReferralSet(user, parent);
+    }
+
+    /**
+     * @notice Get the 5-level referral chain for a user.
+     * @param user The address of the user.
+     * @return referrals An array of 5 addresses [parent, grandparent, ..., 5th-level].
+     */
+    function getReferrals(
+        address user,
+        uint256 levels
+    )
+        external
+        view
+        onlyContractOrUserManager
+        returns (address[] memory referrals)
+    {
+        if (levels == 0) return new address[](0);
+        referrals = new address[](levels);
+        referrals[0] = s_referrals[user];
+        for (uint256 i = 1; i < levels; i++) {
+            if (referrals[i - 1] != address(0)) {
+                referrals[i] = s_referrals[referrals[i - 1]];
+            } else {
+                break;
+            }
+        }
     }
 }

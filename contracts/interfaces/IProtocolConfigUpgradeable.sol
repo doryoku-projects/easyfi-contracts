@@ -31,4 +31,11 @@ interface IProtocolConfigUpgradeable {
 
     function updatePackageCap ( uint256 packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct) external;
 
+    function setPackageReferralPercentages( uint256 packageId, uint256[] calldata percentages) external;
+
+    function getPackageReferralPct( uint256 packageId, uint256 level) external view returns (uint256);
+
+    function getPackageReferralLevels( uint256 packageId) external view returns (uint256);
+
+    function getPackageReferralPctList( uint256 packageId) external view returns (uint256[] memory);
 }

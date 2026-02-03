@@ -21,6 +21,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     mapping(bytes32 => address) private s_addresses;
     mapping(bytes32 => uint256) private s_uints;
     mapping(uint256 => CapInfo) private s_packageCap;
+    mapping(uint256 => uint256[]) private s_packageReferralPercentages;
 
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
@@ -46,7 +47,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     ) public initializer {
         if(_userManager == address(0)) revert PC_ZERO_ADDRESS();
         __UUPSUpgradeable_init();
-        
+
         if (addressKeys.length == 0) revert PC_ZERO_ADDRESS();
         if (uintKeys.length == 0) revert PC_ZERO_ADDRESS();
         if (addressKeys.length != addressValues.length) revert PC_ARRAY_LEN_MISMATCH();
@@ -159,5 +160,41 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
 
     function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {
         return s_packageCap[packageId];
+    }
+
+    function setPackageReferralPercentages(
+        uint256 packageId,
+        uint256[] calldata percentages
+    ) external onlyGeneralOrMasterAdmin {
+        if (
+            s_packageCap[packageId].liquidityCap == 0 &&
+            s_packageCap[packageId].feeCap == 0
+        ) {
+            revert PACKAGE_NOT_EXIST();
+        }
+        s_packageReferralPercentages[packageId] = percentages;
+        emit PackageReferralPercentagesUpdated(packageId, percentages);
+    }
+
+    function getPackageReferralPct(
+        uint256 packageId,
+        uint256 level
+    ) external view returns (uint256) {
+        if (
+            level == 0 || level > s_packageReferralPercentages[packageId].length
+        ) return 0;
+        return s_packageReferralPercentages[packageId][level - 1];
+    }
+
+    function getPackageReferralLevels(
+        uint256 packageId
+    ) external view returns (uint256) {
+        return s_packageReferralPercentages[packageId].length;
+    }
+
+    function getPackageReferralPctList(
+        uint256 packageId
+    ) external view returns (uint256[] memory) {
+        return s_packageReferralPercentages[packageId];
     }
 }
