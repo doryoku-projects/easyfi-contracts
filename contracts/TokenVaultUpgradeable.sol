@@ -165,9 +165,8 @@ contract TokenVaultUpgradeable is
     ) external onlyGeneralOrMasterAdmin returns (uint256 yieldId) {
         if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
-        if (s_tokenYieldId[token] == 0) {
-            s_tokenYieldId[token] = 1;
-        }
+        if (s_tokenYieldId[token] == 0) s_tokenYieldId[token] = 1;
+
         yieldId = s_tokenYieldId[token]++;
         s_yields[token][yieldId] = YieldPlan({
             lockDuration: lockDuration,
