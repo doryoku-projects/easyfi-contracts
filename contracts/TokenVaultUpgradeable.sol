@@ -125,9 +125,8 @@ contract TokenVaultUpgradeable is
             _userManager == address(0) ||
             _managerWallet == address(0) ||
             _feeCollector == address(0)
-        ) {
-            revert TV_ZERO_ADDRESS();
-        }
+        ) revert TV_ZERO_ADDRESS();
+
         __UUPSUpgradeable_init();
         __ReentrancyGuard_init();
         __Pausable_init();
@@ -335,22 +334,14 @@ contract TokenVaultUpgradeable is
         if (entryFee > 0) {
             if (token == NATIVE_TOKEN) {
                 (bool success, ) = s_feeCollector.call{value: entryFee}("");
-                if (!success) {
-                    revert TV_NATIVE_TRANSFER_FAILED();
-                }
-            } else {
-                IERC20(token).safeTransfer(s_feeCollector, entryFee);
-            }
+                if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+            } else IERC20(token).safeTransfer(s_feeCollector, entryFee);
         }
 
         if (token == NATIVE_TOKEN) {
             (bool success, ) = s_managerWallet.call{value: netAmount}("");
-            if (!success) {
-                revert TV_NATIVE_TRANSFER_FAILED();
-            }
-        } else {
-            IERC20(token).safeTransfer(s_managerWallet, netAmount);
-        }
+            if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+        } else IERC20(token).safeTransfer(s_managerWallet, netAmount);
 
         uint256 depositId = s_nextDepositId++;
         uint256 unlockTimestamp = block.timestamp + yield.lockDuration;
@@ -416,17 +407,13 @@ contract TokenVaultUpgradeable is
             if (pos.token == NATIVE_TOKEN) {
                 (bool success, ) = s_feeCollector.call{value: exitFee}("");
                 if (!success) revert TV_NATIVE_TRANSFER_FAILED();
-            } else {
-                IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
-            }
+            } else IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
         }
 
         if (pos.token == NATIVE_TOKEN) {
             (bool success, ) = msg.sender.call{value: finalAmount}("");
             if (!success) revert TV_NATIVE_TRANSFER_FAILED();
-        } else {
-            IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
-        }
+        } else IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
 
         emit VaultWithdrawal(
             depositId,

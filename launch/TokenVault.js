@@ -7,12 +7,12 @@ async function deployTokenVault() {
     const protocolConfigAddress = await getDeploymentAddress("ProtocolConfigUpgradeable");
 
     const initializeArgs = [
-        protocolConfigAddress,
-        userManagerAddress,
-        process.env.MASTER_ADMIN_WALLET,
-        process.env.CLIENT_ADDRESS,
-        100,
-        200
+        protocolConfigAddress, // address _protocolConfig,
+        userManagerAddress, // address _userManager,
+        process.env.MASTER_ADMIN_WALLET, // address _managerWallet,
+        process.env.MASTER_ADMIN_WALLET, // address _feeCollector,
+        69, // uint256 _entryFeeBps,
+        69 // uint256 _exitFeeBps
     ];
 
     return await deployUpgradeableContract({
