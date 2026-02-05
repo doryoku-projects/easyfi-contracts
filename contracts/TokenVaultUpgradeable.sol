@@ -143,13 +143,6 @@ contract TokenVaultUpgradeable is
     function _authorizeUpgrade(address) internal override onlyMasterAdmin {}
 
     /**
-     * @dev Basic points(BP) instance from central config.
-     */
-    function _BP() internal view returns (uint256) {
-        return s_config.getUint(BP_KEY);
-    }
-
-    /**
      * @notice Configure a yield for a specific token and lock period.
      * @param token Address of the token (BTC/ETH equivalent).
      * @param lockDuration Seconds the funds will be locked.
@@ -205,15 +198,6 @@ contract TokenVaultUpgradeable is
         });
 
         emit YieldSet(token, yieldId, lockDuration, aprBps, isActive);
-    }
-
-    /**
-     * @notice Get the latest yield identifier for a specific token.
-     * @param token Address of the token.
-     * @return The latest yield ID that will be assigned.
-     */
-    function getTokenYieldCount(address token) external view returns (uint256) {
-        return s_tokenYieldId[token];
     }
 
     /**
@@ -322,8 +306,9 @@ contract TokenVaultUpgradeable is
             if (msg.value == 0) revert TV_ZERO_AMOUNT();
             amount = msg.value;
         } else {
-            if (msg.value != 0) revert TV_INVALID_NATIVE_AMOUNT();
             if (amount == 0) revert TV_ZERO_AMOUNT();
+            if (msg.value != 0) revert TV_INVALID_NATIVE_AMOUNT();
+            
             IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         }
 
@@ -421,6 +406,22 @@ contract TokenVaultUpgradeable is
             exitFee,
             currentPrice
         );
+    }
+
+    /**
+     * @dev Basic points(BP) instance from central config.
+     */
+    function _BP() internal view returns (uint256) {
+        return s_config.getUint(BP_KEY);
+    }
+
+    /**
+     * @notice Get the latest yield identifier for a specific token.
+     * @param token Address of the token.
+     * @return The latest yield ID that will be assigned.
+     */
+    function getTokenYieldCount(address token) external view returns (uint256) {
+        return s_tokenYieldId[token];
     }
 
     function getYieldPlan(

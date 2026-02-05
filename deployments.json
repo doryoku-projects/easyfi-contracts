@@ -10,8 +10,7 @@
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
-      "TokenVaultUpgradeable": "0x966035CbF54EEE172Dbd174123Fc36f4CF650EDa",
-      "TokenVaultUpgradeable_impl_1769609777592": "0x5155FB8706f2FD978e7a02971583f8558d6c2C8C"
+      "TokenVaultUpgradeable": "0x966035CbF54EEE172Dbd174123Fc36f4CF650EDa"
     },
     "42161": {
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
@@ -22,8 +21,7 @@
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
-      "TokenVaultUpgradeable": "0x966035CbF54EEE172Dbd174123Fc36f4CF650EDa",
-      "TokenVaultUpgradeable_impl_1769609866448": "0xFC8991BE39b2a924C3693D7f89724fE691BD199c"
+      "TokenVaultUpgradeable": "0x966035CbF54EEE172Dbd174123Fc36f4CF650EDa"
     }
   },
   "wadz": {
@@ -35,7 +33,8 @@
       "LiquidityManagerUpgradeable": "0xEb7c8a166d23518F906B5Bf376965749C6a3BFc7",
       "LiquidityHelperUpgradeable": "0x425C9e0fA47eE505C1b8257E9BeFA65DA484dAf8",
       "OracleSwapUpgradeable": "0xfc78e4332092C4B9A3AA4EDc44500cb3bB8bDebf",
-      "FundsManagerUpgradeable": "0x27BcfC30D4E8A231AA23479d9e40e48bd270C575"
+      "FundsManagerUpgradeable": "0x27BcfC30D4E8A231AA23479d9e40e48bd270C575",
+      "TokenVaultUpgradeable": "0xDC47a90A918e85517d5d35460530191042a6Ff33"
     },
     "42161": {
       "UserManagerUpgradeable": "0x5d0Ef9C43F9E1E4e43DBbfCf89b5Da5CDe75B91B",
@@ -45,7 +44,8 @@
       "LiquidityManagerUpgradeable": "0x624169A08ec507BF1aE0f9d26664F3f0A4d5cB7c",
       "LiquidityHelperUpgradeable": "0x46F64dEc0CC882dA348578E4c023B16B70e108aD",
       "OracleSwapUpgradeable": "0xbcd6cca902866f1929d5ec6E136fcFc8B5C18c08",
-      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461"
+      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461",
+      "TokenVaultUpgradeable": "0xDC47a90A918e85517d5d35460530191042a6Ff33"
     }
   }
 }

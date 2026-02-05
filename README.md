@@ -19,7 +19,7 @@ npx hardhat run ./launch/factory.js --network localhost
 # NOTICE: set the env var for WHITELABEL for which the contract are to be deployed
 
 ```bash
-npx cross-env WHITELABEL="easyfi_test" hardhat run ./launch/deployAll.js --network localhost
+npx cross-env WHITELABEL="wadz_test2" hardhat run ./launch/deployAll.js --network localhost
 ```
 
 ### STEP 3 - Run Role setting 
@@ -27,13 +27,13 @@ npx cross-env WHITELABEL="easyfi_test" hardhat run ./launch/deployAll.js --netwo
 # NOTICE: set the env var for WHITELABEL
 
 ```bash
-npx cross-env WHITELABEL="easyfi_test" hardhat test test/Integration/I_rolesetingNuevo.js --network localhost
+npx cross-env WHITELABEL="wadz_test2" hardhat test test/Integration/I_rolesetingNuevo.js --network localhost
 ```
 
 ### To test All Interactions
 
 ```bash
-npx cross-env WHITELABEL="easyfi_test" hardhat test test/Integration/I_rolesetingNuevo.js --network localhost
+npx cross-env WHITELABEL="wadz_test2" hardhat test test/Integration/I_rolesetingNuevo.js --network localhost
 ```
 
 # Set of Whitelabels
