@@ -33,7 +33,7 @@ contract TokenVaultUpgradeable is
 
     struct YieldPlan {
         uint256 lockDuration;
-        uint256 aprBps;  // Used for display only
+        uint256 aprBps;
         bool isActive;
     }
 
@@ -46,6 +46,7 @@ contract TokenVaultUpgradeable is
         uint256 depositTimestamp;
         uint256 unlockTimestamp;
         bool withdrawn;
+        uint256 aprBps;
     }
 
     mapping(address => bool) private s_supportedTokens;
@@ -81,7 +82,9 @@ contract TokenVaultUpgradeable is
         uint256 yieldId,
         uint256 lockDuration,
         uint256 aprBps,
-        bool isActive
+        bool isActive,
+        uint256 entryFeeBps,
+        uint256 exitFeeBps
     );
 
     event FeesSet(uint256 entryFeeBps, uint256 exitFeeBps);
@@ -188,7 +191,7 @@ contract TokenVaultUpgradeable is
             isActive: isActive
         });
 
-        emit YieldSet(token, yieldId, lockDuration, aprBps, isActive);
+        emit YieldSet(token, yieldId, lockDuration, aprBps, isActive, s_entryFeeBps, s_exitFeeBps);
     }
 
     /**
@@ -222,7 +225,7 @@ contract TokenVaultUpgradeable is
                 isActive: isActives[i]
             });
 
-            emit YieldSet(token, yieldIds[i], lockDurations[i], aprBps, isActives[i]);
+            emit YieldSet(token, yieldIds[i], lockDurations[i], aprBps, isActives[i], s_entryFeeBps, s_exitFeeBps);
         }
     }
 
@@ -331,7 +334,8 @@ contract TokenVaultUpgradeable is
             netPrincipal: netAmount,
             depositTimestamp: block.timestamp,
             unlockTimestamp: unlockTimestamp,
-            withdrawn: false
+            withdrawn: false,
+            aprBps: yieldPlan.aprBps
         });
 
         s_userDeposits[msg.sender].push(depositId);
@@ -371,9 +375,29 @@ contract TokenVaultUpgradeable is
     ) external nonReentrant whenNotPaused {
         LockedDeposit storage pos = s_deposits[depositId];
 
+//         struct LockedDeposit {
+//     uint256 depositId;
+//     address user;
+//     address token;
+//     uint256 yieldId;
+//     uint256 netPrincipal;
+//     uint256 depositTimestamp;
+//     uint256 unlockTimestamp;
+//     bool withdrawn;
+//    uint256 aprBps;  // Added to track APR for this deposit
+// }
+
         if (pos.withdrawn) revert TV_ALREADY_WITHDRAWN();
         if (pos.user != msg.sender) revert TV_UNAUTHORIZED();
         if (block.timestamp < pos.unlockTimestamp) revert TV_STILL_LOCKED();
+
+        uint256 duration = pos.unlockTimestamp - pos.depositTimestamp;
+        uint256 growth = (pos.netPrincipal * pos.aprBps * duration) /
+            (365 days * _BP());
+        uint256 totalPayout = pos.netPrincipal + growth;
+
+        if (approvedAmount > totalPayout) revert TV_APPROVED_AMOUNT_TOO_HIGH();
+
 
         pos.withdrawn = true;
         _removeUserDeposit(msg.sender, depositId);

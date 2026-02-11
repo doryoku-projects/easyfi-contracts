@@ -46,4 +46,9 @@ abstract contract TokenVaultErrors {
      * @notice Reverted when there is an input array length mismatch.
      */
     error TV_INPUT_MISMATCH();
+
+    /**
+     * @notice Reverted when the approved amount for withdrawal exceeds the expected payout.
+     */
+    error TV_APPROVED_AMOUNT_TOO_HIGH();
 }
