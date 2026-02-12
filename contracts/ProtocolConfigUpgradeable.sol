@@ -28,7 +28,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     event UserManagerSet();
     event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
     event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
-
+    event PackageReferralPercentagesUpdated(uint256 indexed packageId, uint256[] percentages);
 
     /**
      * @notice Initialize all config entries in batch
@@ -165,7 +165,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     function setPackageReferralPercentages(
         uint256 packageId,
         uint256[] calldata percentages
-    ) external onlyGeneralOrMasterAdmin {
+    ) external onlyVaultOrLiquidityManager {
         if (
             s_packageCap[packageId].liquidityCap == 0 &&
             s_packageCap[packageId].feeCap == 0

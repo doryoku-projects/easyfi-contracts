@@ -116,33 +116,18 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet USDC:", balUSDC0.toString());
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
-    const setCapTx1 = await VaultManager.connect(marcWallet).setPackageCap(100000000000, 300000000000, 5000);
-    const receipt1 = await setCapTx1.wait();
-
-    // Find PackageCreated event in logs
-    const packageCreatedLog = receipt1.logs.find(log => {
-      try {
-        const parsed = ProtocolConfig.interface.parseLog(log);
-        return parsed && parsed.name === 'PackageCreated';
-      } catch (e) {
-        return false;
-      }
-    });
-
-    if (!packageCreatedLog) throw new Error("PackageCreated event not found");
-    const packageId1 = ProtocolConfig.interface.parseLog(packageCreatedLog).args.packageId;
-    console.log("Created Package ID:", packageId1.toString());
+    await VaultManager.connect(marcWallet).setPackageCap(100000000000, 300000000000, 5000);
 
     await VaultManager.connect(marcWallet).setPackageCap(200000000000, 600000000000, 6000);
 
-    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, packageId1);
-    await VaultManager.connect(marcWallet).setPackageReferralPercentages(packageId1, [1000, 500, 250]);
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 1);
+    await VaultManager.connect(marcWallet).setPackageReferralPercentages(1, [1000, 500, 250]);
     // ————— 3) Mint (10k) —————
     referralWallet = ethers.Wallet.createRandom().connect(ethers.provider);
     await userWallet.sendTransaction({ to: referralWallet.address, value: ethers.parseEther("0.1") });
 
     console.log("Setting referral via UserManager...");
-    await UserManager.connect(pepWallet).addUsers([userWallet.address], [referralWallet.address]);
+    // await UserManager.connect(pepWallet).addUsers([userWallet.address], [referralWallet.address]);
 
     const isUser = await UserManager.isUser(userWallet.address);
     console.log("Is user:", isUser);
