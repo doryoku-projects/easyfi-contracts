@@ -19,8 +19,7 @@
       "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
-      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
-      "LiquidityManagerUpgradeable_impl_1768561723474": "0x225176f8A57A54f9e560753f06Fe3f6e503E0c33"
+      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967"
     }
   },
   "wadz": {
