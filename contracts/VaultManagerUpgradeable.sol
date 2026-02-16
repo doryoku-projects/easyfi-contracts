@@ -887,15 +887,17 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
     /**
      * @notice Withdraw earned referral fees.
+     * @param referral The address of the referral user to withdraw fees for.
      */
-    function withdrawReferralFees() external onlyVaultManager notEmergency {
-        uint256 amount = s_referralFees[msg.sender];
+    function withdrawReferralFees(address referral) external onlyVaultManager notEmergency {
+        if (referral == address(0)) revert VM_ZERO_ADDRESS();
+        uint256 amount = s_referralFees[referral];
         if (amount == 0) revert VM_COMPANY_FEES_ZERO(); // Reusing error for zero fees
 
-        s_referralFees[msg.sender] = 0;
-        _mainToken().safeTransfer(msg.sender, amount);
+        s_referralFees[referral] = 0;
+        _mainToken().safeTransfer(referral, amount);
 
-        emit ReferralFeesWithdrawn(msg.sender, amount);
+        emit ReferralFeesWithdrawn(referral, amount);
     }
 
     /**

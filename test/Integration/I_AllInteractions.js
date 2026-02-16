@@ -385,9 +385,9 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Referral Fees for referralWallet:", referralFees.toString());
 
     if (referralFees > 0n) {
-      console.log("Withdrawing referral fees...");
+      console.log("Withdrawing referral fees via Aggregator...");
       const beforeBal = await MainToken.balanceOf(referralWallet.address);
-      await VaultManager.connect(referralWallet).withdrawReferralFees({ gasLimit: 10000000 });
+      await Aggregator.connect(referralWallet).withdrawReferralFees(referralWallet.address, { gasLimit: 1000000 });
       const afterBal = await MainToken.balanceOf(referralWallet.address);
       console.log("Referral balance after withdrawal:", afterBal.toString());
       expect(afterBal).to.be.gt(beforeBal);
