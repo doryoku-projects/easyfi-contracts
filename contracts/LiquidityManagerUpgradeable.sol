@@ -793,13 +793,6 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         MintResult memory _mintResult = _mint(token0Address, token1Address, fee, tickLower, tickUpper, balanced0, balanced1, _vaultManagerInstance);
 
-        if (_returnToken0 > 0) {
-            token0.safeIncreaseAllowance(_vaultManagerInstance, _returnToken0);
-        }
-        if (_returnToken1 > 0) {
-            token1.safeIncreaseAllowance(_vaultManagerInstance, _returnToken1);
-        }
-
         newTokenId = _mintResult.tokenId;
         returnToken0 = _mintResult.actualReturnToken0;
         returnToken1 = _mintResult.actualReturnToken1;
