@@ -79,5 +79,25 @@
       "LiquidityHelperUpgradeable": "0x490f4C939593068c6Ca25b90B6cC0ceebC5E6C37",
       "OracleSwapUpgradeable": "0x11146cd076CdD48B958BE6D24B965484AF47E38f"
     }
+  },
+  "yieldex": {
+    "8453": {
+      "UserManagerUpgradeable": "0xaDe93D0cb785eFaDF701A829906A82414eA0f54B",
+      "ProtocolConfigUpgradeable": "0x4D535551300Be00E41FB0329e9334c6c403f1bE4",
+      "AggregatorUpgradeable": "0xf55a1E41eD3793C9828975f7DBdaf5258c307163",
+      "VaultManagerUpgradeable": "0x609CFE2552dF620C4deDc69F10B29e05D0ECde23",
+      "LiquidityManagerUpgradeable": "0xd31E1B4d280a4F2F0e1e8c7671A38AadF4E53Ffa",
+      "LiquidityHelperUpgradeable": "0x453a9737017d21F7e4028d324EBFC3d4e3d22098",
+      "OracleSwapUpgradeable": "0x6Aed326Ae060452Ce8004D3555db4C2140Ceb15d"
+    },
+    "42161": {
+      "UserManagerUpgradeable": "0xaDe93D0cb785eFaDF701A829906A82414eA0f54B",
+      "ProtocolConfigUpgradeable": "0x4D535551300Be00E41FB0329e9334c6c403f1bE4",
+      "AggregatorUpgradeable": "0xf55a1E41eD3793C9828975f7DBdaf5258c307163",
+      "VaultManagerUpgradeable": "0x609CFE2552dF620C4deDc69F10B29e05D0ECde23",
+      "LiquidityManagerUpgradeable": "0xd31E1B4d280a4F2F0e1e8c7671A38AadF4E53Ffa",
+      "LiquidityHelperUpgradeable": "0x453a9737017d21F7e4028d324EBFC3d4e3d22098",
+      "OracleSwapUpgradeable": "0x6Aed326Ae060452Ce8004D3555db4C2140Ceb15d"
+    }
   }
 }
