@@ -881,14 +881,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         s_config.setPackageReferralPercentages(packageId, percentages);
     }
 
-    function getPackageReferralPctList(uint256 packageId) external view returns (uint256[] memory) {
+    function getPackageReferralPctList(uint256 packageId) external onlyGeneralOrMasterAdmin view returns (uint256[] memory) {
         return s_config.getPackageReferralPctList(packageId);
     }
 
     /**
      * @notice Withdraw earned referral fees.
      */
-    function withdrawReferralFees() external notEmergency {
+    function withdrawReferralFees() external onlyVaultManager notEmergency {
         uint256 amount = s_referralFees[msg.sender];
         if (amount == 0) revert VM_COMPANY_FEES_ZERO(); // Reusing error for zero fees
 
@@ -903,7 +903,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
      * @param referral The address of the referral.
      * @return uint256 The earned referral fees.
      */
-    function getReferralFees(address referral) external view returns (uint256) {
+    function getReferralFees(address referral) external onlyGeneralOrMasterAdmin view returns (uint256) {
         return s_referralFees[referral];
     }
 
