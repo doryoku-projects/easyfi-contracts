@@ -38,8 +38,9 @@ contract VaultDepositNFTUpgradeable is
     }
     
     mapping(uint256 => DepositMetadata) private s_depositMetadata;
+    uint256[50] private __gap;
     
-    event BaseURIUpdated(string newBaseURI);
+    event BaseURIUpdated();
     event VaultAddressUpdated(address indexed newVault);
     event DepositNFTMinted(uint256 indexed tokenId, address indexed to);
     event DepositNFTBurned(uint256 indexed tokenId);
@@ -128,7 +129,7 @@ contract VaultDepositNFTUpgradeable is
      */
     function setBaseURI(string memory newBaseURI) external onlyMasterAdmin {
         s_baseTokenURI = newBaseURI;
-        emit BaseURIUpdated(newBaseURI);
+        emit BaseURIUpdated();
     }
     
     /**
@@ -144,7 +145,7 @@ contract VaultDepositNFTUpgradeable is
     /**
      * @notice Get the base URI
      */
-    function _baseURI() internal view override returns (string memory) {
+    function getBaseURI() external view returns (string memory) {
         return s_baseTokenURI;
     }
     

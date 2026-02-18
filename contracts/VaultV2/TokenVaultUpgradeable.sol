@@ -375,18 +375,6 @@ contract TokenVaultUpgradeable is
     ) external nonReentrant whenNotPaused {
         LockedDeposit storage pos = s_deposits[depositId];
 
-//         struct LockedDeposit {
-//     uint256 depositId;
-//     address user;
-//     address token;
-//     uint256 yieldId;
-//     uint256 netPrincipal;
-//     uint256 depositTimestamp;
-//     uint256 unlockTimestamp;
-//     bool withdrawn;
-//    uint256 aprBps;  // Added to track APR for this deposit
-// }
-
         if (pos.withdrawn) revert TV_ALREADY_WITHDRAWN();
         if (pos.user != msg.sender) revert TV_UNAUTHORIZED();
         if (block.timestamp < pos.unlockTimestamp) revert TV_STILL_LOCKED();
