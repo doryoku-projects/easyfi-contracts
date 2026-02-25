@@ -34,7 +34,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
-    mapping(address => uint256) private s_referralFees;
 
     struct UserInfo {
         uint256 tokenId;
@@ -59,6 +58,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
     mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
+    mapping(address => uint256) private s_referralFees;
 
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
