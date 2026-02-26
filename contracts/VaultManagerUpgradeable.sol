@@ -64,6 +64,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
     bytes32 private constant CFG_REFERRAL_LEVELS = keccak256("ReferralLevels");
+    bytes32 private constant CFG_BASE_REFERRER = keccak256("BaseReferrer");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
@@ -297,6 +298,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
      */
     function _client() internal view returns (address) {
         return s_config.getAddress(CFG_CLIENT_ADDRESS);
+    }
+
+    /**
+     * @notice Returns the base referrer address.
+     * @return address baseReferrer.
+     */
+    function _baseReferrer() internal view returns (address) {
+        return s_config.getAddress(CFG_BASE_REFERRER);
     }
 
     /**
@@ -829,18 +838,20 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             return;
         }
 
+        address baseReferrer = _baseReferrer();
         address[] memory referrals = s_userManager.getReferrals(user, levels);
         uint256 totalDistributed = 0;
         uint256 bp = _BP();
 
         for (uint256 i = 0; i < referrals.length; i++) {
-            if (referrals[i] != address(0)) {
-                uint256 pct = s_config.getPackageReferralPct(packageId, i + 1);
-                uint256 share = (totalCompanyTax * pct) / bp;
-                if (share > 0) {
-                    s_referralFees[referrals[i]] += share;
-                    totalDistributed += share;
-                }
+            address recipient = (i == 0) ? baseReferrer : referrals[i];
+            if (recipient == address(0)) continue;
+
+            uint256 pct = s_config.getPackageReferralPct(packageId, i + 1);
+            uint256 share = (totalCompanyTax * pct) / bp;
+            if (share > 0) {
+                s_referralFees[recipient] += share;
+                totalDistributed += share;
             }
         }
 

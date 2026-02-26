@@ -66,6 +66,10 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @notice the address is not a general admin or a user manager
      */
     error UM_ROLE_ALREADY_EXIST(bytes32 role, address user);
+    /**
+     * @notice the referral is already set
+     */
+    error UM_REFERRAL_ALREADY_SET(address user);
 
     /**
      * @notice onlyContractOrUserManager modifier
@@ -290,9 +294,11 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         if (users.length != referrals.length)
             revert UM_ARRAY_SIZE_LIMIT_EXCEEDED("referrals", referrals.length);
         for (uint256 i = 0; i < users.length; i++) {
-            _checkRole(USER_ROLE, users[i], true);
-            _grantRole(USER_ROLE, users[i]);
-            if (referrals[i] != address(0)) {
+            if (referrals[i] == address(0)) {
+                _checkRole(USER_ROLE, users[i], true);
+                _grantRole(USER_ROLE, users[i]);
+            } else {
+                
                 _setReferral(users[i], referrals[i]);
             }
             emit UserAdded(users[i]);
@@ -693,7 +699,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         if (user == address(0) || parent == address(0))
             revert UM_USER_MANAGER_OR_CONTRACT();
         if (user == parent) revert UM_INVALID_2FA_VALUE();
-        if (s_referrals[user] != address(0)) return;
+        if (s_referrals[user] != address(0)) revert UM_REFERRAL_ALREADY_SET(user);
 
         s_referrals[user] = parent;
         emit ReferralSet(user, parent);
