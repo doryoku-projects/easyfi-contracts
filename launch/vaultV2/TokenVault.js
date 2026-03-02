@@ -11,8 +11,8 @@ async function deployTokenVault() {
         userManagerAddress,
         process.env.MASTER_ADMIN_WALLET,
         process.env.CLIENT_ADDRESS,
-        100,
-        200
+        CONFIG.VAULT.VAULT_ENTRY_FEE,
+        CONFIG.VAULT.VAULT_EXIT_FEE,
     ];
 
     return await deployUpgradeableContract({
