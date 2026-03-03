@@ -31,9 +31,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant CFG_FUNDS_MANAGER = keccak256("FundsManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant CFG_VAULT_WALLET = keccak256("VaultWallet");
+
+    /// @dev 0.65% expressed in basis points denominator of 10000
+    uint256 private constant VAULT_FEE_BP = 65;
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
+    uint256 private s_vaultFees;
 
     struct UserInfo {
         uint256 tokenId;
@@ -73,6 +78,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     event UserPackageUpdated(address indexed user, uint256 packageId);
     event Withdrawn(address indexed user, uint256 amount);
     event LiquidityEvent(address indexed user, uint256 indexed packageId, uint256 amount);
+    event VaultFeeDeducted(address indexed user, string operation, uint256 feeAmount);
+    event WithdrawVaultFees(address indexed to, uint256 amount);
 
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
@@ -296,6 +303,33 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
+     * @notice Returns the vault wallet address where vault fees are held.
+     * @return address vault wallet.
+     */
+    function _vaultWallet() internal view returns (address) {
+        return s_config.getAddress(CFG_VAULT_WALLET);
+    }
+
+    /**
+     * @dev Deducts 0.65% vault fee from `amount`, accumulates it in s_vaultFees.
+     * @param user  Address of the user triggering the operation (for event).
+     * @param amount Gross amount before fee.
+     * @param operation Human-readable label for the event.
+     * @return netAmount Amount remaining after vault fee deduction.
+     */
+    function _deductVaultFee(
+        address user,
+        uint256 amount,
+        string memory operation
+    ) internal returns (uint256 netAmount) {
+        if (amount == 0) return 0;
+        uint256 fee = (amount * VAULT_FEE_BP) / 10000;
+        s_vaultFees += fee;
+        netAmount = amount - fee;
+        emit VaultFeeDeducted(user, operation, fee);
+    }
+
+    /**
      * @dev Reset stored user position info for a pool to defaults.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
@@ -368,7 +402,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         mainToken.safeTransferFrom(_aggregator(), address(this), amountMainTokenDesired);
         uint256 actualReceived = mainToken.balanceOf(address(this)) - balanceBefore;
 
-        mainToken.safeIncreaseAllowance(address(_liquidityManager()), actualReceived);
+        // Deduct 0.65% vault fee from the received main token amount
+        uint256 netAmount = _deductVaultFee(userAddress, actualReceived, "addLiquidity");
+
+        mainToken.safeIncreaseAllowance(address(_liquidityManager()), netAmount);
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
@@ -385,13 +422,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
             
             tokenId =
-                _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
+                _increaseLiquidityToPosition(_userInfo.tokenId, netAmount, userAddress);
         } else {
             tokenId = _mintPosition(
-                poolId, packageId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, userAddress
+                poolId, packageId, token0Address, token1Address, fee, tickLower, tickUpper, netAmount, userAddress
             );
         }
-        _userInfo.depositLiquidity += actualReceived;
+        _userInfo.depositLiquidity += netAmount;
         emit LiquidityEvent (userAddress, packageId, amountMainTokenDesired);
     }
 
@@ -538,11 +575,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
                 userInfo[user][packageId][poolIdHash].depositLiquidity = currentDeposit - reduction;
             }
         }
-        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);   
-        if(isAdmin) _updateFees(user, poolIdHash, packageId, removedAmount);
+        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);
+        // Deduct 0.65% vault fee from the removed liquidity amount
+        uint256 netRemovedAmount = _deductVaultFee(user, removedAmount, "removeLiquidity");
+        if(isAdmin) _updateFees(user, poolIdHash, packageId, netRemovedAmount);
         percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
-        emit LiquidityEvent (user, packageId, removedAmount);
+        emit LiquidityEvent (user, packageId, netRemovedAmount);
     }
 
     /**
@@ -579,7 +618,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax,) =
+        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 collectedMainToken) =
             _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user, packageId), true);
 
         s_companyFees += companyTax;
@@ -588,6 +627,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         userInfo[user][packageId][poolIdHash].feeToken0 = 0;
         userInfo[user][packageId][poolIdHash].feeToken1 = 0;
+
+        // Deduct 0.65% vault fee from the collected main token (harvest)
+        uint256 grossCollectedMain = collectedMainToken;
+        _deductVaultFee(user, grossCollectedMain, "harvest");
 
         collectedToken0 = lmCollected0 + storedFee0;
         collectedToken1 = lmCollected1 + storedFee1;
@@ -675,6 +718,12 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             uint256 balance1Before = token1.balanceOf(address(this));
             token1.safeTransferFrom(address(_liquidityManagerInstance), address(this), returnToken1);
             actualReturnToken1 = token1.balanceOf(address(this)) - balance1Before;
+        }
+
+        // Single 0.65% vault fee for migrate — applied once on the position's main-token deposit value
+        uint256 depositValue = userInfo[user][packageId][poolIdHash].depositLiquidity;
+        if (depositValue > 0) {
+            _deductVaultFee(user, depositValue, "migrate");
         }
 
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
@@ -830,6 +879,37 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
+    }
+
+    // ─── Vault Fee Admin ──────────────────────────────────────────────────────
+
+    /**
+     * @notice Returns the total accumulated vault fees (0.65% per operation).
+     */
+    function getVaultFees() external view onlyGeneralOrMasterAdmin returns (uint256) {
+        return s_vaultFees;
+    }
+
+    /**
+     * @notice Returns the configured vault wallet address.
+     */
+    function getVaultWallet() external view onlyGeneralOrMasterAdmin returns (address) {
+        return s_config.getAddress(CFG_VAULT_WALLET);
+    }
+
+    /**
+     * @notice Withdraw all accumulated vault fees to `to`.
+     * @dev Transfers s_vaultFees of main token and resets counter.
+     * @param to Recipient address for vault fees.
+     */
+    function withdrawVaultFees(address to) external onlyMasterAdmin {
+        if (to == address(0)) revert VM_ZERO_ADDRESS();
+        if (s_vaultFees == 0) revert VM_VAULT_FEES_ZERO();
+
+        uint256 amount = s_vaultFees;
+        s_vaultFees = 0;
+        _mainToken().safeTransfer(to, amount);
+        emit WithdrawVaultFees(to, amount);
     }
 
 
