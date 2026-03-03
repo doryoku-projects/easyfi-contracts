@@ -63,8 +63,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
-    bytes32 private constant CFG_REFERRAL_LEVELS = keccak256("ReferralLevels");
-    bytes32 private constant CFG_BASE_REFERRER = keccak256("BaseReferrer");
 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
@@ -298,14 +296,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
      */
     function _client() internal view returns (address) {
         return s_config.getAddress(CFG_CLIENT_ADDRESS);
-    }
-
-    /**
-     * @notice Returns the base referrer address.
-     * @return address baseReferrer.
-     */
-    function _baseReferrer() internal view returns (address) {
-        return s_config.getAddress(CFG_BASE_REFERRER);
     }
 
     /**
@@ -838,13 +828,12 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             return;
         }
 
-        address baseReferrer = _baseReferrer();
         address[] memory referrals = s_userManager.getReferrals(user, levels);
         uint256 totalDistributed = 0;
         uint256 bp = _BP();
 
         for (uint256 i = 0; i < referrals.length; i++) {
-            address recipient = (i == 0) ? baseReferrer : referrals[i];
+            address recipient = referrals[i];
             if (recipient == address(0)) continue;
 
             uint256 pct = s_config.getPackageReferralPct(packageId, i + 1);
@@ -918,26 +907,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
      */
     function getReferralFees(address referral) external onlyGeneralOrMasterAdmin view returns (uint256) {
         return s_referralFees[referral];
-    }
-
-    function _uintToString(uint256 v) internal pure returns (string memory) {
-        if (v == 0) return "0";
-        uint256 j = v;
-        uint256 len;
-        while (j != 0) {
-            len++;
-            j /= 10;
-        }
-        bytes memory bstr = new bytes(len);
-        uint256 k = len;
-        while (v != 0) {
-            k = k - 1;
-            uint8 temp = (48 + uint8(v - (v / 10) * 10));
-            bytes1 b1 = bytes1(temp);
-            bstr[k] = b1;
-            v /= 10;
-        }
-        return string(bstr);
     }
 
 
