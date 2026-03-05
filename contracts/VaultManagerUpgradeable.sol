@@ -31,7 +31,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant CFG_FUNDS_MANAGER = keccak256("FundsManager");
     bytes32 private constant BP_KEY = keccak256("BP");
-    bytes32 private constant CFG_VAULT_WALLET = keccak256("VaultWallet");
 
     /// @dev 0.65% expressed in basis points denominator of 10000
     uint256 private constant VAULT_FEE_BP = 65;
@@ -58,7 +57,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 feeCapLimit;
         uint256 userFeePct;
     }
-
+ 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
     mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
@@ -67,7 +66,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
-
+ 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
     event ProtocolConfigSet();
@@ -302,13 +301,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         return s_config.getAddress(CFG_CLIENT_ADDRESS);
     }
 
-    /**
-     * @notice Returns the vault wallet address where vault fees are held.
-     * @return address vault wallet.
-     */
-    function _vaultWallet() internal view returns (address) {
-        return s_config.getAddress(CFG_VAULT_WALLET);
-    }
 
     /**
      * @dev Deducts 0.65% vault fee from `amount`, accumulates it in s_vaultFees.
@@ -321,9 +313,9 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         address user,
         uint256 amount,
         string memory operation
-    ) internal returns (uint256 netAmount) {
-        if (amount == 0) return 0;
-        uint256 fee = (amount * VAULT_FEE_BP) / 10000;
+    ) internal returns (uint256 netAmount, uint256 fee) {
+        if (amount == 0) return (0, 0);
+        fee = (amount * VAULT_FEE_BP) / 10000;
         s_vaultFees += fee;
         netAmount = amount - fee;
         emit VaultFeeDeducted(user, operation, fee);
@@ -402,8 +394,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         mainToken.safeTransferFrom(_aggregator(), address(this), amountMainTokenDesired);
         uint256 actualReceived = mainToken.balanceOf(address(this)) - balanceBefore;
 
-        // Deduct 0.65% vault fee from the received main token amount
-        uint256 netAmount = _deductVaultFee(userAddress, actualReceived, "addLiquidity");
+        (uint256 netAmount, ) = _deductVaultFee(userAddress, actualReceived, "addLiquidity");
 
         mainToken.safeIncreaseAllowance(address(_liquidityManager()), netAmount);
 
@@ -496,7 +487,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         return tokenId;
     }
-
+ 
     /**
      * @notice Decrease or withdraw a percentage of liquidity for a user’s position.
      * @param user Address of the position owner.
@@ -576,8 +567,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             }
         }
         uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);
-        // Deduct 0.65% vault fee from the removed liquidity amount
-        uint256 netRemovedAmount = _deductVaultFee(user, removedAmount, "removeLiquidity");
+        (uint256 netRemovedAmount, ) = _deductVaultFee(user, removedAmount, "removeLiquidity");
         if(isAdmin) _updateFees(user, poolIdHash, packageId, netRemovedAmount);
         percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
@@ -619,7 +609,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
         (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 collectedMainToken) =
-            _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user, packageId), true);
+            _liquidityManagerInstance.collectFeesFromPosition(tokenId, address(this), storedFee0, storedFee1, _companyFeePct(user, packageId), true);
 
         s_companyFees += companyTax;
 
@@ -628,10 +618,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         userInfo[user][packageId][poolIdHash].feeToken0 = 0;
         userInfo[user][packageId][poolIdHash].feeToken1 = 0;
 
-        // Deduct 0.65% vault fee from the collected main token (harvest)
-        uint256 grossCollectedMain = collectedMainToken;
-        _deductVaultFee(user, grossCollectedMain, "harvest");
-
+        (uint256 netAmount, ) = _deductVaultFee(user, collectedMainToken, "harvest");
+        if (netAmount > 0) {
+            _mainToken().safeTransfer(user, netAmount);
+        }
         collectedToken0 = lmCollected0 + storedFee0;
         collectedToken1 = lmCollected1 + storedFee1;
 
@@ -720,10 +710,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             actualReturnToken1 = token1.balanceOf(address(this)) - balance1Before;
         }
 
-        // Single 0.65% vault fee for migrate — applied once on the position's main-token deposit value
         uint256 depositValue = userInfo[user][packageId][poolIdHash].depositLiquidity;
         if (depositValue > 0) {
-            _deductVaultFee(user, depositValue, "migrate");
+            (, uint256 migrateFee) = _deductVaultFee(user, depositValue, "migrate");
+            userInfo[user][packageId][poolIdHash].depositLiquidity -= migrateFee;
         }
 
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
@@ -884,21 +874,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     // ─── Vault Fee Admin ──────────────────────────────────────────────────────
 
     /**
-     * @notice Returns the total accumulated vault fees (0.65% per operation).
+     * @notice Returns the total accumulated vault fees.
      */
     function getVaultFees() external view onlyGeneralOrMasterAdmin returns (uint256) {
         return s_vaultFees;
     }
 
     /**
-     * @notice Returns the configured vault wallet address.
-     */
-    function getVaultWallet() external view onlyGeneralOrMasterAdmin returns (address) {
-        return s_config.getAddress(CFG_VAULT_WALLET);
-    }
-
-    /**
-     * @notice Withdraw all accumulated vault fees to `to`.
+    * @notice Withdraw all accumulated vault fees to `to`.
      * @dev Transfers s_vaultFees of main token and resets counter.
      * @param to Recipient address for vault fees.
      */
