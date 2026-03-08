@@ -75,27 +75,27 @@ const CONFIG = {
       "WETH": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
       "WBTC": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
       plans: [
-        { id: 1, months: 1, apr: 50000 },  // 5%
-        { id: 3, months: 3, apr: 70000 },  // 7%
-        { id: 6, months: 6, apr: 100000 }, // 10%
-        { id: 12, months: 12, apr: 150000 } // 15%
+        { id: 1, months: 1, apr: 500 },  // 5%
+        { id: 3, months: 3, apr: 700 },  // 7%
+        { id: 6, months: 6, apr: 1000 }, // 10%
+        { id: 12, months: 12, apr: 1500 } // 15%
       ]
     },
     8453: {
       "WETH": "0x4200000000000000000000000000000000000006",
       "WBTC": "0x0555E30da8f98308EdB960aa94C0Db47230d2B9c",
       plans: [
-        { id: 1, months: 1, apr: 50000 },  // 5%
-        { id: 3, months: 3, apr: 70000 },  // 7%
-        { id: 6, months: 6, apr: 100000 }, // 10%
-        { id: 12, months: 12, apr: 150000 } // 15%
+        { id: 1, months: 1, apr: 500 },  // 5%
+        { id: 3, months: 3, apr: 700 },  // 7%
+        { id: 6, months: 6, apr: 1000 }, // 10%
+        { id: 12, months: 12, apr: 1500 } // 15%
       ]
     }
   },
 
   VAULT: {
-    VAULT_ENTRY_FEE: 10000,     // 1%
-    VAULT_EXIT_FEE: 10000,     // 1%
+    VAULT_ENTRY_FEE: 100,     // 1%
+    VAULT_EXIT_FEE: 100,     // 1%
   },
 };
 

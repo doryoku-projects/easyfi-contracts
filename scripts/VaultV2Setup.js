@@ -24,17 +24,19 @@ async function setYieldPlans(TokenVaultContract) {
     const actives = [];
 
     const targetTokens = [yieldConfig.WETH, yieldConfig.WBTC];
-    const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
+    // const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
+
+    const SECONDS_TEST = 5 * 60; //5 min
 
     try {
         for (const tokenAddr of targetTokens) {
             // Enable token first
-            await (await TokenVaultContract.setTokenStatus(tokenAddr, true)).wait();
+            // await (await TokenVaultContract.setTokenStatus(tokenAddr, true)).wait();
 
             for (const plan of yieldConfig.plans) {
                 tokens.push(tokenAddr);
                 ids.push(plan.id);
-                durations.push(plan.months * SECONDS_IN_MONTH);
+                durations.push(plan.months * SECONDS_TEST);
                 aprs.push(plan.apr);
                 actives.push(true);
             }
@@ -56,7 +58,13 @@ async function setYieldPlans(TokenVaultContract) {
     console.log(`✅ Configured ${tokens.length} yield plans for BTC and ETH`);
 }
 
-async function VaultRoleSetting(marcWallet, TokenVaultAddr, VaultDepositNFTAddr) {
+async function UpdateFees(TokenVaultContract) {
+
+    const tx = await TokenVaultContract.setFees(VAULT.VAULT_ENTRY_FEE, VAULT.VAULT_EXIT_FEE);
+    tx.wait();
+}
+
+async function VaultRoleSetting(sdWallet, TokenVaultAddr, VaultDepositNFTAddr) {
     const userManagerAddress = await getDeploymentAddress("UserManagerUpgradeable");
 
     userManagerGeneralAdmin = await ethers.getContractAt(
@@ -102,6 +110,9 @@ async function main() {
     console.log("\n🔗 Setting Yield Plans in TokenVault Contract...");
     await setYieldPlans(TokenVaultContract);
     console.log("✅ Set Yield Plans in TokenVault Contract");
+
+    await UpdateFees(TokenVaultContract);
+
 }
 
 main().then(() => process.exit(0)).catch((error) => {
