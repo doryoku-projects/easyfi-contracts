@@ -23,7 +23,8 @@ async function setYieldPlans(TokenVaultContract) {
     const aprs = [];
     const actives = [];
 
-    const targetTokens = [yieldConfig.WETH, yieldConfig.WBTC];
+    const targetTokens = Object.values(VAULT_V2_SUPPORTED_TOKENS[chainId]);;
+
     // const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
 
     const SECONDS_TEST = 5 * 60; //5 min
@@ -31,7 +32,7 @@ async function setYieldPlans(TokenVaultContract) {
     try {
         for (const tokenAddr of targetTokens) {
             // Enable token first
-            // await (await TokenVaultContract.setTokenStatus(tokenAddr, true)).wait();
+            await (await TokenVaultContract.setTokenStatus(tokenAddr, true)).wait();
 
             for (const plan of yieldConfig.plans) {
                 tokens.push(tokenAddr);
