@@ -23,11 +23,11 @@ async function setYieldPlans(TokenVaultContract) {
     const aprs = [];
     const actives = [];
 
-    const targetTokens = Object.values(VAULT_V2_SUPPORTED_TOKENS[chainId]);;
+    const targetTokens = Object.values(VAULT_V2_SUPPORTED_TOKENS[chainId]);
 
-    // const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
+    const SECONDS_IN_MONTH = 30 * 24 * 60 * 60;
 
-    const SECONDS_TEST = 5 * 60; //5 min
+    // const SECONDS_TEST = 5 * 60; //5 min
 
     try {
         for (const tokenAddr of targetTokens) {
@@ -37,7 +37,7 @@ async function setYieldPlans(TokenVaultContract) {
             for (const plan of yieldConfig.plans) {
                 tokens.push(tokenAddr);
                 ids.push(plan.id);
-                durations.push(plan.months * SECONDS_TEST);
+                durations.push(plan.months * SECONDS_IN_MONTH);
                 aprs.push(plan.apr);
                 actives.push(true);
             }
@@ -112,7 +112,7 @@ async function main() {
     await setYieldPlans(TokenVaultContract);
     console.log("✅ Set Yield Plans in TokenVault Contract");
 
-    await UpdateFees(TokenVaultContract);
+    // await UpdateFees(TokenVaultContract);
 
 }
 

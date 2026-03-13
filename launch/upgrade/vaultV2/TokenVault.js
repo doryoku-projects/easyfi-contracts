@@ -1,4 +1,4 @@
-const { upgradeContract } = require("./upgradeContract.js");
+const { upgradeContract } = require("../upgradeContract.js");
 
 async function main() {
   await upgradeContract({
