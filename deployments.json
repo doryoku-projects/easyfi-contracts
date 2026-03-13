@@ -23,7 +23,8 @@
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
       "TokenVaultUpgradeable": "0x3270Fa1E90d54b24b6e0EFF8C9Fb7001acbBCE7B",
-      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D"
+      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D",
+      "TokenVaultUpgradeable_impl_1773317509754": "0x40a9c78dB604bcc7BFACFd8692f7274c10bb359a"
     }
   },
   "wadz": {

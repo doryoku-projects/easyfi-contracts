@@ -74,7 +74,9 @@ contract TokenVaultUpgradeable is
         uint256 indexed depositId,
         address indexed user,
         uint256 approvedAmount,
-        uint256 exitFee
+        uint256 exitFee,
+        address token,
+        uint256 yieldId
     );
 
     event YieldSet(
@@ -407,7 +409,14 @@ contract TokenVaultUpgradeable is
             s_depositNFT.burn(depositId);
         }
 
-        emit VaultWithdrawal(depositId, msg.sender, approvedAmount, exitFee);
+        emit VaultWithdrawal(
+            depositId,
+            msg.sender,
+            approvedAmount,
+            exitFee,
+            pos.token,
+            pos.yieldId
+        );
     }
 
     /**
