@@ -31,6 +31,8 @@ contract TokenVaultUpgradeable is
 
     bytes32 private constant BP_KEY = keccak256("BP");
 
+    address private constant NATIVE_TOKEN = address(0);
+
     struct YieldPlan {
         uint256 lockDuration;
         uint256 aprBps;
@@ -42,7 +44,7 @@ contract TokenVaultUpgradeable is
         address user;
         address token;
         uint256 yieldId;
-        uint256 netPrincipal;  // Amount after entry fee
+        uint256 netPrincipal; // Amount after entry fee
         uint256 depositTimestamp;
         uint256 unlockTimestamp;
         bool withdrawn;
@@ -159,11 +161,17 @@ contract TokenVaultUpgradeable is
         return s_config.getUint(BP_KEY);
     }
 
+    // Allow the contract to receive native ETH (e.g. funded by manager
+    // wallet ahead of withdrawals, or returned as excess funds).
+    receive() external payable {}
+
     /**
      * @notice Set the NFT contract address (one-time setup or upgrade)
      * @param nftAddress Address of the VaultDepositNFTUpgradeable contract
      */
-    function setDepositNFT(address nftAddress) external onlyGeneralOrMasterAdmin {
+    function setDepositNFT(
+        address nftAddress
+    ) external onlyGeneralOrMasterAdmin {
         if (nftAddress == address(0)) revert TV_ZERO_ADDRESS();
         s_depositNFT = VaultDepositNFTUpgradeable(nftAddress);
         emit DepositNFTSet(nftAddress);
@@ -184,7 +192,6 @@ contract TokenVaultUpgradeable is
         uint256 aprBps,
         bool isActive
     ) external onlyGeneralOrMasterAdmin {
-        if (token == address(0)) revert TV_ZERO_ADDRESS();
         if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
         s_yields[token][yieldId] = YieldPlan({
@@ -193,7 +200,15 @@ contract TokenVaultUpgradeable is
             isActive: isActive
         });
 
-        emit YieldSet(token, yieldId, lockDuration, aprBps, isActive, s_entryFeeBps, s_exitFeeBps);
+        emit YieldSet(
+            token,
+            yieldId,
+            lockDuration,
+            aprBps,
+            isActive,
+            s_entryFeeBps,
+            s_exitFeeBps
+        );
     }
 
     /**
@@ -218,7 +233,6 @@ contract TokenVaultUpgradeable is
             address token = tokens[i];
             uint256 aprBps = aprBpsList[i];
             
-            if (token == address(0)) revert TV_ZERO_ADDRESS();
             if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
             s_yields[token][yieldIds[i]] = YieldPlan({
@@ -227,7 +241,15 @@ contract TokenVaultUpgradeable is
                 isActive: isActives[i]
             });
 
-            emit YieldSet(token, yieldIds[i], lockDurations[i], aprBps, isActives[i], s_entryFeeBps, s_exitFeeBps);
+            emit YieldSet(
+                token,
+                yieldIds[i],
+                lockDurations[i],
+                aprBps,
+                isActives[i],
+                s_entryFeeBps,
+                s_exitFeeBps
+            );
         }
     }
 
@@ -274,12 +296,12 @@ contract TokenVaultUpgradeable is
      * @notice Enable or disable a token for deposits.
      * @param token Address of the token.
      * @param status True to enable, false to disable.
+     * @dev To enable native ETH, call with token = address(0).
      */
     function setTokenStatus(
         address token,
         bool status
     ) external onlyGeneralOrMasterAdmin {
-        if (token == address(0)) revert TV_ZERO_ADDRESS();
         s_supportedTokens[token] = status;
         emit TokenStatusSet(token, status);
     }
@@ -294,35 +316,50 @@ contract TokenVaultUpgradeable is
 
     /**
      * @notice Deposit tokens into a yield.
-     * @param token Address of the token to deposit.
+     * @param token Address of the token to deposit. Use address(0) for native ETH.
      * @param yieldId Identifier of the lock yield.
-     * @param amount Amount of tokens to deposit.
+     * @param amount Amount of ERC-20 tokens to deposit. Ignored for native ETH
+     *               (msg.value is used instead).
      */
     function deposit(
         address token,
         uint256 yieldId,
         uint256 amount
-    ) external nonReentrant whenNotPaused onlyUser {
+    ) external payable nonReentrant whenNotPaused onlyUser {
         if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
         
         YieldPlan storage yieldPlan = s_yields[token][yieldId];
         if (!yieldPlan.isActive) revert TV_INVALID_YIELD();
+
+        if (token == NATIVE_TOKEN) {
+            if (msg.value == 0) revert TV_ZERO_AMOUNT();
+            amount = msg.value;
+        } else {
         if (amount == 0) revert TV_ZERO_AMOUNT();
 
-        // Transfer tokens from user
+            if (msg.value != 0) revert TV_INVALID_NATIVE_AMOUNT();
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        }
 
         // Calculate fees
         uint256 entryFee = (amount * s_entryFeeBps) / _BP();
         uint256 netAmount = amount - entryFee;
 
-        // Send entry fee to collector
         if (entryFee > 0) {
+            if (token == NATIVE_TOKEN) {
+                (bool success, ) = s_feeCollector.call{value: entryFee}("");
+                if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+            } else {
             IERC20(token).safeTransfer(s_feeCollector, entryFee);
+            }
         }
 
-        // Send principal to manager wallet (for yield generation)
+        if (token == NATIVE_TOKEN) {
+            (bool success, ) = s_managerWallet.call{value: netAmount}("");
+            if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+        } else {
         IERC20(token).safeTransfer(s_managerWallet, netAmount);
+        }
 
         // Create deposit record
         uint256 depositId = s_nextDepositId++;
@@ -388,7 +425,6 @@ contract TokenVaultUpgradeable is
 
         if (approvedAmount > totalPayout) revert TV_APPROVED_AMOUNT_TOO_HIGH();
 
-
         pos.withdrawn = true;
         _removeUserDeposit(msg.sender, depositId);
 
@@ -396,13 +432,21 @@ contract TokenVaultUpgradeable is
         uint256 exitFee = (approvedAmount * s_exitFeeBps) / _BP();
         uint256 finalAmount = approvedAmount - exitFee;
 
-        // Send fee to collector
         if (exitFee > 0) {
+            if (pos.token == NATIVE_TOKEN) {
+                (bool success, ) = s_feeCollector.call{value: exitFee}("");
+                if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+            } else {
             IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
+            }
         }
 
-        // Send funds to user
+        if (pos.token == NATIVE_TOKEN) {
+            (bool success, ) = msg.sender.call{value: finalAmount}("");
+            if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+        } else {
         IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
+        }
 
         // Burn NFT
         if (address(s_depositNFT) != address(0)) {
@@ -420,24 +464,41 @@ contract TokenVaultUpgradeable is
     }
 
     /**
-     * @notice Admin pre-funds contract for upcoming withdrawals
+     * @notice Admin pre-funds contract for upcoming withdrawals.
+     * @dev For native ETH, call with token = address(0) and send ETH as msg.value.
+     *      For ERC-20, the manager wallet must have approved this contract first.
      */
     function fundUpcomingWithdrawals(
         address token,
         uint256 amount
-    ) external onlyGeneralOrMasterAdmin {
-        IERC20(token).safeTransferFrom(s_managerWallet, address(this), amount);
+    ) external payable onlyGeneralOrMasterAdmin {
+        if (token == NATIVE_TOKEN) {
+            if (msg.value == 0) revert TV_ZERO_AMOUNT();
+            emit WithdrawalsFunded(token, msg.value, block.timestamp);
+        } else {
+            IERC20(token).safeTransferFrom(
+                s_managerWallet,
+                address(this),
+                amount
+            );
         emit WithdrawalsFunded(token, amount, block.timestamp);
+        }
     }
 
     /**
-     * @notice Return excess funds to manager wallet
+     * @notice Return excess funds to manager wallet.
+     * @dev For native ETH, call with token = address(0).
      */
     function returnExcessFunds(
         address token,
         uint256 amount
     ) external onlyGeneralOrMasterAdmin {
+        if (token == NATIVE_TOKEN) {
+            (bool success, ) = s_managerWallet.call{value: amount}("");
+            if (!success) revert TV_NATIVE_TRANSFER_FAILED();
+        } else {
         IERC20(token).safeTransfer(s_managerWallet, amount);
+        }
         emit FundsReturned(token, amount, block.timestamp);
     }
 
@@ -465,7 +526,10 @@ contract TokenVaultUpgradeable is
         return s_userDeposits[user];
     }
 
-    function getAvailableBalance(address token) external view returns (uint256) {
+    function getAvailableBalance(
+        address token
+    ) external view returns (uint256) {
+        if (token == NATIVE_TOKEN) return address(this).balance;
         return IERC20(token).balanceOf(address(this));
     }
 

@@ -51,4 +51,8 @@ abstract contract TokenVaultErrors {
      * @notice Reverted when the approved amount for withdrawal exceeds the expected payout.
      */
     error TV_APPROVED_AMOUNT_TOO_HIGH();
+
+    error TV_INVALID_NATIVE_AMOUNT();
+
+    error TV_NATIVE_TRANSFER_FAILED();
 }
