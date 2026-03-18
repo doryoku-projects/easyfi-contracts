@@ -9,8 +9,8 @@ async function deployTokenVault() {
     const initializeArgs = [
         protocolConfigAddress,
         userManagerAddress,
-        process.env.MASTER_ADMIN_WALLET,
-        process.env.CLIENT_ADDRESS,
+        CONFIG.TOKEN_VAULT_MANAGER,
+        CONFIG.TOKEN_VAULT_FEES_COLLECTOR,
         CONFIG.VAULT.VAULT_ENTRY_FEE,
         CONFIG.VAULT.VAULT_EXIT_FEE,
     ];

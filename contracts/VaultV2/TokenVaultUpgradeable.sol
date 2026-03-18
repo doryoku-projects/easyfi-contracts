@@ -274,7 +274,7 @@ contract TokenVaultUpgradeable is
      */
     function setManagerWallet(
         address manager
-    ) external onlyGeneralOrMasterAdmin {
+    ) external onlyMasterAdmin {
         if (manager == address(0)) revert TV_ZERO_ADDRESS();
         s_managerWallet = manager;
         emit ManagerWalletSet(manager);
@@ -286,7 +286,7 @@ contract TokenVaultUpgradeable is
      */
     function setFeeCollector(
         address collector
-    ) external onlyGeneralOrMasterAdmin {
+    ) external onlyMasterAdmin {
         if (collector == address(0)) revert TV_ZERO_ADDRESS();
         s_feeCollector = collector;
         emit FeeCollectorSet(collector);
