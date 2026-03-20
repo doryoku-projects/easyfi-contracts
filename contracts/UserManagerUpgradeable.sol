@@ -691,7 +691,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     function setReferral(
         address user,
         address parent
-    ) external onlyRole(CONTRACT_ROLE) {
+    ) external onlyRole(USER_MANAGER_ROLE) {
         _setReferral(user, parent);
     }
 
