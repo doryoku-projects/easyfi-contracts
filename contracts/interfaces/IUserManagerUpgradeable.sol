@@ -64,5 +64,7 @@ interface IUserManagerUpgradeable {
 
     function setReferral(address user, address parent) external;
 
+    function updateReferral(address user, address newParent) external;
+
     function getReferrals(address user, uint256 levels) external view returns (address[] memory);
 }

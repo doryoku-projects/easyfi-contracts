@@ -67,4 +67,9 @@ interface IVaultManagerUpgradeable {
 
     function getReferralFees(address referral) external view returns (uint256);
 
+    function updateUserReferralAndClaimFee(
+        address user,
+        address newParent,
+        address claimAddress
+    ) external;
 }

@@ -70,6 +70,14 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
      * @notice the referral is already set
      */
     error UM_REFERRAL_ALREADY_SET(address user);
+    /**
+     * @notice the address cannot be zero
+     */
+    error UM_ZERO_ADDRESS();
+    /**
+     * @notice a user cannot refer themselves
+     */
+    error UM_CANNOT_REFER_SELF();
 
     /**
      * @notice onlyContractOrUserManager modifier
@@ -149,6 +157,7 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
     event MaxRolesSizeUpdated(uint256 indexed newMaxRolesSize);
     event Code2FAUpdated(address indexed user);
     event ReferralSet(address indexed user, address indexed parent);
+    event ReferralUpdated(address indexed user, address indexed oldParent, address indexed newParent);
 
     /**
      * @notice Initialize the UserManager contract, granting initial roles.
@@ -695,10 +704,28 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
         _setReferral(user, parent);
     }
 
+    /**
+     * @notice Update the referral parent for a user.
+     * @param user The address of the user.
+     * @param newParent The new referral parent's address.
+     */
+    function updateReferral(
+        address user,
+        address newParent
+    ) external onlyContractOrUserManager {
+        if (user == address(0) || newParent == address(0)) revert UM_ZERO_ADDRESS();
+        if (user == newParent) revert UM_CANNOT_REFER_SELF();
+
+        address oldParent = s_referrals[user];
+        if (oldParent != newParent) {
+            s_referrals[user] = newParent;
+            emit ReferralUpdated(user, oldParent, newParent);
+        }
+    }
+ 
     function _setReferral(address user, address parent) internal {
-        if (user == address(0) || parent == address(0))
-            revert UM_USER_MANAGER_OR_CONTRACT();
-        if (user == parent) revert UM_INVALID_2FA_VALUE();
+        if (user == address(0) || parent == address(0)) revert UM_ZERO_ADDRESS();
+        if (user == parent) revert UM_CANNOT_REFER_SELF();
         if (s_referrals[user] != address(0)) revert UM_REFERRAL_ALREADY_SET(user);
 
         s_referrals[user] = parent;
