@@ -101,8 +101,8 @@ const CONFIG = {
   },
 
   VAULT: {
-    VAULT_ENTRY_FEE: 100,     // 1%
-    VAULT_EXIT_FEE: 100,     // 1%
+    VAULT_ENTRY_FEE: 65,     // 0.65%
+    VAULT_EXIT_FEE: 65,     // 0.65%
   },
 };
 

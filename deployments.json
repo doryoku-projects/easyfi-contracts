@@ -11,7 +11,9 @@
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
       "TokenVaultUpgradeable": "0x3270Fa1E90d54b24b6e0EFF8C9Fb7001acbBCE7B",
-      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D"
+      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D",
+      "TokenVaultUpgradeable_impl_1773317419723": "0x20918C7cc068e2e1B88199F35A8531C7EaBE6Dc9",
+      "TokenVaultUpgradeable_impl_1773836907355": "0x4932fA480da01A59B542648b4ae5b870c2dB3102"
     },
     "42161": {
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
@@ -24,7 +26,8 @@
       "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
       "TokenVaultUpgradeable": "0x3270Fa1E90d54b24b6e0EFF8C9Fb7001acbBCE7B",
       "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D",
-      "TokenVaultUpgradeable_impl_1773317509754": "0x40a9c78dB604bcc7BFACFd8692f7274c10bb359a"
+      "TokenVaultUpgradeable_impl_1773317509754": "0x40a9c78dB604bcc7BFACFd8692f7274c10bb359a",
+      "TokenVaultUpgradeable_impl_1773836775946": "0xF65457470af848415ccfa5bB16Ac9063e2B45AaD"
     }
   },
   "wadz": {

@@ -55,4 +55,19 @@ abstract contract TokenVaultErrors {
     error TV_INVALID_NATIVE_AMOUNT();
 
     error TV_NATIVE_TRANSFER_FAILED();
+
+    /**
+     * @notice Reverted when a legacy deposit ID has already been migrated.
+     */
+    error TV_ALREADY_MIGRATED();
+
+    /**
+     * @notice Reverted when a zero principal is passed to migrateDeposit.
+     */
+    error TV_ZERO_PRINCIPAL();
+
+    /**
+     * @notice Reverted when unlock timestamp is not in the future relative to deposit timestamp.
+     */
+    error TV_INVALID_TIMESTAMPS();
 }

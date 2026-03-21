@@ -57,6 +57,9 @@ contract TokenVaultUpgradeable is
     uint256 private s_nextDepositId;
     mapping(address => uint256[]) private s_userDeposits;
 
+    /// @dev Guards against double-migration of the same legacy deposit ID.
+    mapping(uint256 => bool) private s_migratedLegacyDeposits;
+
     uint256 private s_entryFeeBps;
     uint256 private s_exitFeeBps;
     address private s_managerWallet;
@@ -108,6 +111,24 @@ contract TokenVaultUpgradeable is
         address indexed token,
         uint256 amount,
         uint256 timestamp
+    );
+
+    /**
+     * @dev Emitted when a legacy deposit is migrated into this vault.
+     * @param legacyDepositId   Deposit ID from the old vault (for audit trail).
+     * @param newDepositId      Deposit ID assigned in this vault.
+     * @param user              Owner of the deposit.
+     * @param token             ERC-20 token address.
+     * @param netAmount      Net principal carried over (post entry-fee, pre growth).
+     */
+    event DepositMigrated(
+        uint256 indexed legacyDepositId,
+        uint256 indexed newDepositId,
+        address indexed user,
+        address token,
+        uint256 yieldId,
+        uint256 netAmount,
+        uint256 unlockTimestamp
     );
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -232,7 +253,8 @@ contract TokenVaultUpgradeable is
         for (uint256 i = 0; i < length; i++) {
             address token = tokens[i];
             uint256 aprBps = aprBpsList[i];
-            
+
+            if (token == address(0)) revert TV_ZERO_ADDRESS();
             if (aprBps > _BP()) revert TV_BPS_TOO_HIGH();
 
             s_yields[token][yieldIds[i]] = YieldPlan({
@@ -272,9 +294,7 @@ contract TokenVaultUpgradeable is
      * @notice Update the manager wallet address.
      * @param manager New manager wallet address.
      */
-    function setManagerWallet(
-        address manager
-    ) external onlyMasterAdmin {
+    function setManagerWallet(address manager) external onlyMasterAdmin {
         if (manager == address(0)) revert TV_ZERO_ADDRESS();
         s_managerWallet = manager;
         emit ManagerWalletSet(manager);
@@ -284,9 +304,7 @@ contract TokenVaultUpgradeable is
      * @notice Update the fee collector address.
      * @param collector New fee collector address.
      */
-    function setFeeCollector(
-        address collector
-    ) external onlyMasterAdmin {
+    function setFeeCollector(address collector) external onlyMasterAdmin {
         if (collector == address(0)) revert TV_ZERO_ADDRESS();
         s_feeCollector = collector;
         emit FeeCollectorSet(collector);
@@ -327,7 +345,7 @@ contract TokenVaultUpgradeable is
         uint256 amount
     ) external payable nonReentrant whenNotPaused onlyUser {
         if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
-        
+
         YieldPlan storage yieldPlan = s_yields[token][yieldId];
         if (!yieldPlan.isActive) revert TV_INVALID_YIELD();
 
@@ -335,10 +353,10 @@ contract TokenVaultUpgradeable is
             if (msg.value == 0) revert TV_ZERO_AMOUNT();
             amount = msg.value;
         } else {
-        if (amount == 0) revert TV_ZERO_AMOUNT();
+            if (amount == 0) revert TV_ZERO_AMOUNT();
 
             if (msg.value != 0) revert TV_INVALID_NATIVE_AMOUNT();
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         }
 
         // Calculate fees
@@ -350,7 +368,7 @@ contract TokenVaultUpgradeable is
                 (bool success, ) = s_feeCollector.call{value: entryFee}("");
                 if (!success) revert TV_NATIVE_TRANSFER_FAILED();
             } else {
-            IERC20(token).safeTransfer(s_feeCollector, entryFee);
+                IERC20(token).safeTransfer(s_feeCollector, entryFee);
             }
         }
 
@@ -358,7 +376,7 @@ contract TokenVaultUpgradeable is
             (bool success, ) = s_managerWallet.call{value: netAmount}("");
             if (!success) revert TV_NATIVE_TRANSFER_FAILED();
         } else {
-        IERC20(token).safeTransfer(s_managerWallet, netAmount);
+            IERC20(token).safeTransfer(s_managerWallet, netAmount);
         }
 
         // Create deposit record
@@ -437,7 +455,7 @@ contract TokenVaultUpgradeable is
                 (bool success, ) = s_feeCollector.call{value: exitFee}("");
                 if (!success) revert TV_NATIVE_TRANSFER_FAILED();
             } else {
-            IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
+                IERC20(pos.token).safeTransfer(s_feeCollector, exitFee);
             }
         }
 
@@ -445,7 +463,7 @@ contract TokenVaultUpgradeable is
             (bool success, ) = msg.sender.call{value: finalAmount}("");
             if (!success) revert TV_NATIVE_TRANSFER_FAILED();
         } else {
-        IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
+            IERC20(pos.token).safeTransfer(msg.sender, finalAmount);
         }
 
         // Burn NFT
@@ -481,7 +499,7 @@ contract TokenVaultUpgradeable is
                 address(this),
                 amount
             );
-        emit WithdrawalsFunded(token, amount, block.timestamp);
+            emit WithdrawalsFunded(token, amount, block.timestamp);
         }
     }
 
@@ -497,9 +515,176 @@ contract TokenVaultUpgradeable is
             (bool success, ) = s_managerWallet.call{value: amount}("");
             if (!success) revert TV_NATIVE_TRANSFER_FAILED();
         } else {
-        IERC20(token).safeTransfer(s_managerWallet, amount);
+            IERC20(token).safeTransfer(s_managerWallet, amount);
         }
         emit FundsReturned(token, amount, block.timestamp);
+    }
+
+    // -------------------------------------------------------------------------
+    //  Migration
+    // -------------------------------------------------------------------------
+
+    /**
+     * @notice Migrate a single deposit from the legacy vault into this vault.
+     * @dev    No tokens are transferred — the principal is assumed to already
+     *         reside in the manager wallet.  Only the accounting record and
+     *         (optionally) the NFT are created here.
+     * @param legacyDepositId  Original deposit ID from the old vault (audit trail).
+     * @param user             Depositor address.
+     * @param token            ERC-20 token address (must be supported).
+     * @param yieldId          Yield plan ID that was active when the user deposited.
+     * @param netPrincipal     Net principal (post-entry-fee) from the old vault.
+     * @param depositTimestamp Original deposit timestamp — preserves APR accrual start.
+     * @param unlockTimestamp  Original unlock timestamp — preserves the user's lock period.
+     * @param aprBps           APR in basis points locked at time of original deposit.
+     */
+    function migrateDeposit(
+        uint256 legacyDepositId,
+        address user,
+        address token,
+        uint256 yieldId,
+        uint256 netPrincipal,
+        uint256 depositTimestamp,
+        uint256 unlockTimestamp,
+        uint256 aprBps
+    ) external onlyGeneralOrMasterAdmin {
+        if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
+        if (netPrincipal == 0) revert TV_ZERO_PRINCIPAL();
+        if (user == address(0)) revert TV_ZERO_ADDRESS();
+        if (unlockTimestamp <= depositTimestamp) revert TV_INVALID_TIMESTAMPS();
+        if (s_migratedLegacyDeposits[legacyDepositId])
+            revert TV_ALREADY_MIGRATED();
+
+        s_migratedLegacyDeposits[legacyDepositId] = true;
+
+        uint256 depositId = s_nextDepositId++;
+
+        s_deposits[depositId] = LockedDeposit({
+            depositId: depositId,
+            user: user,
+            token: token,
+            yieldId: yieldId,
+            netPrincipal: netPrincipal,
+            depositTimestamp: depositTimestamp,
+            unlockTimestamp: unlockTimestamp,
+            withdrawn: false,
+            aprBps: aprBps
+        });
+
+        s_userDeposits[user].push(depositId);
+
+        // Mint NFT if the NFT module is configured.
+        if (address(s_depositNFT) != address(0)) {
+            s_depositNFT.mint(
+                user,
+                depositId,
+                token,
+                yieldId,
+                netPrincipal,
+                depositTimestamp,
+                unlockTimestamp
+            );
+        }
+
+        emit DepositMigrated(
+            legacyDepositId,
+            depositId,
+            user,
+            token,
+            yieldId,
+            netPrincipal,
+            unlockTimestamp
+        );
+    }
+
+    /**
+     * @notice Batch-migrate multiple legacy deposits in a single transaction.
+     * @dev    All arrays must be the same length; keep batches ≤ 150 to stay
+     *         within block gas limits (matches MIGRATION_SIZE in the off-chain config).
+     */
+    function batchMigrateDeposits(
+        uint256[] calldata legacyDepositIds,
+        address[] calldata users,
+        address[] calldata tokens,
+        uint256[] calldata yieldIds,
+        uint256[] calldata netPrincipals,
+        uint256[] calldata depositTimestamps,
+        uint256[] calldata unlockTimestamps,
+        uint256[] calldata aprBpsList
+    ) external onlyGeneralOrMasterAdmin {
+        uint256 length = legacyDepositIds.length;
+        if (
+            length != users.length ||
+            length != tokens.length ||
+            length != yieldIds.length ||
+            length != netPrincipals.length ||
+            length != depositTimestamps.length ||
+            length != unlockTimestamps.length ||
+            length != aprBpsList.length
+        ) revert TV_INPUT_MISMATCH();
+
+        for (uint256 i = 0; i < length; i++) {
+            address token = tokens[i];
+            address user = users[i];
+            uint256 legacyId = legacyDepositIds[i];
+
+            if (!s_supportedTokens[token]) revert TV_INVALID_TOKEN();
+            if (netPrincipals[i] == 0) revert TV_ZERO_PRINCIPAL();
+            if (user == address(0)) revert TV_ZERO_ADDRESS();
+            if (unlockTimestamps[i] <= depositTimestamps[i])
+                revert TV_INVALID_TIMESTAMPS();
+            if (s_migratedLegacyDeposits[legacyId])
+                revert TV_ALREADY_MIGRATED();
+
+            s_migratedLegacyDeposits[legacyId] = true;
+
+            uint256 depositId = s_nextDepositId++;
+
+            s_deposits[depositId] = LockedDeposit({
+                depositId: depositId,
+                user: user,
+                token: token,
+                yieldId: yieldIds[i],
+                netPrincipal: netPrincipals[i],
+                depositTimestamp: depositTimestamps[i],
+                unlockTimestamp: unlockTimestamps[i],
+                withdrawn: false,
+                aprBps: aprBpsList[i]
+            });
+
+            s_userDeposits[user].push(depositId);
+
+            if (address(s_depositNFT) != address(0)) {
+                s_depositNFT.mint(
+                    user,
+                    depositId,
+                    token,
+                    yieldIds[i],
+                    netPrincipals[i],
+                    depositTimestamps[i],
+                    unlockTimestamps[i]
+                );
+            }
+
+            emit DepositMigrated(
+                legacyId,
+                depositId,
+                user,
+                token,
+                yieldIds[i],
+                netPrincipals[i],
+                unlockTimestamps[i]
+            );
+        }
+    }
+
+    /**
+     * @notice Check if a legacy deposit ID has already been migrated.
+     */
+    function isLegacyDepositMigrated(
+        uint256 legacyDepositId
+    ) external view returns (bool) {
+        return s_migratedLegacyDeposits[legacyDepositId];
     }
 
     function getYieldPlan(
