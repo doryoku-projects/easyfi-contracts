@@ -2,13 +2,13 @@
 #!/bin/bash
 set -e  # exit on error
 
-echo "🚀 Step 1: Deploy VaultV2 contracts..."
-npx cross-env WHITELABEL="wadz" hardhat run ./launch/deployAllVaultV2.js --network base
+# echo "🚀 Step 1: Deploy VaultV2 contracts..."
+# npx cross-env WHITELABEL="wadz" hardhat run ./launch/deployAllVaultV2.js --network base
 
-echo "🧪 Step 2: Run VaultV2 setup script..."
-npx cross-env WHITELABEL="wadz" hardhat run ./scripts/VaultV2Setup.js --network base
+# echo "🧪 Step 2: Run VaultV2 setup script..."
+# npx cross-env WHITELABEL="wadz" hardhat run ./scripts/VaultV2Setup.js --network arbitrumOne
 
-echo "✅ Done! VaultV2 Contracts Deployed and Setup successfully."
+# echo "✅ Done! VaultV2 Contracts Deployed and Setup successfully."
 
 
 # echo "🚀 Step 3: run test script..."
@@ -16,13 +16,12 @@ echo "✅ Done! VaultV2 Contracts Deployed and Setup successfully."
 
 
 # echo "🚀 Step 4: Upgrade Vault V2..."
-# npx cross-env WHITELABEL="wadz_test2" hardhat run ./launch/upgrade/vaultV2/TokenVault.js --network localhost
+# npx cross-env WHITELABEL="wadz" hardhat run ./launch/upgrade/vaultV2/TokenVault.js --network base
 
 
 # echo "🚀 Step 5: Migrate Vault V2..."
-
 ##  ## for BASE acc to block range
-# WHITELABEL=wadz_test2 MIGRATION_DRY_RUN=false LEGACY_VAULT_DEPLOY_BLOCK=41745534 LEGACY_VAULT_END_BLOCK=41750541 LEGACY_VAULT_ADDRESS=0xDC47a90A918e85517d5d35460530191042a6Ff33 npx hardhat run scripts/vaultBatchMigrate.js --network localhost 
+# WHITELABEL=wadz MIGRATION_DRY_RUN=true LEGACY_VAULT_DEPLOY_BLOCK=41745534 LEGACY_VAULT_END_BLOCK=41750540 LEGACY_VAULT_ADDRESS=0xDC47a90A918e85517d5d35460530191042a6Ff33 npx hardhat run scripts/vaultBatchMigrate.js --network base 
 
 
 ## ##  for ARB acc to block range
