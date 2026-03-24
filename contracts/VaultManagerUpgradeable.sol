@@ -30,10 +30,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant CFG_FUNDS_MANAGER = keccak256("FundsManager");
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
     bytes32 private constant BP_KEY = keccak256("BP");
-
-    /// @dev 0.65% expressed in basis points denominator of 10000
-    uint256 private constant VAULT_FEE_BP = 65;
+    bytes32 private constant CFG_VAULT_FEE_BP = keccak256("VaultFeeBP");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -62,9 +62,6 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
     mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
-
-    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
-    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
 
  
     event ERC721Deposited(address indexed user, uint256 tokenId);
@@ -315,7 +312,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         string memory operation
     ) internal returns (uint256 netAmount, uint256 fee) {
         if (amount == 0) return (0, 0);
-        fee = (amount * VAULT_FEE_BP) / 10000;
+        
+        uint256 vaultFeeBp;
+        vaultFeeBp = _vaultFeeBP();
+        fee = (amount * vaultFeeBp) / 10000;
         s_vaultFees += fee;
         netAmount = amount - fee;
         emit VaultFeeDeducted(user, operation, fee);
@@ -363,6 +363,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         }
     }
 
+    /**
+     * @notice Returns the vault fee bp.
+     * @return uint256 vault fee bp.
+     */
+    function _vaultFeeBP() internal view returns (uint256) {
+        return s_config.getUint(CFG_VAULT_FEE_BP);
+    }
 
     /**
      * @notice Mint a new position or increase liquidity on an existing one via LiquidityManager.
@@ -566,9 +573,15 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
                 userInfo[user][packageId][poolIdHash].depositLiquidity = currentDeposit - reduction;
             }
         }
-        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);
+        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, address(this), false);
         (uint256 netRemovedAmount, ) = _deductVaultFee(user, removedAmount, "removeLiquidity");
-        if(isAdmin) _updateFees(user, poolIdHash, packageId, netRemovedAmount);
+        
+        if(isAdmin) {
+             _updateFees(user, poolIdHash, packageId, netRemovedAmount);
+             if (netRemovedAmount > 0) _mainToken().safeTransfer(_fundsManager(), netRemovedAmount);
+        } else {
+             if (netRemovedAmount > 0) _mainToken().safeTransfer(user, netRemovedAmount);
+        }
         percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
         emit LiquidityEvent (user, packageId, netRemovedAmount);
@@ -679,7 +692,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1) =
+        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1, uint256 migrateFee) =
             _liquidityManagerInstance.moveRangeOfPosition(manager, tokenId, tickLower, tickUpper);
 
         uint256 actualCumulatedFee0 = 0;
@@ -712,8 +725,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         uint256 depositValue = userInfo[user][packageId][poolIdHash].depositLiquidity;
         if (depositValue > 0) {
-            (, uint256 migrateFee) = _deductVaultFee(user, depositValue, "migrate");
-            userInfo[user][packageId][poolIdHash].depositLiquidity -= migrateFee;
+            uint256 proportionalReduction = (depositValue * _vaultFeeBP()) / 10000;
+            userInfo[user][packageId][poolIdHash].depositLiquidity -= proportionalReduction;
+        }
+        
+        if (migrateFee > 0) {
+            s_vaultFees += migrateFee;
+            emit VaultFeeDeducted(user, "migrate", migrateFee);
         }
 
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
