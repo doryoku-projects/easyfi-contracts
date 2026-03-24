@@ -910,34 +910,35 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
-     * @notice Update the referral parent for a user and claim fees from the old parent to a specified address.
-     * @param user The address of the user.
+     * @notice Update the referral parent for multiple users and claim fees from the old parent to a specified address.
+     * @param users The addresses of the users.
      * @param newParent The new referral parent's address.
      * @param claimAddress The address where the claimed fees will be transferred.
      */
     function updateUserReferralAndClaimFee(
-        address user,
+        address[] calldata users,
         address newParent,
         address claimAddress
     ) external onlyGeneralOrMasterAdmin {
-        address[] memory refs = s_userManager.getReferrals(user, 1);
-        address oldParent = refs.length > 0 ? refs[0] : address(0);
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            address[] memory refs = s_userManager.getReferrals(user, 1);
+            address oldParent = refs.length > 0 ? refs[0] : address(0);
 
-        s_userManager.updateReferral(user, newParent);
+            s_userManager.updateReferral(user, newParent);
 
-        if (oldParent != address(0)) {
-            uint256 amount = s_referralFees[oldParent];
-            if (amount > 0) {
-                if (claimAddress == address(0)) revert VM_ZERO_ADDRESS();
-                
-                s_referralFees[oldParent] = 0;
-                _mainToken().safeTransfer(claimAddress, amount);
+            if (oldParent != address(0)) {
+                uint256 amount = s_referralFees[oldParent];
+                if (amount > 0) {
+                    if (claimAddress == address(0)) revert VM_ZERO_ADDRESS();
+                    
+                    s_referralFees[oldParent] = 0;
+                    _mainToken().safeTransfer(claimAddress, amount);
 
-                emit ReferralFeesWithdrawn(oldParent, amount);
+                    emit ReferralFeesWithdrawn(oldParent, amount);
+                }
             }
         }
     }
-
-
 }
 
