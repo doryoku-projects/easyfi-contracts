@@ -179,7 +179,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     function getPackageReferralPct(
         uint256 packageId,
         uint256 level
-    ) external view returns (uint256) {
+    ) external onlyVaultOrLiquidityManager view returns (uint256) {
         if (
             level == 0 || level > s_packageReferralPercentages[packageId].length
         ) return 0;
@@ -188,13 +188,13 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
 
     function getPackageReferralLevels(
         uint256 packageId
-    ) external view returns (uint256) {
+    ) external onlyVaultOrLiquidityManager view returns (uint256) {
         return s_packageReferralPercentages[packageId].length;
     }
 
     function getPackageReferralPctList(
         uint256 packageId
-    ) external view returns (uint256[] memory) {
+    ) external onlyVaultOrLiquidityManager view returns (uint256[] memory) {
         return s_packageReferralPercentages[packageId];
     }
 }
