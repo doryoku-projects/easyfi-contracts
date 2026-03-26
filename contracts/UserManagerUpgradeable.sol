@@ -718,8 +718,15 @@ contract UserManagerUpgradeable is Initializable, AccessControlEnumerableUpgrade
 
         address oldParent = s_referrals[user];
         if (oldParent != newParent) {
+            address grandParent = s_referrals[oldParent];
+
             s_referrals[user] = newParent;
             emit ReferralUpdated(user, oldParent, newParent);
+
+            if (s_referrals[newParent] == address(0)) {
+                s_referrals[newParent] = grandParent;
+                emit ReferralSet(newParent, grandParent);
+            }
         }
     }
  
