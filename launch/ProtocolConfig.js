@@ -36,12 +36,13 @@ async function deployProtocolConfig() {
     EXTERNAL.CLIENT
   ];
 
-  const uintKeys = ["BP", "CompanyFeePct", "ClientFeePct", "2FARequired"].map(createConfigKey);
+  const uintKeys = ["BP", "CompanyFeePct", "ClientFeePct", "2FARequired", "TWAPWindow"].map(createConfigKey);
   const uintValues = [
     PROTOCOL.BASE_POINT,
     PROTOCOL.COMPANY_FEE_PCT,
     PROTOCOL.CLIENT_FEE_PCT,
-    PROTOCOL.TWO_FA_REQUIRED
+    PROTOCOL.TWO_FA_REQUIRED,
+    PROTOCOL.TWAP_WINDOW
   ];
 
   const initializeArgs = [USER_MANAGER, addressKeys, addressValues, uintKeys, uintValues];

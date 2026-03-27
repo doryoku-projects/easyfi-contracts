@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -16,6 +15,7 @@ import "./errors/OracleSwapErrors.sol";
 
 import "./interfaces/IUserManagerUpgradeable.sol";
 import "./interfaces/IProtocolConfigUpgradeable.sol";
+import "./UniswapV3TWAPOracle.sol";
 
 /**
  * @title OracleSwapUpgradeable
@@ -23,18 +23,21 @@ import "./interfaces/IProtocolConfigUpgradeable.sol";
  */
 contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwapErrors {
     using SafeERC20 for IERC20;
+    using UniswapV3TWAPOracle for address;
 
     uint256 internal s_slippageNumerator;
 
     IProtocolConfigUpgradeable private s_config;
 
     uint256 private constant PRECISION_FACTOR = 1e18;
-    uint256 private constant PRICE_STALENESS_THRESHOLD = 24 hours;
+    uint256 private constant MIN_TWAP_WINDOW = 60;
+    uint256 private constant MAX_TWAP_WINDOW = 86400;
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant SWAP_ROUTER_KEY = keccak256("SwapRouter");
     bytes32 private constant UNISWAP_FACTORY_KEY = keccak256("Factory");
     bytes32 private constant LIQUIDITY_MANAGER_KEY = keccak256("LiquidityManager");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant TWAP_WINDOW = keccak256("TWAPWindow");
 
     mapping(address => address) private s_tokenOracles;
 
@@ -43,6 +46,7 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 computedAmountOutMinimum
     );
     event TokenOracleUpdated(address indexed token, address indexed oracle);
+    event TWAPWindowUpdated(uint32 newWindow);
     event ProtocolConfigSet();
     event UserManagerSet();
 
@@ -153,6 +157,14 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
     }
 
     /**
+     * @notice Get the current TWAP window.
+     * @return uint32 TWAP window in seconds.
+     */
+    function _twapWindow() internal view returns (uint32) {
+        return uint32(s_config.getUint(TWAP_WINDOW));
+    }
+
+    /**
      * @notice Update slippage tolerance parameters.
      * @param _numerator New slippage numerator in basis points.
      */
@@ -174,65 +186,6 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         return s_tokenOracles[token];
     }
 
-    /**
-     * @notice Estimates the output amount of a swap using oracles.
-     * @param tokenIn Address of the token to sell.
-     * @param tokenOut Address of the token to buy.
-     * @param amountIn Amount of tokenIn to swap.
-     * @return computedAmountOut Estimated amount of tokenOut.
-     */
-    function estimateAmountOut(address tokenIn, address tokenOut, uint256 amountIn)
-        public
-        view
-        onlyLiquidityManager
-        returns (uint256 computedAmountOut)
-    {
-        address oracleIn = s_tokenOracles[tokenIn];
-        address oracleOut = s_tokenOracles[tokenOut];
-
-        if (oracleIn == address(0)) revert OS_ORACLE_NOT_SET_IN();
-        if (oracleOut == address(0)) revert OS_ORACLE_NOT_SET_OUT();
-
-        AggregatorV3Interface priceFeedTokenIn = AggregatorV3Interface(oracleIn);
-        AggregatorV3Interface priceFeedTokenOut = AggregatorV3Interface(oracleOut);
-
-        (uint80 roundIDIn, int256 answerIn,, uint256 updatedAtIn, uint80 answeredInRoundIn) =
-            priceFeedTokenIn.latestRoundData();
-
-        if (answerIn <= 0) revert OS_INVALID_PRICE_IN();
-        if (updatedAtIn == 0 || updatedAtIn < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_IN();
-        if (answeredInRoundIn < roundIDIn) revert OS_STALE_ROUND_IN();
-
-        (uint80 roundIDOut, int256 answerOut,, uint256 updatedAtOut, uint80 answeredInRoundOut) =
-            priceFeedTokenOut.latestRoundData();
-
-        if (answerOut <= 0) revert OS_INVALID_PRICE_OUT();
-        if (updatedAtOut == 0 || updatedAtOut < block.timestamp - PRICE_STALENESS_THRESHOLD) revert OS_STALE_PRICE_OUT();
-        if (answeredInRoundOut < roundIDOut) revert OS_STALE_ROUND_OUT();
-
-        uint8 tokenInDecimals = IERC20Metadata(tokenIn).decimals();
-        uint8 tokenOutDecimals = IERC20Metadata(tokenOut).decimals();
-
-        uint8 decimalsDifference;
-        unchecked {
-            decimalsDifference = tokenInDecimals >= tokenOutDecimals
-                ? tokenInDecimals - tokenOutDecimals
-                : tokenOutDecimals - tokenInDecimals;
-        }
-
-        uint256 parsedAnswerIn = uint256(answerIn);
-        uint256 parsedAnswerOut = uint256(answerOut);
-
-        if (tokenInDecimals >= tokenOutDecimals) {
-            computedAmountOut =
-                (parsedAnswerIn * amountIn * PRECISION_FACTOR) / (parsedAnswerOut * 10 ** decimalsDifference);
-            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
-        } else {
-            computedAmountOut =
-                (parsedAnswerIn * amountIn * 10 ** decimalsDifference * PRECISION_FACTOR) / parsedAnswerOut;
-            computedAmountOut = computedAmountOut / PRECISION_FACTOR;
-        }
-    }
 
     /**
      * @notice Swap an input token for an output token via Uniswap V3, calculating minimum output to protect against slippage.
@@ -249,22 +202,31 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         returns (uint256 actualReceived)
     {
         IV3SwapRouter _swapRouterInstance = _swapRouter();
-        if (address(_swapRouterInstance) == address(0)) revert OS_SWAP_ROUTER_NOT_SET();
+        if (address(_swapRouterInstance) == address(0)) {
+            revert OS_SWAP_ROUTER_NOT_SET();
+        }
 
-        uint256 computedAmountOut = estimateAmountOut(tokenIn, tokenOut, amountIn);
+        address pool = _factory().getPool(tokenIn, tokenOut, fee);
+        if (pool == address(0)) revert OS_POOL_NOT_SET();
+
+        uint256 price = pool.getTWAPPrice(tokenIn, tokenOut, _twapWindow());
+
+        uint256 computedAmountOut = UniswapV3TWAPOracle.computeAmountOut(tokenIn, tokenOut, price, amountIn);
+
         uint256 computedAmountOutMinimum = (computedAmountOut * s_slippageNumerator) / _BP();
 
         IERC20(tokenIn).safeIncreaseAllowance(address(_swapRouterInstance), amountIn);
 
-        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter.ExactInputSingleParams({
-            tokenIn: tokenIn,
-            tokenOut: tokenOut,
-            fee: fee,
-            recipient: recipient,
-            amountIn: amountIn,
-            amountOutMinimum: computedAmountOutMinimum < 1e6 ? 0 : computedAmountOutMinimum,
-            sqrtPriceLimitX96: 0
-        });
+        IV3SwapRouter.ExactInputSingleParams memory params = IV3SwapRouter
+            .ExactInputSingleParams({
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: fee,
+                recipient: recipient,
+                amountIn: amountIn,
+                amountOutMinimum: computedAmountOutMinimum < 1e6 ? 0 : computedAmountOutMinimum,
+                sqrtPriceLimitX96: 0
+            });
 
         uint256 balanceBefore = IERC20(params.tokenOut).balanceOf(recipient);
         _swapRouterInstance.exactInputSingle(params);
@@ -370,20 +332,8 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
 
         uint256 halfMain = actualReceived / 2;
 
-        if (isToken0Main) {
-            uint256 swappedAmount = swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
-            amountToken0Desired = halfMain;
-            amountToken1Desired = swappedAmount;
-        } else if (isToken1Main) {
-            uint256 swappedAmount = swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
-            amountToken0Desired = swappedAmount;
-            amountToken1Desired = halfMain;
-        } else {
-            uint256 swappedAmount0 = swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
-            uint256 swappedAmount1 = swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
-            amountToken0Desired = swappedAmount0;
-            amountToken1Desired = swappedAmount1;
-        }
+        amountToken0Desired = isToken0Main ? halfMain : swapTokens(address(_mainTokenInstance), address(token0), fee, halfMain, address(this));
+        amountToken1Desired = isToken1Main ? halfMain : swapTokens(address(_mainTokenInstance), address(token1), fee, halfMain, address(this));
 
         token0.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken0Desired);
         token1.safeIncreaseAllowance(_liquidityManagerAddressInstance, amountToken1Desired);
@@ -433,20 +383,20 @@ contract OracleSwapUpgradeable is UUPSUpgradeable, UserAccessControl, OracleSwap
         bool token0IsMain = _isMainToken(token0);
         bool token1IsMain = _isMainToken(token1);
 
-        if (token0IsMain) {
-            mainAmount0 = actualAmount0;
-            mainAmount1 =
-                (actualAmount1 > 0) ? swapTokens(token1, address(_mainTokenInstance), fee, actualAmount1, address(this)) : 0;
-        } else if (token1IsMain) {
-            mainAmount1 = actualAmount1;
-            mainAmount0 =
-                (actualAmount0 > 0) ? swapTokens(token0, address(_mainTokenInstance), fee, actualAmount0, address(this)) : 0;
-        } else {
-            mainAmount0 =
-                (actualAmount0 > 0) ? swapTokens(token0, address(_mainTokenInstance), fee, actualAmount0, address(this)) : 0;
-            mainAmount1 =
-                (actualAmount1 > 0) ? swapTokens(token1, address(_mainTokenInstance), fee, actualAmount1, address(this)) : 0;
-        }
+        mainAmount0 = token0IsMain
+            ? actualAmount0
+            : (
+                actualAmount0 > 0
+                    ? swapTokens(token0, address(_mainTokenInstance), fee, actualAmount0, address(this))
+                    : 0
+            );
+        mainAmount1 = token1IsMain
+            ? actualAmount1
+            : (
+                actualAmount1 > 0
+                    ? swapTokens(token1, address(_mainTokenInstance), fee, actualAmount1, address(this) )
+                    : 0
+            );
 
         if (mainAmount0 == 0 && mainAmount1 == 0) {
             revert OS_NOT_ENOUGH_TOKENS();
