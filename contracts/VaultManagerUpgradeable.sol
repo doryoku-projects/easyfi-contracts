@@ -30,10 +30,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     bytes32 private constant CFG_COMPANY_FEE_PCT = keccak256("CompanyFeePct");
     bytes32 private constant CFG_AGGREGATOR = keccak256("Aggregator");
     bytes32 private constant CFG_FUNDS_MANAGER = keccak256("FundsManager");
-    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
-    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
     bytes32 private constant BP_KEY = keccak256("BP");
-    bytes32 private constant CFG_VAULT_FEE_BP = keccak256("VaultFeeBP");
 
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
@@ -62,6 +59,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
     mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
+
+    bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
+    bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+    bytes32 private constant CFG_VAULT_FEE_BP = keccak256("VaultFeeBP");
 
  
     event ERC721Deposited(address indexed user, uint256 tokenId);
