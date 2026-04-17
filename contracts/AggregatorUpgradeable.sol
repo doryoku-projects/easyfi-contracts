@@ -267,4 +267,9 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         IVaultManagerUpgradeable vault = _vaultManager();
         vault.withdrawFunds(msg.sender, poolId, packageId);
     }
+
+    function withdrawReferralFees() external nonReentrant onlyUser notEmergency {
+        IVaultManagerUpgradeable vault = _vaultManager();
+        vault.withdrawReferralFees(msg.sender);
+    }
 }
