@@ -1,0 +1,40 @@
+name: Sync Projects to AWS SSM
+
+on:
+  push:
+    paths:
+      - 'projectAddressesMap.json'
+    branches:
+      - main
+      - cap-multichain
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: jq . projectAddressesMap.json
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Push JSON to SSM
+        run: |
+          # The branch name becomes part of the SSM path automatically
+          BRANCH_NAME="${{ github.ref_name }}"
+          ENV_PATH="/prod/easyfi-contracts/$BRANCH_NAME/SC-addresses-url-mapping"
+
+          MAPPING_JSON=$(jq -c . projectAddressesMap.json)
+          
+          aws ssm put-parameter \
+            --name "$ENV_PATH" \
+            --value "$MAPPING_JSON" \
+            --type "String" \
+            --overwrite
