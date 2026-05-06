@@ -1,6 +1,12 @@
 const { ethers } = require("hardhat");
 const { getDeploymentAddress } = require("../launch/DeploymentStore");
-const { YIELD_CONFIG_PER_CHAIN } = require("../launch/config");
+const {
+    YIELD_CONFIG_PER_CHAIN,
+    VAULT,
+    VAULT_V2_SUPPORTED_TOKENS,
+    TOKEN_VAULT_MANAGER,
+    TOKEN_VAULT_FEES_COLLECTOR
+} = require("../launch/config");
 
 async function setDepositNFTAddress(TokenVaultContract, nftAddress) {
     try {
@@ -113,34 +119,34 @@ async function main() {
         marcWallet
     );
 
-    // Step 1: Set Vault Roles
-    console.log("\n🔗 Setting Vault Roles ");
-    await VaultRoleSetting(marcWallet, TokenVaultAddr, VaultDepositNFTAddr);
-    console.log("✅ Vault added as Liquidity Manager");
+    // // Step 1: Set Vault Roles
+    // console.log("\n🔗 Setting Vault Roles ");
+    // await VaultRoleSetting(marcWallet, TokenVaultAddr, VaultDepositNFTAddr);
+    // console.log("✅ Vault added as Liquidity Manager");
 
 
-    // Step 2: Set Deposit NFT address in TokenVault
-    console.log("\n🔗 Setting VaultDepositNFT address in TokenVault Contract...");
-    await setDepositNFTAddress(TokenVaultContract, VaultDepositNFTAddr);
-    console.log("✅ Set VaultDepositNFT address in TokenVault Contract");
+    // // Step 2: Set Deposit NFT address in TokenVault
+    // console.log("\n🔗 Setting VaultDepositNFT address in TokenVault Contract...");
+    // await setDepositNFTAddress(TokenVaultContract, VaultDepositNFTAddr);
+    // console.log("✅ Set VaultDepositNFT address in TokenVault Contract");
 
     
-    // Step 3: Set Yield Plans
-    console.log("\n🔗 Setting Yield Plans in TokenVault Contract...");
-    await setYieldPlans(TokenVaultContract);
-    console.log("✅ Set Yield Plans in TokenVault Contract");
+    // // Step 3: Set Yield Plans
+    // console.log("\n🔗 Setting Yield Plans in TokenVault Contract...");
+    // await setYieldPlans(TokenVaultContract);
+    // console.log("✅ Set Yield Plans in TokenVault Contract");
 
     // // Step 4: Update Fees
     // console.log("\n🔗 Updating Vault Fees...");
     // await UpdateFees(TokenVaultContract);
 
-    // // Step 5: Set Manager Wallet
-    // console.log("\n🔗 Setting Manager Wallet...");
-    // await setManager(TokenVaultContract, marcWallet.address);
+    // Step 5: Set Manager Wallet
+    console.log("\n🔗 Setting Manager Wallet...");
+    await setManager(TokenVaultContract, TOKEN_VAULT_MANAGER);
 
-    // // Step 6: Set Fee Collector Wallet
-    // console.log("\n🔗 Setting Fee Collector Wallet...");
-    // await setFeeCollector(TokenVaultContract, marcWallet.address);
+    // Step 6: Set Fee Collector Wallet
+    console.log("\n🔗 Setting Fee Collector Wallet...");
+    await setFeeCollector(TokenVaultContract, TOKEN_VAULT_FEES_COLLECTOR);
 }
 
 main().then(() => process.exit(0)).catch((error) => {
