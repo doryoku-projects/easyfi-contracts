@@ -60,8 +60,26 @@ async function setYieldPlans(TokenVaultContract) {
 }
 
 async function UpdateFees(TokenVaultContract) {
+    const tx = await TokenVaultContract.setFees(
+        VAULT.VAULT_ENTRY_FEE,
+        VAULT.VAULT_EXIT_FEE,
+    );
+    await tx.wait();
 
-    const tx = await TokenVaultContract.setFees(VAULT.VAULT_ENTRY_FEE, VAULT.VAULT_EXIT_FEE);
+    const entryFee = await TokenVaultContract.getEntryFeeBps();
+    console.log("### ~ VaultV2Setup.js:132 ~ UpdateFees ~ entryFee:", entryFee);
+
+    const exitFee = await TokenVaultContract.getExitFeeBps();
+    console.log("### ~ VaultV2Setup.js:135 ~ UpdateFees ~ exitFee:", exitFee);
+}
+
+async function setFeeCollector(TokenVaultContract, walletAddr) {
+    const tx = await TokenVaultContract.setFeeCollector(walletAddr);
+    tx.wait();
+}
+
+async function setManager(TokenVaultContract, walletAddr) {
+    const tx = await TokenVaultContract.setManagerWallet(walletAddr);
     tx.wait();
 }
 
@@ -112,8 +130,17 @@ async function main() {
     await setYieldPlans(TokenVaultContract);
     console.log("✅ Set Yield Plans in TokenVault Contract");
 
+    // // Step 4: Update Fees
+    // console.log("\n🔗 Updating Vault Fees...");
     // await UpdateFees(TokenVaultContract);
 
+    // // Step 5: Set Manager Wallet
+    // console.log("\n🔗 Setting Manager Wallet...");
+    // await setManager(TokenVaultContract, marcWallet.address);
+
+    // // Step 6: Set Fee Collector Wallet
+    // console.log("\n🔗 Setting Fee Collector Wallet...");
+    // await setFeeCollector(TokenVaultContract, marcWallet.address);
 }
 
 main().then(() => process.exit(0)).catch((error) => {
