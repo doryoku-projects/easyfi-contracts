@@ -9,7 +9,12 @@
       "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
-      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967"
+      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
+      "TokenVaultUpgradeable": "0x3270Fa1E90d54b24b6e0EFF8C9Fb7001acbBCE7B",
+      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D",
+      "TokenVaultUpgradeable_impl_1773317419723": "0x20918C7cc068e2e1B88199F35A8531C7EaBE6Dc9",
+      "TokenVaultUpgradeable_impl_1773836907355": "0x4932fA480da01A59B542648b4ae5b870c2dB3102",
+      "TokenVaultUpgradeable_impl_1774187007793": "0x672033E606cdcCdcFC6914619B207216b5DfeD5d"
     },
     "42161": {
       "UserManagerUpgradeable": "0x1AE33D384Fa1dF277911cef18700600D21bA7fab",
@@ -19,7 +24,13 @@
       "LiquidityManagerUpgradeable": "0xa07C2B6604C1386EF2F49FD35735A827aF244d3c",
       "LiquidityHelperUpgradeable": "0x6ac34AB0e47a1F73cD5c6D9B2110Aa45A617D001",
       "OracleSwapUpgradeable": "0x4A4a3d2292640BdcC05Cd235aCBDc2A947a000eB",
-      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967"
+      "FundsManagerUpgradeable": "0x8938cb5921F40998c02ED9a92D239b7e1f1A8967",
+      "TokenVaultUpgradeable": "0x3270Fa1E90d54b24b6e0EFF8C9Fb7001acbBCE7B",
+      "VaultDepositNFTUpgradeable": "0x991C30764b5731caDF161Cf34FA7C523ba25072D",
+      "TokenVaultUpgradeable_impl_1773317509754": "0x40a9c78dB604bcc7BFACFd8692f7274c10bb359a",
+      "TokenVaultUpgradeable_impl_1773836775946": "0xF65457470af848415ccfa5bB16Ac9063e2B45AaD",
+      "TokenVaultUpgradeable_impl_1774186987078": "0x73f52CD86E034Fd8deFfCAC00c81401b39e9Ff3a",
+      "TokenVaultUpgradeable_impl_1778069768701": "0xd79b991C494908f61e819fa6a1358f55aF200973"
     }
   },
   "wadz": {
@@ -31,7 +42,9 @@
       "LiquidityManagerUpgradeable": "0xEb7c8a166d23518F906B5Bf376965749C6a3BFc7",
       "LiquidityHelperUpgradeable": "0x425C9e0fA47eE505C1b8257E9BeFA65DA484dAf8",
       "OracleSwapUpgradeable": "0xfc78e4332092C4B9A3AA4EDc44500cb3bB8bDebf",
-      "FundsManagerUpgradeable": "0x27BcfC30D4E8A231AA23479d9e40e48bd270C575"
+      "FundsManagerUpgradeable": "0x27BcfC30D4E8A231AA23479d9e40e48bd270C575",
+      "TokenVaultUpgradeable": "0xB9Aae622B70326fff5235f17383D221B020FddE6",
+      "VaultDepositNFTUpgradeable": "0xe5932B21F649bcEAA6f4B1A6772D1f74fd8d8bc6"
     },
     "42161": {
       "UserManagerUpgradeable": "0x5d0Ef9C43F9E1E4e43DBbfCf89b5Da5CDe75B91B",
@@ -41,7 +54,9 @@
       "LiquidityManagerUpgradeable": "0x624169A08ec507BF1aE0f9d26664F3f0A4d5cB7c",
       "LiquidityHelperUpgradeable": "0x46F64dEc0CC882dA348578E4c023B16B70e108aD",
       "OracleSwapUpgradeable": "0xbcd6cca902866f1929d5ec6E136fcFc8B5C18c08",
-      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461"
+      "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461",
+      "TokenVaultUpgradeable": "0xB9Aae622B70326fff5235f17383D221B020FddE6",
+      "VaultDepositNFTUpgradeable": "0xe5932B21F649bcEAA6f4B1A6772D1f74fd8d8bc6"
     }
   }
 }
