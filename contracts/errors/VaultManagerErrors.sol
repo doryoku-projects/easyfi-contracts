@@ -76,4 +76,12 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when the liquidity cap is not set for a package
      */
     error VM_LIQUIDITY_CAP_NOT_SET();
+    /**
+     * @notice Thrown when vault wallet address is not configured
+     */
+    error VM_VAULT_WALLET_NOT_SET();
+    /**
+     * @notice Thrown when trying to withdraw vault fees but balance is zero
+     */
+    error VM_VAULT_FEES_ZERO();
 }

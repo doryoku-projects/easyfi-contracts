@@ -29,6 +29,7 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
     bytes32 private constant VAULT_KEY = keccak256("VaultManager");
     bytes32 private constant MAIN_TOKEN_KEY = keccak256("MainToken");
     bytes32 private constant BP_KEY = keccak256("BP");
+    bytes32 private constant CFG_VAULT_FEE_BP = keccak256("VaultFeeBP");
 
     struct LeftoverResult {
         uint256 extraUsed0;
@@ -147,6 +148,14 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
      */
     function _BP() internal view returns (uint256) {
         return s_config.getUint(BP_KEY);
+    }
+
+    /**
+     * @notice Returns the vault fee bp.
+     * @return uint256 vault fee bp.
+     */
+    function _vaultFeeBP() internal view returns (uint256) {
+        return s_config.getUint(CFG_VAULT_FEE_BP);
     }
 
     /**
@@ -742,7 +751,7 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
         external
         onlyLiquidityManager
         notEmergency
-        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1)
+        returns (uint256 newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1, uint256 migrateFee)
     {
         address _vaultManagerInstance = _vaultManager();
         IOracleSwapUpgradeable _oracleSwapInstance = _oracleSwap();
@@ -753,6 +762,21 @@ contract LiquidityManagerUpgradeable is UUPSUpgradeable, UserAccessControl, Liqu
 
         IERC20 token0 = IERC20(token0Address);
         IERC20 token1 = IERC20(token1Address);
+        
+        uint256 vaultFeeBp = _vaultFeeBP();
+        
+        uint256 fee0 = (collected0 * vaultFeeBp) / 10000;
+        uint256 fee1 = (collected1 * vaultFeeBp) / 10000;
+        collected0 -= fee0;
+        collected1 -= fee1;
+        
+        if (fee0 > 0) token0.safeIncreaseAllowance(address(_oracleSwapInstance), fee0);
+        if (fee1 > 0) token1.safeIncreaseAllowance(address(_oracleSwapInstance), fee1);
+        migrateFee = _oracleSwapInstance.convertToMainTokenAndSend(address(this), fee0, fee1, token0Address, token1Address, fee);
+        
+        if (migrateFee > 0) {
+            IERC20(mainToken).safeTransfer(_vaultManagerInstance, migrateFee);
+        }
 
         (uint256 target0, uint256 target1) = _oracleSwapInstance.getAmountsFromLiquidity(
             token0Address, token1Address, fee, tickLower, tickUpper, 1e12
