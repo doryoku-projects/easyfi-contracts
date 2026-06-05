@@ -38,4 +38,8 @@ interface IVaultManagerUpgradeable {
         external
         view
         returns (UserInfo memory userInformation);
+
+    function autoCompound(address user, string calldata poolId)
+        external
+        returns (uint256 increasedAmount0, uint256 increasedAmount1);
 }

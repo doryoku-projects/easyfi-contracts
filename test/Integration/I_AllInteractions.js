@@ -236,6 +236,20 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       (await MainToken.balanceOf(vaultManagerAddress)).toString()
     );
 
+    // ————— 5.5) Auto-compound —————
+    console.log("Auto-compounding position batches...");
+    await Aggregator.connect(marcWallet).autoCompoundPositionBatches(
+      [userWallet.address],
+      poolId
+    );
+
+    pos = await LiquidityManager.getPositionData(postTokenId);
+    console.log("Position Data after auto-compound:", {
+      liquidity: pos.liquidity.toString(),
+      tokensOwed0: pos.tokensOwed0.toString(),
+      tokensOwed1: pos.tokensOwed1.toString(),
+    });
+
     // ————— 6) Collect fees (2FA) —————
 
     // await sleep(10000);

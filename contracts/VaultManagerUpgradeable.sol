@@ -55,6 +55,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     event UserInfoReset(address indexed user);
     event EmergencyERC20BatchWithdrawal(address indexed to);
     event EmergencyERC721BatchWithdrawal(address indexed to);
+    event AutoCompounded(address indexed user, string poolId, uint256 increasedAmount0, uint256 increasedAmount1);
 
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
@@ -498,6 +499,71 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         collectedToken0 = lmCollected0 + storedFee0;
         collectedToken1 = lmCollected1 + storedFee1;
+    }
+
+    /**
+     * @notice Auto-compound accumulated fees for a user’s position by reinvesting them.
+     * @param user Address of the position owner.
+     * @param poolId Identifier of the pool.
+     * @return increasedAmount0 Amount of token0 added as liquidity.
+     * @return increasedAmount1 Amount of token1 added as liquidity.
+     */
+    function autoCompound(address user, string calldata poolId)
+        external
+        onlyVaultManager
+        notEmergency
+        returns (uint256 increasedAmount0, uint256 increasedAmount1)
+    {
+        INonfungiblePositionManager _nfpmInstance = _nfpm();
+        ILiquidityManagerUpgradeable _liquidityManagerInstance = _liquidityManager();
+        IERC20 mainToken = _mainToken();
+
+        bytes32 poolIdHash = _formatPoolId(poolId);
+        uint256 tokenId = userInfo[user][poolIdHash].tokenId;
+        if (tokenId == 0) revert VM_NO_POSITION();
+
+        (,, address token0Address, address token1Address,,,,,,,,) = _nfpmInstance.positions(tokenId);
+
+        uint256 storedFee0 = userInfo[user][poolIdHash].feeToken0;
+        uint256 storedFee1 = userInfo[user][poolIdHash].feeToken1;
+
+        IERC20 token0 = IERC20(token0Address);
+        IERC20 token1 = IERC20(token1Address);
+
+        if (storedFee0 > 0) {
+            token0.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee0);
+        }
+
+        if (storedFee1 > 0) {
+            token1.safeIncreaseAllowance(address(_liquidityManagerInstance), storedFee1);
+        }
+
+        _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
+
+        uint256 balanceBefore = mainToken.balanceOf(address(this));
+
+        // Use address(this) as the user so the converted main tokens are sent to this VaultManager
+        (,, uint256 companyTax) = _liquidityManagerInstance.collectFeesFromPosition(
+            tokenId, address(this), storedFee0, storedFee1, _companyFeePct(), true
+        );
+
+        s_companyFees += companyTax;
+
+        uint256 amountMainTokenReceived = mainToken.balanceOf(address(this)) - balanceBefore;
+
+        _nfpmInstance.approve(address(0), tokenId);
+
+        userInfo[user][poolIdHash].feeToken0 = 0;
+        userInfo[user][poolIdHash].feeToken1 = 0;
+
+        if (amountMainTokenReceived > 0) {
+            mainToken.safeIncreaseAllowance(address(_liquidityManagerInstance), amountMainTokenReceived);
+            (increasedAmount0, increasedAmount1) = _liquidityManagerInstance.increaseLiquidityPosition(
+                tokenId, amountMainTokenReceived, user
+            );
+        }
+
+        emit AutoCompounded(user, poolId, increasedAmount0, increasedAmount1);
     }
 
     /**

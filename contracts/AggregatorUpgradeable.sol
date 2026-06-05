@@ -241,4 +241,26 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
             newTokenIds[i] = vault.migratePosition(users[i], manager, poolId, tickLower, tickUpper);
         }
     }
+
+
+    /**
+     * @notice Batch auto-compound the accumulated fees of multiple positions.
+     * @param users Addresses of the users who own the positions.
+     * @param poolId ID of the pool.
+     */
+    function autoCompoundPositionBatches(
+        address[] calldata users,
+        string calldata poolId
+    ) external nonReentrant onlyGeneralOrMasterAdmin notEmergency {
+        if (users.length > s_maxMigrationSize) {
+            revert AGG_ARRAY_SIZE_LIMIT_EXCEEDED("users", users.length);
+        }
+
+        IVaultManagerUpgradeable vault = _vaultManager();
+        uint256 n = users.length;
+
+        for (uint256 i = 0; i < n; i++) {
+            vault.autoCompound(users[i], poolId);
+        }
+    }
 }
