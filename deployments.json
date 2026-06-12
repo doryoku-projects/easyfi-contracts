@@ -53,5 +53,27 @@
       "OracleSwapUpgradeable": "0xbcd6cca902866f1929d5ec6E136fcFc8B5C18c08",
       "FundsManagerUpgradeable": "0xD12331cA1D6CAa9617A54806d80D1a79a2D28461"
     }
+  },
+  "netfi_test": {
+    "8453": {
+      "UserManagerUpgradeable": "0xcCd415Fe9675454C46C240085788a56e64CB2e5A",
+      "ProtocolConfigUpgradeable": "0x026359de3Fda017e149c6a00468b5991a0F1b4FF",
+      "AggregatorUpgradeable": "0x07a4b335b8C0Fbbbe8Ddfe573BE6B764C9eD38B1",
+      "VaultManagerUpgradeable": "0xF7fa0E565c1f6901AA0a79E426b8de6D871a03de",
+      "LiquidityManagerUpgradeable": "0x087599B10EA1394cEcfAB557bF6fBd5cBcfd8843",
+      "LiquidityHelperUpgradeable": "0xaCDb7f5CefE6D3469d81bA38859C714361CD766d",
+      "OracleSwapUpgradeable": "0x8e19ef789CADEFC7017c0537404Ac6e19Dc29BE4",
+      "FundsManagerUpgradeable": "0x3DB3481cbC1c36cf296f05639638516deBd29D15"
+    },
+    "42161": {
+      "UserManagerUpgradeable": "0xcCd415Fe9675454C46C240085788a56e64CB2e5A",
+      "ProtocolConfigUpgradeable": "0x026359de3Fda017e149c6a00468b5991a0F1b4FF",
+      "AggregatorUpgradeable": "0x07a4b335b8C0Fbbbe8Ddfe573BE6B764C9eD38B1",
+      "VaultManagerUpgradeable": "0xF7fa0E565c1f6901AA0a79E426b8de6D871a03de",
+      "LiquidityManagerUpgradeable": "0x087599B10EA1394cEcfAB557bF6fBd5cBcfd8843",
+      "LiquidityHelperUpgradeable": "0xaCDb7f5CefE6D3469d81bA38859C714361CD766d",
+      "OracleSwapUpgradeable": "0x8e19ef789CADEFC7017c0537404Ac6e19Dc29BE4",
+      "FundsManagerUpgradeable": "0x3DB3481cbC1c36cf296f05639638516deBd29D15"
+    }
   }
 }
