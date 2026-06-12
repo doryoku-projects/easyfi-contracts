@@ -5,6 +5,7 @@ require("dotenv").config();
 const CONFIG = require("../../launch/config");
 
 const { getDeploymentAddress } = require("../../launch/DeploymentStore");
+const { ADDRESS_ZERO } = require("@uniswap/v3-sdk");
 
 describe("I_setRoles", async function () {
   let ownerWallet, userWallet, pepOwnerWallet, marcWallet;
@@ -192,7 +193,7 @@ describe("I_setRoles", async function () {
     expect(isVaultManager).to.be.true;
 
     // Assign the user role to the userWallet
-    var txUM = await userManagerUserManager.addUsers([userWallet.address])
+    var txUM = await userManagerUserManager.addUsers([userWallet.address], [ADDRESS_ZERO])
     const receiptUM = await txUM.wait(1);
     const eventTopicUM = ethers.id("UserAdded(address)");
     const eventLogsUM = receiptUM.logs.filter(log => log.topics[0] === eventTopicUM);
