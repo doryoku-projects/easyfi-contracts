@@ -14,6 +14,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         uint256 liquidityCap;
         uint256 feeCap;
         uint256 userFeesPct;
+        uint256 expiryTime;
     }
 
     uint256 private s_packageCounter;
@@ -26,8 +27,8 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
     event UserManagerSet();
-    event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
-    event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct);
+    event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 expiryTime);
+    event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 expiryTime);
     event PackageReferralPercentagesUpdated(uint256 indexed packageId, uint256[] percentages);
 
     /**
@@ -126,7 +127,8 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     function setPackageCap(
         uint256 _liquidityCap,
         uint256 _feeCap,
-        uint256 _userFeesPct
+        uint256 _userFeesPct,
+        uint256 _expiryTime
     ) external onlyVaultOrLiquidityManager {
         s_packageCounter++;
         uint256 packageId = s_packageCounter;
@@ -136,26 +138,29 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
-        emit PackageCreated(packageId, _liquidityCap, _feeCap, _userFeesPct);
+        capInfo.expiryTime = _expiryTime;
+        emit PackageCreated(packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
     }
 
     function updatePackageCap(
         uint256 packageId,
         uint256 _liquidityCap,
         uint256 _feeCap,
-        uint256 _userFeesPct
+        uint256 _userFeesPct,
+        uint256 _expiryTime
     ) external onlyVaultOrLiquidityManager {
         CapInfo storage capInfo = s_packageCap[packageId];
-        if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
+        if (capInfo.liquidityCap == 0) {
             revert PACKAGE_NOT_EXIST();
         }
-        if (capInfo.liquidityCap == _liquidityCap && capInfo.feeCap == _feeCap) {
+        if (capInfo.liquidityCap == _liquidityCap && capInfo.feeCap == _feeCap && capInfo.expiryTime == _expiryTime) {
             revert ALREADY_PACKAGE_ID_INFO_UPDATED();
         }
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
-        emit PackageUpdated(packageId, _liquidityCap, _feeCap, _userFeesPct);
+        capInfo.expiryTime = _expiryTime;
+        emit PackageUpdated(packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
     }
 
     function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {

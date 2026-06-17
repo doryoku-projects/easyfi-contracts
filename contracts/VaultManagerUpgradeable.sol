@@ -52,6 +52,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 liquidityCapLimit;
         uint256 feeCapLimit;
         uint256 userFeePct;
+        uint256 expiryTime;
     }
 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
@@ -364,6 +365,9 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 amountMainTokenDesired,
         address userAddress
     ) external onlyVaultManager notEmergency returns (uint256 tokenId) {
+        if (packageInfo[userAddress][packageId].expiryTime > 0 && block.timestamp > packageInfo[userAddress][packageId].expiryTime) {
+            revert VM_PACKAGE_EXPIRED();
+        }
         _checkLiquidityCap(userAddress, poolId, packageId, amountMainTokenDesired);
         IERC20 mainToken = _mainToken();
 
@@ -795,6 +799,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         package.feeCapLimit = capInfo.feeCap;
         package.packageId = packageId;
         package.userFeePct = capInfo.userFeesPct;
+        package.expiryTime = capInfo.expiryTime > 0 ? block.timestamp + capInfo.expiryTime : 0;
         emit UserPackageUpdated(user, packageId);
     }
 
@@ -867,14 +872,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         IFundsManagerUpgradeable(_fundsManager()).withdrawFunds(user, address(_mainToken()), amount);
     }
 
-    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
-       s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct);
+       s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct, _expiryTime);
     }
 
-    function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
+    function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
-       s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
+       s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
     }
 
     function setPackageReferralPercentages(uint256 packageId, uint256[] calldata percentages) external onlyGeneralOrMasterAdmin {

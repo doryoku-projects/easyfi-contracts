@@ -76,4 +76,8 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when the liquidity cap is not set for a package
      */
     error VM_LIQUIDITY_CAP_NOT_SET();
+    /**
+     * @notice Thrown when attempting to use an expired package
+     */
+    error VM_PACKAGE_EXPIRED();
 }
