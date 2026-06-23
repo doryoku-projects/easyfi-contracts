@@ -65,7 +65,8 @@
       "OracleSwapUpgradeable": "0x8e19ef789CADEFC7017c0537404Ac6e19Dc29BE4",
       "FundsManagerUpgradeable": "0x3DB3481cbC1c36cf296f05639638516deBd29D15",
       "ProtocolConfigUpgradeable_impl_1781691479558": "0xBcb7CbB4f0A953d10F10A8f9A97b5C59A4a01fFf",
-      "VaultManagerUpgradeable_impl_1781691525995": "0x0b3C81d152e90D83E23F18442eEEF955a74243BD"
+      "VaultManagerUpgradeable_impl_1781691525995": "0x0b3C81d152e90D83E23F18442eEEF955a74243BD",
+      "AggregatorUpgradeable_impl_1781701127493": "0xf56DF52903be6b4e5914912540163d7F4e7a2832"
     },
     "42161": {
       "UserManagerUpgradeable": "0xcCd415Fe9675454C46C240085788a56e64CB2e5A",
@@ -77,7 +78,8 @@
       "OracleSwapUpgradeable": "0x8e19ef789CADEFC7017c0537404Ac6e19Dc29BE4",
       "FundsManagerUpgradeable": "0x3DB3481cbC1c36cf296f05639638516deBd29D15",
       "VaultManagerUpgradeable_impl_1781691435336": "0xf6655f249e9c9dad4662F90cF0cb157044021721",
-      "ProtocolConfigUpgradeable_impl_1781691456953": "0x89278FAb3762c1C4442441B42e99efA025211E1C"
+      "ProtocolConfigUpgradeable_impl_1781691456953": "0x89278FAb3762c1C4442441B42e99efA025211E1C",
+      "AggregatorUpgradeable_impl_1781701045400": "0x53290ccCd42ad7e7c171464FEb22BC81A65e6910"
     }
   }
 }
