@@ -1,6 +1,6 @@
 const { ethers } = require("hardhat");
 const { getDeploymentAddress } = require("./DeploymentStore");
-const { updateProtocolConfigAddresses } = require("./DeploymentHelper");
+const { updateProtocolConfigAddresses, setDepositNFTAddress } = require("./DeploymentHelper");
 
 const deployUserManager = require("./UserManager");
 const deployProtocolConfig = require("./ProtocolConfig");
@@ -10,7 +10,6 @@ const deployLiquidityManager = require("./LiquidityManager");
 const deployLiquidityHelper = require("./LiquidityHelper");
 const deployOracleSwap = require("./OracleSwap");
 const deployFundsManager = require("./FundsManager");
-
 
 async function main() {
     console.log("🚀 Starting full deployment...", process.env.WHITELABEL);
@@ -23,7 +22,6 @@ async function main() {
   await deployLiquidityHelper();
   await deployOracleSwap();
   await deployFundsManager();
-
   console.log("\n✅ All contracts deployed\n");
 
   const userManagerAddr = await getDeploymentAddress("UserManagerUpgradeable");
@@ -34,7 +32,6 @@ async function main() {
     const OracleSwapAddr = await getDeploymentAddress("OracleSwapUpgradeable");
     const AggregatorAddr = await getDeploymentAddress("AggregatorUpgradeable");
     const FundsManagerAddr = await getDeploymentAddress("FundsManagerUpgradeable");
-  
     console.log("🔗 Attaching to UserManagerUpgradeable at:", userManagerAddr);
     console.log("🔗 Attaching to ProtocolConfigUpgradeable at:", ProtocolConfigAddr);
     console.log("🔗 Attaching to VaultManagerUpgradeable at:", VaultAddr);
@@ -43,7 +40,6 @@ async function main() {
     console.log("🔗 Attaching to OracleSwapUpgradeable at:", OracleSwapAddr);
     console.log("🔗 Attaching to AggregatorUpgradeable at:", AggregatorAddr);
     console.log("🔗 Attaching to FundsManagerUpgradeable at:", FundsManagerAddr);
-  
     const initialContracts = [
       ProtocolConfigAddr,
       VaultAddr,

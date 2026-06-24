@@ -33,9 +33,12 @@ const CONFIG = {
     LIQUIDITY_HELPER: "LIQUIDITY_HELPER_V1_MAIN_PROXY",
     ORACLE_SWAP: "ORACLE_SWAP_V1_MAIN_PROXY",
     AGGREGATOR: "AGGREGATOR_V1_MAIN_PROXY",
-    FUNDS_MANAGER: "FUNDS_MANAGER_V1_MAIN_PROXY"
+    FUNDS_MANAGER: "FUNDS_MANAGER_V1_MAIN_PROXY",
+    TOKEN_VAULT: "TOKEN_VAULT_V2_MAIN_PROXY",
+    VAULT_DEPOSIT_NFT: "VAULT_DEPOSIT_NFT_V1_MAIN_PROXY"
   },
-
+  TOKEN_VAULT_MANAGER: "0x0f4ddfbd32586880211119b617954e01ef58715f",
+  TOKEN_VAULT_FEES_COLLECTOR: "0x2318a04e5d5e6406e9a62511ca9efa2485ccf01b",
   ADDRESSES_PER_CHAIN: {
     42161: {
       UNISWAP_NFT_ADDRESS: "0xC36442b4a4522E871399CD717aBDD847Ab11FE88",
@@ -50,7 +53,6 @@ const CONFIG = {
       WBTC_PRICE_FEED: "0xd0C7101eACbB49F3deCcCc166d238410D6D46d57",
       DAI_PRICE_FEED: "0xc5C8E77B397E531B8EC06BFb0048328B30E9eCfB",
       SAFE_ADDRESS: "0x549BB741bDAE87872d0bb7082Ee6223D02644963"
-
     },
     8453: {
       UNISWAP_NFT_ADDRESS: "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1",
@@ -66,7 +68,42 @@ const CONFIG = {
       DAI_PRICE_FEED: "0x591e79239a7d679378eC8c847e5038150364C78F",
       SAFE_ADDRESS: "0x549BB741bDAE87872d0bb7082Ee6223D02644963"
     }
-  }
+  },
+
+  VAULT_V2_SUPPORTED_TOKENS: {
+    42161: {
+      "ETH": "0x0000000000000000000000000000000000000000",
+      "WBTC": "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
+    },
+    8453: {
+      "ETH": "0x0000000000000000000000000000000000000000",
+      "cbBTC": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+    }
+  },
+
+  YIELD_CONFIG_PER_CHAIN: {
+    42161: {
+      plans: [
+        { id: 1, months: 1, apr: 500 },  // 5%
+        { id: 3, months: 3, apr: 700 },  // 7%
+        { id: 6, months: 6, apr: 1000 }, // 10%
+        { id: 12, months: 12, apr: 1500 } // 15%
+      ]
+    },
+    8453: {
+      plans: [
+        { id: 1, months: 1, apr: 500 },  // 5%
+        { id: 3, months: 3, apr: 700 },  // 7%
+        { id: 6, months: 6, apr: 1000 }, // 10%
+        { id: 12, months: 12, apr: 1500 } // 15%
+      ]
+    }
+  },
+
+  VAULT: {
+    VAULT_ENTRY_FEE: 65,     // 0.65%
+    VAULT_EXIT_FEE: 65,     // 0.65%
+  },
 };
 
 module.exports = CONFIG;
