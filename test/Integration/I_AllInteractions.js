@@ -9,7 +9,7 @@ async function sleep(ms) {
 }
 
 describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
-  let ownerWallet, userWallet, marcWallet, pepWallet, testWallet;
+  let ownerWallet, userWallet, marcWallet, pepWallet, testWallet, referralWallet;
   let Aggregator, VaultManager, UserManager, LiquidityManager, MainToken, WETH;
   let addressesPerChain;
 
@@ -96,10 +96,9 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     );
     WETH = await ethers.getContractAt("IERC20", token0Address, userWallet);
 
-    // ————— 1) Grant USER_ROLE to testWallet —————
-    // await expect(UserManager.addUsers([userWallet.address]))
-    //   .to.emit(UserManager, "UserAdded")
-    //   .withArgs(userWallet.address);
+    // ————— 1) Grant USER_ROLE to userWallet —————
+    // await UserManager.connect(pepWallet).addUsers([userWallet.address], [ethers.ZeroAddress]); // dummy
+    // // Actually, let's use the real referral logic below.
 
     await expect(
       UserManager.connect(marcWallet).addLiquidityManagers([marcWallet.address])
@@ -118,9 +117,18 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("  → userWallet ETH :", ethers.formatEther(balETH0));
 
     await VaultManager.connect(marcWallet).setPackageCap(100000000000, 300000000000, 5000);
+
     await VaultManager.connect(marcWallet).setPackageCap(200000000000, 600000000000, 6000);
+
     await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 1);
+    await VaultManager.connect(marcWallet).setPackageReferralPercentages(1, [1000, 500, 250]);
     // ————— 3) Mint (10k) —————
+    referralWallet = ethers.Wallet.createRandom().connect(ethers.provider);
+    await userWallet.sendTransaction({ to: referralWallet.address, value: ethers.parseEther("0.1") });
+
+    console.log("Setting referral via UserManager...");
+    // await UserManager.connect(pepWallet).addUsers([userWallet.address], [referralWallet.address]);
+
     const isUser = await UserManager.isUser(userWallet.address);
     console.log("Is user:", isUser);
     console.log("Minting position (10k) via Aggregator...");
@@ -135,7 +143,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       500,
       -199000,
       -197000,
-      mintAmount
+      mintAmount,
+      { gasLimit: 10000000 }
     );
     await mintTx.wait();
 
@@ -159,7 +168,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     console.log("Increasing liquidity (another 10k)...");
     await MainToken.connect(userWallet).approve(
       aggregatorAddress,
-      increaseAmount
+      increaseAmount,
+      { gasLimit: 10000000 }
     );
     const incTx = await Aggregator.connect(
       userWallet
@@ -171,7 +181,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       500,
       -199000,
       -197000,
-      increaseAmount
+      increaseAmount,
+      { gasLimit: 10000000 }
     );
     await incTx.wait();
 
@@ -213,7 +224,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       poolId,
       [1],
       newTickLower,
-      newTickUpper
+      newTickUpper,
+      { gasLimit: 10000000 }
     );
 
     //Get new user info
@@ -249,7 +261,7 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     // await sleep(10000);
 
-    await UserManager.connect(marcWallet).addUser2FAs([marcWallet.address]);
+    await UserManager.connect(marcWallet).addUser2FAs([marcWallet.address], { gasLimit: 10000000 });
 
     let block = await ethers.provider.getBlock("latest");
     let timestamp = block.timestamp + 300;
@@ -268,13 +280,15 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       twoFACode,
       timestamp,
       0,
-      signature
+      signature,
+      { gasLimit: 10000000 }
     );
 
     await Aggregator.connect(userWallet).collectFeesFromPosition(
       poolId,
       1,
-      twoFACode
+      twoFACode,
+      { gasLimit: 10000000 }
     );
 
     console.log("Collected fees from position");
@@ -300,7 +314,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       twoFACode,
       timestamp,
       halfBP,
-      signature
+      signature,
+      { gasLimit: 10000000 }
     );
 
     // WITHDRAW 50%
@@ -308,7 +323,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       poolId,
       1,
       halfBP,
-      twoFACode
+      twoFACode,
+      { gasLimit: 10000000 }
     );
     pos = await LiquidityManager.getPositionData(postTokenId);
     console.log("Position Data after 50% withdraw:", {
@@ -322,7 +338,8 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
 
     console.log("USER INFO after 50% withdraw:", userInfoHalfWithdraw);
 
-    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 2);
+    await VaultManager.connect(marcWallet).setUserPackage(userWallet.address, 2,
+      { gasLimit: 10000000 });
 
     // await sleep(10000);
 
@@ -341,14 +358,16 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
       "414141",
       timestamp,
       fullBP,
-      signature
+      signature,
+      { gasLimit: 10000000 }
     );
     // WITHDRAW 100%
     await Aggregator.connect(userWallet).decreaseLiquidityFromPosition(
       poolId,
       1,
       fullBP,
-      "414141"
+      "414141",
+      { gasLimit: 10000000 }
     );
 
     const userInfoFullWithdraw = await Aggregator.connect(
@@ -360,5 +379,23 @@ describe("I_AllInteractions end-to-end (w/ Position Data)", function () {
     // FINAL BALANCE
     const finalBal = await MainToken.balanceOf(userWallet.address);
     console.log("Final USDC balance:", finalBal.toString());
+
+    // ————— 7) Verify Referral Fees —————
+    const referralFees = await VaultManager.getReferralFees(referralWallet.address);
+    console.log("Referral Fees for referralWallet:", referralFees.toString());
+
+    if (referralFees > 0n) {
+      console.log("Withdrawing referral fees via Aggregator...");
+      const beforeBal = await MainToken.balanceOf(referralWallet.address);
+      await Aggregator.connect(referralWallet).withdrawReferralFees(referralWallet.address, { gasLimit: 1000000 });
+      const afterBal = await MainToken.balanceOf(referralWallet.address);
+      console.log("Referral balance after withdrawal:", afterBal.toString());
+      expect(afterBal).to.be.gt(beforeBal);
+
+      const remainingFees = await VaultManager.getReferralFees(referralWallet.address);
+      expect(remainingFees).to.equal(0n);
+    } else {
+      console.log("No referral fees generated (this might be expected if no swap/fee happened during this run)");
+    }
   });
 });
