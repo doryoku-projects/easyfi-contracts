@@ -63,4 +63,14 @@ interface IVaultManagerUpgradeable {
 
     function withdrawFunds(address user, string calldata poolId, uint256 packageId) external;
 
+    function withdrawReferralFees(address referral) external;
+
+    function getReferralFees(address referral) external view returns (uint256);
+
+    function updateUserReferralAndClaimFee(
+        address[] calldata users,
+        address newParent,
+        address claimAddress
+    ) external;
+
 }

@@ -61,4 +61,10 @@ interface IUserManagerUpgradeable {
     function check2FA(address user, string calldata code, uint256 value) external;
 
     function isEmergency() external view returns (bool);
+
+    function setReferral(address user, address parent) external;
+
+    function updateReferral(address user, address newParent) external;
+
+    function getReferrals(address user, uint256 levels) external view returns (address[] memory);
 }

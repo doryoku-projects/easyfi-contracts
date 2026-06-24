@@ -35,6 +35,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     uint256 private s_companyFees;
     uint256 private s_maxWithdrawalSize;
 
+
     struct UserInfo {
         uint256 tokenId;
         address token0;
@@ -53,16 +54,19 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 feeCapLimit;
         uint256 userFeePct;
     }
-
+ 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
     mapping(address =>  mapping(uint256 => PackageInfo)) private packageInfo;
 
     mapping(address => mapping(bytes32 => mapping(uint256 => uint256))) collectedFeesByPackages;
+    mapping(address => uint256) private s_referralFees;
+    uint256 private s_vaultFees;
 
     bytes32 private constant CFG_CLIENT_ADDRESS = keccak256("ClientAddress");
     bytes32 private constant CFG_CLIENT_FEE_PCT = keccak256("ClientFeePct");
+    bytes32 private constant CFG_VAULT_FEE_BP = keccak256("VaultFeeBP");
 
-
+ 
     event ERC721Deposited(address indexed user, uint256 tokenId);
     event WithdrawCompanyFees(uint256 clientFee, uint256 companyFee);
     event ProtocolConfigSet();
@@ -73,6 +77,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     event UserPackageUpdated(address indexed user, uint256 packageId);
     event Withdrawn(address indexed user, uint256 amount);
     event LiquidityEvent(address indexed user, uint256 indexed packageId, uint256 amount);
+    event ReferralFeesWithdrawn(address indexed referral, uint256 amount);
+    event ReferralFeesDistributed(address indexed user, uint256 totalReferralFees);
+    event VaultFeeDeducted(address indexed user, string operation, uint256 feeAmount);
+    event WithdrawVaultFees(address indexed to, uint256 amount);
 
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxWithdrawalSize) public initializer {
@@ -295,6 +303,29 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         return s_config.getAddress(CFG_CLIENT_ADDRESS);
     }
 
+
+    /**
+     * @dev Deducts 0.65% vault fee from `amount`, accumulates it in s_vaultFees.
+     * @param user  Address of the user triggering the operation (for event).
+     * @param amount Gross amount before fee.
+     * @param operation Human-readable label for the event.
+     * @return netAmount Amount remaining after vault fee deduction.
+     */
+    function _deductVaultFee(
+        address user,
+        uint256 amount,
+        string memory operation
+    ) internal returns (uint256 netAmount, uint256 fee) {
+        if (amount == 0) return (0, 0);
+        
+        uint256 vaultFeeBp;
+        vaultFeeBp = _vaultFeeBP();
+        fee = (amount * vaultFeeBp) / 10000;
+        s_vaultFees += fee;
+        netAmount = amount - fee;
+        emit VaultFeeDeducted(user, operation, fee);
+    }
+
     /**
      * @dev Reset stored user position info for a pool to defaults.
      * @param user Address of the user.
@@ -337,6 +368,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         }
     }
 
+    /**
+     * @notice Returns the vault fee bp.
+     * @return uint256 vault fee bp.
+     */
+    function _vaultFeeBP() internal view returns (uint256) {
+        return s_config.getUint(CFG_VAULT_FEE_BP);
+    }
 
     /**
      * @notice Mint a new position or increase liquidity on an existing one via LiquidityManager.
@@ -368,7 +406,9 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         mainToken.safeTransferFrom(_aggregator(), address(this), amountMainTokenDesired);
         uint256 actualReceived = mainToken.balanceOf(address(this)) - balanceBefore;
 
-        mainToken.safeIncreaseAllowance(address(_liquidityManager()), actualReceived);
+        (uint256 netAmount, ) = _deductVaultFee(userAddress, actualReceived, "addLiquidity");
+
+        mainToken.safeIncreaseAllowance(address(_liquidityManager()), netAmount);
 
         bytes32 poolIdHash = _formatPoolId(poolId);
 
@@ -385,13 +425,13 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             if (_userInfo.token0 != token0Address && _userInfo.token1 != token1Address) revert VM_TOKEN_MISMATCH();
             
             tokenId =
-                _increaseLiquidityToPosition(_userInfo.tokenId, actualReceived, userAddress);
+                _increaseLiquidityToPosition(_userInfo.tokenId, netAmount, userAddress);
         } else {
             tokenId = _mintPosition(
-                poolId, packageId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, userAddress
+                poolId, packageId, token0Address, token1Address, fee, tickLower, tickUpper, netAmount, userAddress
             );
         }
-        _userInfo.depositLiquidity += actualReceived;
+        _userInfo.depositLiquidity += netAmount;
         emit LiquidityEvent (userAddress, packageId, amountMainTokenDesired);
     }
 
@@ -459,7 +499,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         return tokenId;
     }
-
+ 
     /**
      * @notice Decrease or withdraw a percentage of liquidity for a user’s position.
      * @param user Address of the position owner.
@@ -506,9 +546,9 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             (, , uint256 companyTax, uint256 collectedMainToken) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
             .collectFeesFromPosition(tokenId, isAdmin ? _fundsManager() : user, storedFee0, storedFee1, _companyFeePctInstance, send);
             _updateFees(user, poolIdHash, packageId, collectedMainToken);
-            s_companyFees += companyTax;
+            _distributeReferralFees(user, companyTax, packageId);
         } else {
-            (uint256 collected0, uint256 collected1, ,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
+            (uint256 collected0, uint256 collected1, uint256 companyTaxValue,) = ILiquidityManagerUpgradeable(address(_liquidityManagerInstance))
                 .collectFeesFromPosition(tokenId, user, 0, 0, _companyFeePctInstance, send);
 
             uint256 actualCollected0 = 0;
@@ -527,6 +567,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
             userInfo[user][packageId][poolIdHash].feeToken0 += actualCollected0;
             userInfo[user][packageId][poolIdHash].feeToken1 += actualCollected1;
+            _distributeReferralFees(user, companyTaxValue, packageId);
         }
 
         uint256 currentDeposit = userInfo[user][packageId][poolIdHash].depositLiquidity;
@@ -538,11 +579,18 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
                 userInfo[user][packageId][poolIdHash].depositLiquidity = currentDeposit - reduction;
             }
         }
-        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, isAdmin ? _fundsManager() : user, false);   
-        if(isAdmin) _updateFees(user, poolIdHash, packageId, removedAmount);
+        uint256 removedAmount = _liquidityManagerInstance.decreaseLiquidityPosition(tokenId, percentageToRemove, address(this), false);
+        (uint256 netRemovedAmount, ) = _deductVaultFee(user, removedAmount, "removeLiquidity");
+        
+        if(isAdmin) {
+             _updateFees(user, poolIdHash, packageId, netRemovedAmount);
+             if (netRemovedAmount > 0) _mainToken().safeTransfer(_fundsManager(), netRemovedAmount);
+        } else {
+             if (netRemovedAmount > 0) _mainToken().safeTransfer(user, netRemovedAmount);
+        }
         percentageToRemove == _BP() ? _resetUserInfo(user, poolId, packageId) : _nfpm().approve(address(0), tokenId);
         
-        emit LiquidityEvent (user, packageId, removedAmount);
+        emit LiquidityEvent (user, packageId, netRemovedAmount);
     }
 
     /**
@@ -579,16 +627,20 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax,) =
-            _liquidityManagerInstance.collectFeesFromPosition(tokenId, user, storedFee0, storedFee1, _companyFeePct(user, packageId), true);
+        (uint256 lmCollected0, uint256 lmCollected1, uint256 companyTax, uint256 collectedMainToken) =
+            _liquidityManagerInstance.collectFeesFromPosition(tokenId, address(this), storedFee0, storedFee1, _companyFeePct(user, packageId), true);
 
-        s_companyFees += companyTax;
+        _distributeReferralFees(user, companyTax, packageId);
 
         _nfpmInstance.approve(address(0), tokenId);
 
         userInfo[user][packageId][poolIdHash].feeToken0 = 0;
         userInfo[user][packageId][poolIdHash].feeToken1 = 0;
 
+        (uint256 netAmount, ) = _deductVaultFee(user, collectedMainToken, "harvest");
+        if (netAmount > 0) {
+            _mainToken().safeTransfer(user, netAmount);
+        }
         collectedToken0 = lmCollected0 + storedFee0;
         collectedToken1 = lmCollected1 + storedFee1;
 
@@ -646,7 +698,7 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         _nfpmInstance.approve(address(_liquidityManagerInstance), tokenId);
 
-        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1) =
+        (uint256 _newTokenId, uint256 cumulatedFee0, uint256 cumulatedFee1, uint256 returnToken0, uint256 returnToken1, uint256 migrateFee) =
             _liquidityManagerInstance.moveRangeOfPosition(manager, tokenId, tickLower, tickUpper);
 
         uint256 actualCumulatedFee0 = 0;
@@ -675,6 +727,17 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
             uint256 balance1Before = token1.balanceOf(address(this));
             token1.safeTransferFrom(address(_liquidityManagerInstance), address(this), returnToken1);
             actualReturnToken1 = token1.balanceOf(address(this)) - balance1Before;
+        }
+
+        uint256 depositValue = userInfo[user][packageId][poolIdHash].depositLiquidity;
+        if (depositValue > 0) {
+            uint256 proportionalReduction = (depositValue * _vaultFeeBP()) / 10000;
+            userInfo[user][packageId][poolIdHash].depositLiquidity -= proportionalReduction;
+        }
+        
+        if (migrateFee > 0) {
+            s_vaultFees += migrateFee;
+            emit VaultFeeDeducted(user, "migrate", migrateFee);
         }
 
         userInfo[user][packageId][poolIdHash].tokenId = _newTokenId;
@@ -806,6 +869,42 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         collectedFeesByPackages[user][poolIdHash][_packageInfo.packageId] += amount;
     }
 
+     /**
+    /**
+     * @notice Distribute referral fees across 3 levels.
+     * @param user The user who generated the fees.
+     * @param totalCompanyTax The total fee collected from the user.
+     * @param packageId The package ID of the user.
+     */
+    function _distributeReferralFees(address user, uint256 totalCompanyTax, uint256 packageId)
+        internal
+    {
+        if (totalCompanyTax == 0) return;
+        uint256 levels = s_config.getPackageReferralLevels(packageId);
+        if (levels == 0) {
+            s_companyFees += totalCompanyTax;
+            return;
+        }
+        address[] memory referrals = s_userManager.getReferrals(user, levels);
+        uint256 totalDistributed = 0;
+        uint256 bp = _BP();
+        for (uint256 i = 0; i < referrals.length; i++) {
+            address recipient = referrals[i];
+            if (recipient == address(0)) continue;
+            uint256 pct = s_config.getPackageReferralPct(packageId, i + 1);
+            uint256 share = (totalCompanyTax * pct) / bp;
+            if (share > 0) {
+                s_referralFees[recipient] += share;
+                totalDistributed += share;
+            }
+        }
+        if (totalCompanyTax > totalDistributed) {
+            s_companyFees += (totalCompanyTax - totalDistributed);
+        }
+        
+        emit ReferralFeesDistributed(user, totalDistributed);
+    }
+
     /**
      * @notice withdrawFunds
      * @param user Address of the user.
@@ -830,6 +929,92 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
        s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct);
+    }
+
+    function setPackageReferralPercentages(uint256 packageId, uint256[] calldata percentages) external onlyGeneralOrMasterAdmin {
+        s_config.setPackageReferralPercentages(packageId, percentages);
+    }
+
+    function getPackageReferralPctList(uint256 packageId) external onlyGeneralOrMasterAdmin view returns (uint256[] memory) {
+        return s_config.getPackageReferralPctList(packageId);
+    }
+
+    /**
+     * @notice Withdraw earned referral fees.
+     * @param referral The address of the referral user to withdraw fees for.
+     */
+    function withdrawReferralFees(address referral) external onlyVaultManager notEmergency {
+        if (referral == address(0)) revert VM_ZERO_ADDRESS();
+        uint256 amount = s_referralFees[referral];
+        if (amount == 0) revert VM_COMPANY_FEES_ZERO(); // Reusing error for zero fees
+
+        s_referralFees[referral] = 0;
+        _mainToken().safeTransfer(referral, amount);
+
+        emit ReferralFeesWithdrawn(referral, amount);
+    }
+
+    /**
+     * @notice Get earned referral fees for an address.
+     * @param referral The address of the referral.
+     * @return uint256 The earned referral fees.
+     */
+    function getReferralFees(address referral) external onlyGeneralOrMasterAdmin view returns (uint256) {
+        return s_referralFees[referral];
+    }
+
+    /**
+     * @notice Update the referral parent for multiple users and claim fees from the old parent to a specified address.
+     * @param users The addresses of the users.
+     * @param newParent The new referral parent's address.
+     * @param claimAddress The address where the claimed fees will be transferred.
+     */
+    function updateUserReferralAndClaimFee(
+        address[] calldata users,
+        address newParent,
+        address claimAddress
+    ) external onlyGeneralOrMasterAdmin {
+        for (uint256 i = 0; i < users.length; i++) {
+            address user = users[i];
+            address[] memory refs = s_userManager.getReferrals(user, 1);
+            address oldParent = refs.length > 0 ? refs[0] : address(0);
+
+            s_userManager.updateReferral(user, newParent);
+
+            if (oldParent != address(0)) {
+                uint256 amount = s_referralFees[oldParent];
+                if (amount > 0) {
+                    if (claimAddress == address(0)) revert VM_ZERO_ADDRESS();
+                    
+                    s_referralFees[oldParent] = 0;
+                    _mainToken().safeTransfer(claimAddress, amount);
+
+                    emit ReferralFeesWithdrawn(oldParent, amount);
+                }
+            }
+        }
+    }
+
+    /**
+     * @notice Returns the total accumulated vault fees.
+     */
+    function getVaultFees() external view onlyGeneralOrMasterAdmin returns (uint256) {
+        return s_vaultFees;
+    }
+
+    /**
+    * @notice Withdraw all accumulated vault fees to `to`.
+     * @dev Transfers s_vaultFees of main token and resets counter.
+     * @param to Recipient address for vault fees.
+     */
+    function withdrawVaultFees(address to) external onlyMasterAdmin {
+        if (to == address(0)) revert VM_ZERO_ADDRESS();
+        if (s_vaultFees == 0) revert VM_VAULT_FEES_ZERO();
+
+        uint256 amount = s_vaultFees;
+        s_vaultFees = 0;
+        _mainToken().safeTransfer(to, amount);
+        emit WithdrawVaultFees(to, amount);
     }
 
 
