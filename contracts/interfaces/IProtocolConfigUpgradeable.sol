@@ -7,6 +7,7 @@ interface IProtocolConfigUpgradeable {
         uint256 liquidityCap;
         uint256 feeCap;
         uint256 userFeesPct;
+        uint256 maxPools;
         uint256 expiryTime;
     }
 
@@ -28,9 +29,9 @@ interface IProtocolConfigUpgradeable {
 
     function getPackageCap(uint256 packageId) external view returns (CapInfo memory);
 
-    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime) external;
+    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _maxPools, uint256 _expiryTime) external;
 
-    function updatePackageCap ( uint256 packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime) external;
+    function updatePackageCap ( uint256 packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _maxPools, uint256 _expiryTime) external;
 
     function setPackageReferralPercentages( uint256 packageId, uint256[] calldata percentages) external;
 

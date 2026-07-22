@@ -53,6 +53,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         uint256 feeCapLimit;
         uint256 userFeePct;
         uint256 expiryTime;
+        uint256 maxPools;
+        uint256 activePoolsCount;
     }
 
     mapping(address => mapping( uint256 => mapping(bytes32 => UserInfo))) private userInfo;
@@ -308,6 +310,12 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         bytes32 poolIdHash = _formatPoolId(poolId);
         UserInfo storage userPosition = userInfo[user][packageId][poolIdHash];
 
+        if (userPosition.tokenId != 0) {
+            if (packageInfo[user][packageId].activePoolsCount > 0) {
+                packageInfo[user][packageId].activePoolsCount--;
+            }
+        }
+
         userPosition.tokenId = 0;
         userPosition.token0 = address(0);
         userPosition.token1 = address(0);
@@ -381,6 +389,10 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         UserInfo storage _userInfo = userInfo[userAddress][packageId][poolIdHash];
 
+        if (_userInfo.tokenId == 0 && packageInfo[userAddress][packageId].activePoolsCount >= packageInfo[userAddress][packageId].maxPools) {
+            revert VM_MAX_POOLS_EXCEEDED();
+        }
+
         if (_userInfo.tokenId != 0) {
             if (
                 !(
@@ -438,6 +450,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
 
         UserInfo storage userData = userInfo[userAddress][packageId][poolIdHash];        
         userData.tokenId = tokenId;
+
+        packageInfo[userAddress][packageId].activePoolsCount++;
         userData.token0 = token0Address;
         userData.token1 = token1Address;
         userData.tickLower = int128(tickLower);
@@ -799,6 +813,8 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         package.feeCapLimit = capInfo.feeCap;
         package.packageId = packageId;
         package.userFeePct = capInfo.userFeesPct;
+        package.maxPools = capInfo.maxPools;
+        package.activePoolsCount = 0;
         package.expiryTime = capInfo.expiryTime > 0 ? block.timestamp + capInfo.expiryTime : 0;
         emit UserPackageUpdated(user, packageId);
     }
@@ -872,14 +888,14 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
         IFundsManagerUpgradeable(_fundsManager()).withdrawFunds(user, address(_mainToken()), amount);
     }
 
-    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
+    function setPackageCap( uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _maxPools, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
-       s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct, _expiryTime);
+       s_config.setPackageCap(_liquidityCap, _feeCap, _userFeesPct, _maxPools, _expiryTime);
     }
 
-    function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
+    function updatePackageCap( uint256 _packageId, uint256 _liquidityCap, uint256 _feeCap, uint256 _userFeesPct, uint256 _maxPools, uint256 _expiryTime ) external onlyGeneralOrMasterAdmin {
        if (_userFeesPct > _BP()) revert VM_PERCENTAGE_OVERFLOW();
-       s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
+       s_config.updatePackageCap(_packageId, _liquidityCap, _feeCap, _userFeesPct, _maxPools, _expiryTime);
     }
 
     function setPackageReferralPercentages(uint256 packageId, uint256[] calldata percentages) external onlyGeneralOrMasterAdmin {

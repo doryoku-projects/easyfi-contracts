@@ -14,6 +14,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         uint256 liquidityCap;
         uint256 feeCap;
         uint256 userFeesPct;
+        uint256 maxPools;
         uint256 expiryTime;
     }
 
@@ -27,8 +28,8 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
     event ConfigAddressUpdated(bytes32 indexed key, address oldAddr, address newAddr);
     event ConfigUintUpdated(bytes32 indexed key, uint256 oldValue, uint256 newValue);
     event UserManagerSet();
-    event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 expiryTime);
-    event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 expiryTime);
+    event PackageCreated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 maxPools, uint256 expiryTime);
+    event PackageUpdated(uint256 indexed packageId, uint256 liquidityCap, uint256 feeCap, uint256 userFeesPct, uint256 maxPools, uint256 expiryTime);
     event PackageReferralPercentagesUpdated(uint256 indexed packageId, uint256[] percentages);
 
     /**
@@ -128,6 +129,7 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         uint256 _liquidityCap,
         uint256 _feeCap,
         uint256 _userFeesPct,
+        uint256 _maxPools,
         uint256 _expiryTime
     ) external onlyVaultOrLiquidityManager {
         s_packageCounter++;
@@ -138,8 +140,9 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
+        capInfo.maxPools = _maxPools;
         capInfo.expiryTime = _expiryTime;
-        emit PackageCreated(packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
+        emit PackageCreated(packageId, _liquidityCap, _feeCap, _userFeesPct, _maxPools, _expiryTime);
     }
 
     function updatePackageCap(
@@ -147,20 +150,22 @@ contract ProtocolConfigUpgradeable is UUPSUpgradeable, UserAccessControl, Protoc
         uint256 _liquidityCap,
         uint256 _feeCap,
         uint256 _userFeesPct,
+        uint256 _maxPools,
         uint256 _expiryTime
     ) external onlyVaultOrLiquidityManager {
         CapInfo storage capInfo = s_packageCap[packageId];
         if (capInfo.liquidityCap == 0) {
             revert PACKAGE_NOT_EXIST();
         }
-        if (capInfo.liquidityCap == _liquidityCap && capInfo.feeCap == _feeCap && capInfo.expiryTime == _expiryTime) {
+        if (capInfo.liquidityCap == _liquidityCap && capInfo.feeCap == _feeCap && capInfo.expiryTime == _expiryTime && capInfo.maxPools == _maxPools) {
             revert ALREADY_PACKAGE_ID_INFO_UPDATED();
         }
         capInfo.liquidityCap = _liquidityCap;
         capInfo.feeCap = _feeCap;
         capInfo.userFeesPct = _userFeesPct;
+        capInfo.maxPools = _maxPools;
         capInfo.expiryTime = _expiryTime;
-        emit PackageUpdated(packageId, _liquidityCap, _feeCap, _userFeesPct, _expiryTime);
+        emit PackageUpdated(packageId, _liquidityCap, _feeCap, _userFeesPct, _maxPools, _expiryTime);
     }
 
     function getPackageCap(uint256 packageId) external onlyVaultOrLiquidityManager view returns (CapInfo memory) {

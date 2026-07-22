@@ -80,4 +80,8 @@ abstract contract VaultManagerErrors {
      * @notice Thrown when attempting to use an expired package
      */
     error VM_PACKAGE_EXPIRED();
+    /**
+     * @notice Thrown when a user exceeds their max pools limit
+     */
+    error VM_MAX_POOLS_EXCEEDED();
 }
