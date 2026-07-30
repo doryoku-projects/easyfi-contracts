@@ -820,6 +820,65 @@ contract VaultManagerUpgradeable is UUPSUpgradeable, UserAccessControl, VaultMan
     }
 
     /**
+     * @notice upgradePackage
+     * @param user Address of the position owner.
+     * @param poolId Identifier of the pool.
+     * @param oldPackageId Identifier of the old package.
+     * @param newPackageId Identifier of the new package.
+     */
+    function upgradePackage(address user, string calldata poolId, uint256 oldPackageId, uint256 newPackageId) external onlyGeneralOrMasterAdmin {
+        IProtocolConfigUpgradeable.CapInfo memory capInfo = s_config.getPackageCap(newPackageId);
+        if (capInfo.liquidityCap == 0 && capInfo.feeCap == 0) {
+            revert VM_INVALID_PACKAGE_ID();
+        }
+
+        PackageInfo storage oldPackage = packageInfo[user][oldPackageId];
+        PackageInfo storage newPackage = packageInfo[user][newPackageId];
+
+        if (newPackage.packageId == newPackageId) {
+            revert VM_USER_PACKAGE_ALREADY_EXIST();
+        }
+
+        newPackage.liquidityCapLimit = capInfo.liquidityCap;
+        newPackage.feeCapLimit = capInfo.feeCap;
+        newPackage.packageId = newPackageId;
+        newPackage.userFeePct = capInfo.userFeesPct;
+        newPackage.maxPools = capInfo.maxPools;
+        newPackage.activePoolsCount = oldPackage.activePoolsCount;
+        newPackage.expiryTime = capInfo.expiryTime > 0 ? block.timestamp + capInfo.expiryTime : 0;
+
+        if (bytes(poolId).length > 0) {
+            bytes32 poolIdHash = _formatPoolId(poolId);
+            UserInfo storage oldUserInfo = userInfo[user][oldPackageId][poolIdHash];
+
+            if (oldUserInfo.tokenId != 0) {
+                UserInfo storage newUserInfo = userInfo[user][newPackageId][poolIdHash];
+                newUserInfo.tokenId = oldUserInfo.tokenId;
+                newUserInfo.token0 = oldUserInfo.token0;
+                newUserInfo.token1 = oldUserInfo.token1;
+                newUserInfo.tickLower = oldUserInfo.tickLower;
+                newUserInfo.tickUpper = oldUserInfo.tickUpper;
+                newUserInfo.feeToken0 = oldUserInfo.feeToken0;
+                newUserInfo.feeToken1 = oldUserInfo.feeToken1;
+                newUserInfo.collectedFees = oldUserInfo.collectedFees;
+                newUserInfo.depositLiquidity = oldUserInfo.depositLiquidity;
+
+                uint256 collectedFees = collectedFeesByPackages[user][poolIdHash][oldPackageId];
+                if (collectedFees > 0) {
+                    collectedFeesByPackages[user][poolIdHash][newPackageId] = collectedFees;
+                    delete collectedFeesByPackages[user][poolIdHash][oldPackageId];
+                }
+
+                delete userInfo[user][oldPackageId][poolIdHash];
+            }
+        }
+
+        delete packageInfo[user][oldPackageId];
+
+        emit UserPackageUpdated(user, newPackageId);
+    }
+
+    /**
      * @notice updateFees
      * @param user Address of the position owner.
      * @param poolIdHash Identifier of the pool.

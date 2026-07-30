@@ -61,6 +61,8 @@ interface IVaultManagerUpgradeable {
     function updateFees(address user, bytes32 poolId, uint256 amount) external;
 
     function getUserPackage(address user) external view returns (UserInfo memory);
+    
+    function upgradePackage(address user, string calldata poolId, uint256 oldPackageId, uint256 newPackageId) external;
 
     function withdrawFunds(address user, string calldata poolId, uint256 packageId) external;
 
