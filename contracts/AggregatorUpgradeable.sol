@@ -247,6 +247,9 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
     {
         if (hedgeCollateralAmount == 0) revert AGG_ZERO_AMOUNT();
 
+        IVaultManagerUpgradeable vault = _vaultManager();
+        if (vault.getUserInfo(msg.sender, poolId).tokenId == 0) revert AGG_NO_ACTIVE_POSITION();
+
         _mainToken().safeTransferFrom(msg.sender, _hedgeTreasury(), hedgeCollateralAmount);
 
         emit HedgeCollateralReceived(msg.sender, poolId, 0, hedgeCollateralAmount);
