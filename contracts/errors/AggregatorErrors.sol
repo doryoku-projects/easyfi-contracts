@@ -36,4 +36,8 @@ abstract contract AggregatorErrors {
      * @param size The size of the array that exceeded the limit.
      */
     error AGG_ARRAY_SIZE_LIMIT_EXCEEDED(string arrayName, uint256 size);
+    /**
+     * @notice caller has no active position in the given poolId
+     */
+    error AGG_NO_ACTIVE_POSITION();
 }

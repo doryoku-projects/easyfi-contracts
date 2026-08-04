@@ -27,8 +27,13 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
 
     uint256 private s_maxMigrationSize;
 
+    bytes32 private constant HEDGE_TREASURY_KEY = keccak256("HedgeTreasury");
+
     event ProtocolConfigSet();
     event UserManagerSet();
+    event HedgeCollateralReceived(
+        address indexed user, string poolId, uint256 tokenId, uint256 hedgeCollateralAmount
+    );
 
     function initialize(address _protocolConfig, address _userManager, uint256 _maxMigrationSize) public initializer {
         if (_protocolConfig == address(0) || _userManager == address(0)){
@@ -110,6 +115,17 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
     }
 
     /**
+     * @dev Fetch the hedge treasury address from central config. Deliberately not a function
+     * parameter on the hedge functions below — keeping it in config keeps collateral routing
+     * inside the same trust boundary as every other protocol-level address stored this way.
+     */
+    function _hedgeTreasury() internal view returns (address) {
+        address t = s_config.getAddress(HEDGE_TREASURY_KEY);
+        if (t == address(0)) revert AGG_ZERO_ADDRESS();
+        return t;
+    }
+
+    /**
      * @notice Fetch the information of a user in a specific pool.
      * @param user Address of the user.
      * @param poolId Identifier of the pool.
@@ -145,6 +161,26 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         int24 tickUpper,
         uint256 amountMainTokenDesired
     ) external nonReentrant onlyUser notEmergency returns (uint256 tokenId) {
+        tokenId = _mintOrIncreaseLiquidityInternal(
+            poolId, token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired
+        );
+    }
+
+    /**
+     * @dev Shared implementation behind mintPositionOrIncreaseLiquidity and
+     * mintPositionOrIncreaseLiquidityWithHedge. Extracted as a private helper so the existing,
+     * audited function becomes a thin wrapper over it — same selector, same gas cost, same
+     * bytecode path for every existing caller.
+     */
+    function _mintOrIncreaseLiquidityInternal(
+        string calldata poolId,
+        address token0Address,
+        address token1Address,
+        uint24 fee,
+        int24 tickLower,
+        int24 tickUpper,
+        uint256 amountMainTokenDesired
+    ) private returns (uint256 tokenId) {
         if (token0Address == address(0) || token1Address == address(0)) revert AGG_ZERO_ADDRESS();
         if (tickLower >= tickUpper) revert AGG_INVALID_TICK_RANGE();
         if (amountMainTokenDesired == 0) revert AGG_ZERO_AMOUNT();
@@ -161,6 +197,62 @@ contract AggregatorUpgradeable is UUPSUpgradeable, ReentrancyGuardUpgradeable, U
         tokenId = vault.mintOrIncreaseLiquidityPosition(
             poolId, token0Address, token1Address, fee, tickLower, tickUpper, actualReceived, msg.sender
         );
+    }
+
+    /**
+     * @notice Mint a new liquidity position or increase an existing one, in the same transaction
+     * as opting the position into IL hedge protection.
+     * @param poolId Identifier of the pool.
+     * @param token0Address Address of token0 in the pool.
+     * @param token1Address Address of token1 in the pool.
+     * @param fee Fee tier of the pool.
+     * @param tickLower Lower tick boundary of the position.
+     * @param tickUpper Upper tick boundary of the position.
+     * @param amountMainTokenDesired Desired amount of the main token to deposit as LP collateral.
+     * @param hedgeCollateralAmount Amount of the main token to route to the hedge treasury as opt-in collateral.
+     * @return tokenId The ID of the minted or updated position.
+     */
+    function mintPositionOrIncreaseLiquidityWithHedge(
+        string calldata poolId,
+        address token0Address,
+        address token1Address,
+        uint24 fee,
+        int24 tickLower,
+        int24 tickUpper,
+        uint256 amountMainTokenDesired,
+        uint256 hedgeCollateralAmount
+    ) external nonReentrant onlyUser notEmergency returns (uint256 tokenId) {
+        if (hedgeCollateralAmount == 0) revert AGG_ZERO_AMOUNT();
+
+        tokenId = _mintOrIncreaseLiquidityInternal(
+            poolId, token0Address, token1Address, fee, tickLower, tickUpper, amountMainTokenDesired
+        );
+
+        _mainToken().safeTransferFrom(msg.sender, _hedgeTreasury(), hedgeCollateralAmount);
+
+        emit HedgeCollateralReceived(msg.sender, poolId, tokenId, hedgeCollateralAmount);
+    }
+
+    /**
+     * @notice Opt an existing position into IL hedge protection by depositing collateral, without
+     * touching the LP position itself.
+     * @param poolId Identifier of the pool the caller already has an active position in.
+     * @param hedgeCollateralAmount Amount of the main token to route to the hedge treasury as opt-in collateral.
+     */
+    function depositHedgeCollateral(string calldata poolId, uint256 hedgeCollateralAmount)
+        external
+        nonReentrant
+        onlyUser
+        notEmergency
+    {
+        if (hedgeCollateralAmount == 0) revert AGG_ZERO_AMOUNT();
+
+        IVaultManagerUpgradeable vault = _vaultManager();
+        if (vault.getUserInfo(msg.sender, poolId).tokenId == 0) revert AGG_NO_ACTIVE_POSITION();
+
+        _mainToken().safeTransferFrom(msg.sender, _hedgeTreasury(), hedgeCollateralAmount);
+
+        emit HedgeCollateralReceived(msg.sender, poolId, 0, hedgeCollateralAmount);
     }
 
     /**
